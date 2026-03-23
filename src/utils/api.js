@@ -1,6 +1,9 @@
 // frontend/src/utils/api.js
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000/api';
 
+// 디버깅: 로드된 API URL 확인
+console.log('📡 API_BASE_URL:', API_BASE_URL);
+
 export const apiCall = async (method, endpoint, body = null, token = null) => {
   const options = {
     method,
