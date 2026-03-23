@@ -8,6 +8,54 @@
       name="description"
       content="Google Maps Automation Tool"
     />
+    <!-- AsiaHead 폰트 (4개 weight) -->
+    <style>
+      @font-face {
+        font-family: 'AsiaHead';
+        src: url('https://wvipjxivfxuwaxvlveyv.supabase.co/storage/v1/object/public/asiafont_asiahead/aasihead1.ttf') format('truetype');
+        font-weight: 300;
+        font-style: normal;
+        font-display: swap;
+      }
+
+      @font-face {
+        font-family: 'AsiaHead';
+        src: url('https://wvipjxivfxuwaxvlveyv.supabase.co/storage/v1/object/public/asiafont_asiahead/asihead2.ttf') format('truetype');
+        font-weight: 400;
+        font-style: normal;
+        font-display: swap;
+      }
+
+      @font-face {
+        font-family: 'AsiaHead';
+        src: url('https://wvipjxivfxuwaxvlveyv.supabase.co/storage/v1/object/public/asiafont_asiahead/asihead3.ttf') format('truetype');
+        font-weight: 600;
+        font-style: normal;
+        font-display: swap;
+      }
+
+      @font-face {
+        font-family: 'AsiaHead';
+        src: url('https://wvipjxivfxuwaxvlveyv.supabase.co/storage/v1/object/public/asiafont_asiahead/asihead4.ttf') format('truetype');
+        font-weight: 700;
+        font-style: normal;
+        font-display: swap;
+      }
+
+      * {
+        font-family: 'AsiaHead', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+      }
+
+      body {
+        font-family: 'AsiaHead', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+        margin: 0;
+        padding: 0;
+      }
+
+      html {
+        font-family: 'AsiaHead', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+      }
+    </style>
     <!-- 크롬 확장 프로그램 오류 차단 -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' http://localhost:4000 https://dortha-gorillalike-sha.ngrok-free.dev https://*.ngrok-free.dev https://*.ngrok.io; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' http://localhost:4000 https://dortha-gorillalike-sha.ngrok-free.dev https://*.ngrok-free.dev https://*.ngrok.io https://*.supabase.co" />
     <title>구글맵 자동화 도구</title>

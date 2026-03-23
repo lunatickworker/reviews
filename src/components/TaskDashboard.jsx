@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { mapApi } from '../utils/api';
+import { mapApi, logsApi } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 
 export default function TaskDashboard() {
   const { token } = useAuth();
   const [tasks, setTasks] = useState([]);
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [logs, setLogs] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
     completed: 0,
@@ -14,6 +16,7 @@ export default function TaskDashboard() {
   });
   const [loading, setLoading] = useState(true);
 
+  // 작업 데이터 가져오기
   useEffect(() => {
     const fetchTasks = async () => {
       try {
@@ -27,8 +30,33 @@ export default function TaskDashboard() {
       }
     };
     
-    if (token) fetchTasks();
+    if (token) {
+      fetchTasks();
+      // 10초마다 새로고침
+      const interval = setInterval(fetchTasks, 10000);
+      return () => clearInterval(interval);
+    }
   }, [token]);
+
+  // 선택된 작업의 로그 가져오기
+  useEffect(() => {
+    if (!selectedTask || !token) return;
+
+    const fetchLogs = async () => {
+      try {
+        const taskId = `task_${selectedTask.id}`;
+        const logsData = await logsApi.getByTaskId(taskId, 100, token);
+        setLogs(logsData || []);
+      } catch (error) {
+        console.error('로그 조회 실패:', error);
+      }
+    };
+
+    fetchLogs();
+    // 3초마다 로그 새로고침
+    const interval = setInterval(fetchLogs, 3000);
+    return () => clearInterval(interval);
+  }, [selectedTask, token]);
 
   const calculateStats = (taskList) => {
     const total = taskList.length;
@@ -43,6 +71,32 @@ export default function TaskDashboard() {
       inProgress,
       completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
     });
+  };
+
+  // Google Maps로 이동
+  const handleNavigateToPlace = (placeName) => {
+    const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(placeName)}`;
+    window.open(mapsUrl, '_blank');
+  };
+
+  const getReviewStatusLabel = (status) => {
+    const labels = {
+      'pending': '대기',
+      'in_progress': '진행중',
+      'completed': '완료',
+      'failed': '실패'
+    };
+    return labels[status] || status;
+  };
+
+  const getReviewStatusColor = (status) => {
+    const colors = {
+      'pending': '#f57f17',
+      'in_progress': '#1565c0',
+      'completed': '#2e7d32',
+      'failed': '#c62828'
+    };
+    return colors[status] || '#8b96a8';
   };
 
   if (loading) {
@@ -112,39 +166,112 @@ export default function TaskDashboard() {
         </p>
       </div>
 
-      {/* 작업 목록 */}
-      <div style={styles.taskListSection}>
-        <h3 style={styles.sectionTitle}>📋 작업 목록</h3>
-        {tasks.length === 0 ? (
-          <p style={styles.emptyText}>작업이 없습니다.</p>
-        ) : (
-          <div style={styles.tableWrapper}>
-            <table style={styles.table}>
-              <thead style={styles.thead}>
-                <tr>
-                  <th style={styles.th}>작업 위치</th>
-                  <th style={styles.th}>카테고리</th>
-                  <th style={styles.th}>설명</th>
-                  <th style={styles.th}>상태</th>
-                  <th style={styles.th}>작성자</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tasks.map((task, index) => (
-                  <tr key={index} style={styles.tr}>
-                    <td style={styles.td}>{task.place_name || '-'}</td>
-                    <td style={styles.td}>{task.category || '-'}</td>
-                    <td style={styles.td}>{task.description || '-'}</td>
-                    <td style={styles.td}>
-                      <span style={getStatusStyle(task.status)}>
-                        {getStatusLabel(task.status)}
+      {/* 메인 콘텐츠: 작업 목록 + 로그 */}
+      <div style={styles.mainContent}>
+        {/* 작업 목록 */}
+        <div style={styles.taskListSection}>
+          <h3 style={styles.sectionTitle}>📋 작업 목록</h3>
+          {tasks.length === 0 ? (
+            <p style={styles.emptyText}>작업이 없습니다.</p>
+          ) : (
+            <div style={styles.taskCardsContainer}>
+              {tasks.map((task) => (
+                <div
+                  key={task.id}
+                  style={{
+                    ...styles.taskCard,
+                    ...(selectedTask?.id === task.id && styles.taskCardSelected),
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => setSelectedTask(task)}
+                >
+                  <div style={styles.taskHeader}>
+                    <h4 style={styles.taskTitle}>{task.place_name}</h4>
+                    <span style={{
+                      ...styles.statusBadge,
+                      backgroundColor: `${getReviewStatusColor(task.status)}20`,
+                      color: getReviewStatusColor(task.status)
+                    }}>
+                      {getReviewStatusLabel(task.status)}
+                    </span>
+                  </div>
+
+                  <div style={styles.taskDetails}>
+                    <div style={styles.detailRow}>
+                      <span style={styles.detailLabel}>리뷰:</span>
+                      <span style={{
+                        color: getReviewStatusColor(task.review_status || 'pending')
+                      }}>
+                        {getReviewStatusLabel(task.review_status || 'pending')}
                       </span>
-                    </td>
-                    <td style={styles.td}>{task.creator_id || '-'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                    <div style={styles.detailRow}>
+                      <span style={styles.detailLabel}>이미지:</span>
+                      <span style={{
+                        color: getReviewStatusColor(task.image_status || 'pending')
+                      }}>
+                        {getReviewStatusLabel(task.image_status || 'pending')}
+                      </span>
+                    </div>
+                    <div style={styles.detailRow}>
+                      <span style={styles.detailLabel}>현재:</span>
+                      <span style={styles.currentStep}>
+                        {task.current_step || '대기 중'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleNavigateToPlace(task.place_name);
+                    }}
+                    style={styles.viewMapButton}
+                  >
+                    🗺️ Google Maps
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 로그 뷰 */}
+        {selectedTask && (
+          <div style={styles.logsSection}>
+            <div style={styles.logsHeader}>
+              <h3 style={styles.sectionTitle}>📜 진행 로그</h3>
+              <span style={styles.logsInfo}>{selectedTask.place_name}</span>
+              <button
+                onClick={() => setSelectedTask(null)}
+                style={styles.closeButton}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={styles.logsContainer}>
+              {logs.length === 0 ? (
+                <p style={styles.emptyLogs}>로그가 없습니다.</p>
+              ) : (
+                <div style={styles.logsList}>
+                  {logs.map((log, index) => (
+                    <div key={index} style={styles.logEntry}>
+                      <div style={styles.logTime}>
+                        {new Date(log.timestamp).toLocaleTimeString('ko-KR')}
+                      </div>
+                      <div style={{
+                        ...styles.logLevel,
+                        color: getLogLevelColor(log.log_level)
+                      }}>
+                        [{log.log_level}]
+                      </div>
+                      <div style={styles.logMessage}>{log.message}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -152,43 +279,14 @@ export default function TaskDashboard() {
   );
 }
 
-function getStatusLabel(status) {
-  const labels = {
-    pending: '대기 중',
-    in_progress: '진행 중',
-    completed: '완료',
+function getLogLevelColor(level) {
+  const colors = {
+    'DEBUG': '#90caf9',
+    'INFO': '#81c784',
+    'WARN': '#ffb74d',
+    'ERROR': '#ef5350'
   };
-  return labels[status] || status;
-}
-
-function getStatusStyle(status) {
-  const styles = {
-    pending: {
-      padding: '4px 10px',
-      borderRadius: '4px',
-      backgroundColor: 'rgba(255, 193, 7, 0.2)',
-      color: '#f57f17',
-      fontSize: '12px',
-      fontWeight: '600',
-    },
-    in_progress: {
-      padding: '4px 10px',
-      borderRadius: '4px',
-      backgroundColor: 'rgba(33, 150, 243, 0.2)',
-      color: '#1565c0',
-      fontSize: '12px',
-      fontWeight: '600',
-    },
-    completed: {
-      padding: '4px 10px',
-      borderRadius: '4px',
-      backgroundColor: 'rgba(76, 175, 80, 0.2)',
-      color: '#2e7d32',
-      fontSize: '12px',
-      fontWeight: '600',
-    },
-  };
-  return styles[status] || {};
+  return colors[level] || '#8b96a8';
 }
 
 const styles = {
@@ -200,13 +298,13 @@ const styles = {
     textAlign: 'center',
     padding: '40px',
     fontSize: '16px',
-    color: '#888',
+    color: '#8b96a8',
   },
 
   title: {
     fontSize: '24px',
     fontWeight: 'bold',
-    color: '#6b4c8a',
+    color: '#ffffff',
     marginBottom: '30px',
   },
 
@@ -222,10 +320,10 @@ const styles = {
     alignItems: 'center',
     gap: '15px',
     padding: '20px',
-    background: 'rgba(230, 190, 255, 0.3)',
+    background: 'rgba(124, 58, 237, 0.15)',
     backdropFilter: 'blur(10px)',
     borderRadius: '12px',
-    border: '1px solid rgba(200, 150, 255, 0.4)',
+    border: '1px solid rgba(124, 58, 237, 0.3)',
     transition: 'all 0.3s ease',
   },
 
@@ -240,7 +338,7 @@ const styles = {
   statLabel: {
     margin: 0,
     fontSize: '12px',
-    color: '#b19cd9',
+    color: '#8b96a8',
     fontWeight: '500',
   },
 
@@ -248,28 +346,28 @@ const styles = {
     margin: '5px 0 0 0',
     fontSize: '28px',
     fontWeight: 'bold',
-    color: '#6b4c8a',
+    color: '#ffffff',
   },
 
   progressSection: {
     marginBottom: '40px',
     padding: '20px',
-    background: 'rgba(230, 190, 255, 0.2)',
+    background: 'rgba(37, 45, 66, 0.6)',
     backdropFilter: 'blur(10px)',
     borderRadius: '12px',
-    border: '1px solid rgba(200, 150, 255, 0.3)',
+    border: '1px solid rgba(124, 58, 237, 0.2)',
   },
 
   sectionTitle: {
     fontSize: '16px',
     fontWeight: 'bold',
-    color: '#6b4c8a',
+    color: '#ffffff',
     marginBottom: '15px',
   },
 
   progressBar: {
     height: '30px',
-    backgroundColor: 'rgba(200, 200, 200, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: '15px',
     overflow: 'hidden',
     marginBottom: '10px',
@@ -277,7 +375,7 @@ const styles = {
 
   progressFill: {
     height: '100%',
-    background: 'linear-gradient(90deg, #e6befc, #ffd6e8)',
+    background: 'linear-gradient(90deg, #7c3aed, #da127d)',
     borderRadius: '15px',
     transition: 'width 0.3s ease',
   },
@@ -285,53 +383,187 @@ const styles = {
   progressText: {
     margin: 0,
     fontSize: '12px',
-    color: '#b19cd9',
+    color: '#8b96a8',
     fontWeight: '500',
+  },
+
+  mainContent: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(300px, 1fr) 1fr',
+    gap: '20px',
+    marginBottom: '20px',
   },
 
   taskListSection: {
     padding: '20px',
-    background: 'rgba(230, 190, 255, 0.2)',
+    background: 'rgba(37, 45, 66, 0.6)',
     backdropFilter: 'blur(10px)',
     borderRadius: '12px',
-    border: '1px solid rgba(200, 150, 255, 0.3)',
+    border: '1px solid rgba(124, 58, 237, 0.2)',
+    maxHeight: '600px',
+    overflowY: 'auto',
   },
 
   emptyText: {
     textAlign: 'center',
-    color: '#bbb',
+    color: '#8b96a8',
     padding: '40px 20px',
   },
 
-  tableWrapper: {
-    overflowX: 'auto',
+  taskCardsContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
   },
 
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
+  taskCard: {
+    padding: '15px',
+    background: 'rgba(37, 45, 66, 0.4)',
+    border: '1px solid rgba(124, 58, 237, 0.2)',
+    borderRadius: '8px',
+    transition: 'all 0.3s ease',
+  },
+
+  taskCardSelected: {
+    background: 'rgba(124, 58, 237, 0.25)',
+    border: '2px solid rgba(124, 58, 237, 0.6)',
+    boxShadow: '0 0 12px rgba(124, 58, 237, 0.3)',
+  },
+
+  taskHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '10px',
+  },
+
+  taskTitle: {
+    margin: 0,
     fontSize: '14px',
-  },
-
-  thead: {
-    background: 'rgba(200, 150, 255, 0.3)',
-  },
-
-  th: {
-    padding: '12px',
-    textAlign: 'left',
-    color: '#6b4c8a',
     fontWeight: '600',
-    borderBottom: '2px solid rgba(200, 150, 255, 0.4)',
+    color: '#ffffff',
   },
 
-  tr: {
-    borderBottom: '1px solid rgba(200, 150, 255, 0.2)',
-    transition: 'all 0.2s ease',
+  statusBadge: {
+    padding: '4px 8px',
+    borderRadius: '4px',
+    fontSize: '11px',
+    fontWeight: '600',
   },
 
-  td: {
-    padding: '12px',
-    color: '#555',
+  taskDetails: {
+    fontSize: '12px',
+    margin: '10px 0',
+  },
+
+  detailRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    marginBottom: '5px',
+    color: '#e0e0e0',
+  },
+
+  detailLabel: {
+    color: '#8b96a8',
+    fontWeight: '500',
+  },
+
+  currentStep: {
+    color: '#90caf9',
+    fontStyle: 'italic',
+  },
+
+  viewMapButton: {
+    width: '100%',
+    padding: '8px',
+    marginTop: '10px',
+    background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.3), rgba(218, 18, 125, 0.2))',
+    border: '1px solid rgba(124, 58, 237, 0.4)',
+    borderRadius: '6px',
+    color: '#7c3aed',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: '600',
+    transition: 'all 0.3s ease',
+  },
+
+  logsSection: {
+    padding: '20px',
+    background: 'rgba(37, 45, 66, 0.6)',
+    backdropFilter: 'blur(10px)',
+    borderRadius: '12px',
+    border: '1px solid rgba(124, 58, 237, 0.2)',
+    minHeight: '600px',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+
+  logsHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '15px',
+    paddingBottom: '10px',
+    borderBottom: '1px solid rgba(124, 58, 237, 0.2)',
+  },
+
+  logsInfo: {
+    fontSize: '12px',
+    color: '#8b96a8',
+    flex: 1,
+    marginLeft: '10px',
+  },
+
+  closeButton: {
+    background: 'transparent',
+    border: 'none',
+    color: '#8b96a8',
+    fontSize: '18px',
+    cursor: 'pointer',
+    padding: '0 5px',
+  },
+
+  logsContainer: {
+    flex: 1,
+    overflow: 'auto',
+    background: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: '8px',
+    padding: '10px',
+  },
+
+  emptyLogs: {
+    textAlign: 'center',
+    color: '#8b96a8',
+    padding: '40px 20px',
+  },
+
+  logsList: {
+    fontFamily: 'monospace',
+    fontSize: '12px',
+  },
+
+  logEntry: {
+    display: 'grid',
+    gridTemplateColumns: '80px 60px 1fr',
+    gap: '10px',
+    padding: '8px',
+    borderBottom: '1px solid rgba(124, 58, 237, 0.1)',
+    marginBottom: '4px',
+    alignItems: 'flex-start',
+  },
+
+  logTime: {
+    color: '#90caf9',
+    fontSize: '11px',
+  },
+
+  logLevel: {
+    fontSize: '11px',
+    fontWeight: '600',
+  },
+
+  logMessage: {
+    color: '#e0e0e0',
+    wordBreak: 'break-word',
   },
 };

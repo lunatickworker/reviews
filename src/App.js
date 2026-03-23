@@ -16,7 +16,7 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <div style={{ fontFamily: 'Arial, sans-serif' }}>
+      <div style={{ fontFamily: "'AsiaHead', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
         <AppContent />
       </div>
     </AuthProvider>

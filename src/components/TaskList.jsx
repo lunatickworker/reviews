@@ -140,26 +140,26 @@ export default function TaskList() {
 
 const styles = {
   container: {
-    background: 'rgba(255, 240, 245, 0.4)',
+    background: 'rgba(37, 45, 66, 0.7)',
     backdropFilter: 'blur(10px)',
     borderRadius: '12px',
     padding: '25px',
-    border: '1px solid rgba(219, 112, 147, 0.2)',
-    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+    border: '1px solid rgba(124, 58, 237, 0.2)',
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
   },
 
   title: {
     margin: '0 0 20px 0',
-    color: '#6b4c8a',
+    color: '#ffffff',
     fontSize: '22px',
     fontWeight: '600',
   },
 
   error: {
-    color: '#d63384',
+    color: '#ff6b9d',
     marginBottom: '15px',
     padding: '10px 12px',
-    background: 'rgba(214, 51, 132, 0.1)',
+    background: 'rgba(218, 18, 125, 0.1)',
     borderRadius: '6px',
     fontSize: '13px',
   },
@@ -167,7 +167,7 @@ const styles = {
   emptyState: {
     textAlign: 'center',
     padding: '40px 20px',
-    color: '#b19cd9',
+    color: '#8b96a8',
     fontSize: '16px',
   },
 
@@ -179,48 +179,48 @@ const styles = {
   table: {
     width: '100%',
     borderCollapse: 'collapse',
-    background: 'rgba(255, 255, 255, 0.6)',
+    background: 'rgba(37, 45, 66, 0.5)',
     borderRadius: '8px',
     overflow: 'hidden',
     backdropFilter: 'blur(5px)',
   },
 
   thead: {
-    background: 'rgba(200, 150, 255, 0.3)',
+    background: 'rgba(124, 58, 237, 0.2)',
   },
 
   headerRow: {
-    borderBottom: '2px solid rgba(219, 112, 147, 0.3)',
+    borderBottom: '2px solid rgba(124, 58, 237, 0.3)',
   },
 
   th: {
     padding: '15px 12px',
     textAlign: 'left',
     fontWeight: '600',
-    color: '#6b4c8a',
+    color: '#ffffff',
     fontSize: '13px',
-    borderRight: '1px solid rgba(219, 112, 147, 0.2)',
+    borderRight: '1px solid rgba(124, 58, 237, 0.2)',
     whiteSpace: 'nowrap',
   },
 
   bodyRow: {
-    borderBottom: '1px solid rgba(219, 112, 147, 0.2)',
+    borderBottom: '1px solid rgba(124, 58, 237, 0.15)',
     transition: 'background-color 0.2s ease',
   },
 
   td: {
     padding: '14px 12px',
     fontSize: '13px',
-    color: '#5a3f7d',
-    borderRight: '1px solid rgba(219, 112, 147, 0.1)',
+    color: '#e0e0e0',
+    borderRight: '1px solid rgba(124, 58, 237, 0.1)',
   },
 
   select: {
     padding: '6px 8px',
-    border: '1px solid rgba(200, 150, 255, 0.4)',
+    border: '1px solid rgba(124, 58, 237, 0.3)',
     borderRadius: '6px',
-    backgroundColor: 'rgba(230, 190, 255, 0.3)',
-    color: '#6b4c8a',
+    backgroundColor: 'rgba(30, 33, 57, 0.8)',
+    color: '#e0e0e0',
     fontSize: '12px',
     cursor: 'pointer',
     width: '100%',
@@ -230,14 +230,14 @@ const styles = {
     cursor: 'pointer',
     width: '16px',
     height: '16px',
-    accentColor: '#b19cd9',
+    accentColor: '#7c3aed',
   },
 
   deleteButton: {
     padding: '6px 12px',
-    backgroundColor: 'rgba(214, 51, 132, 0.3)',
-    color: '#d63384',
-    border: '1px solid rgba(214, 51, 132, 0.5)',
+    backgroundColor: 'rgba(218, 18, 125, 0.2)',
+    color: '#ff6b9d',
+    border: '1px solid rgba(218, 18, 125, 0.4)',
     borderRadius: '6px',
     cursor: 'pointer',
     fontSize: '12px',

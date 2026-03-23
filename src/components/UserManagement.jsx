@@ -186,37 +186,37 @@ export default function UserManagement() {
 
 const styles = {
   container: {
-    background: 'rgba(255, 240, 245, 0.4)',
+    background: 'rgba(37, 45, 66, 0.7)',
     backdropFilter: 'blur(10px)',
     borderRadius: '12px',
     padding: '30px',
-    border: '1px solid rgba(219, 112, 147, 0.2)',
-    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+    border: '1px solid rgba(124, 58, 237, 0.2)',
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
   },
 
   title: {
     margin: '0 0 20px 0',
-    color: '#6b4c8a',
+    color: '#ffffff',
     fontSize: '24px',
     fontWeight: '600',
   },
 
   error: {
     padding: '12px 15px',
-    backgroundColor: 'rgba(214, 51, 132, 0.15)',
-    border: '1px solid rgba(214, 51, 132, 0.3)',
+    backgroundColor: 'rgba(218, 18, 125, 0.15)',
+    border: '1px solid rgba(218, 18, 125, 0.3)',
     borderRadius: '8px',
-    color: '#d63384',
+    color: '#ff6b9d',
     fontSize: '14px',
     marginBottom: '15px',
   },
 
   createButton: {
     padding: '12px 20px',
-    backgroundColor: 'rgba(177, 156, 217, 0.4)',
-    border: '1px solid rgba(177, 156, 217, 0.6)',
+    backgroundColor: 'rgba(124, 58, 237, 0.5)',
+    border: '1px solid rgba(124, 58, 237, 0.6)',
     borderRadius: '8px',
-    color: '#6b4c8a',
+    color: '#ffffff',
     cursor: 'pointer',
     fontSize: '14px',
     fontWeight: '600',
@@ -230,9 +230,9 @@ const styles = {
     gap: '15px',
     marginBottom: '25px',
     padding: '20px',
-    background: 'rgba(200, 150, 255, 0.1)',
+    background: 'rgba(124, 58, 237, 0.1)',
     borderRadius: '8px',
-    border: '1px solid rgba(200, 150, 255, 0.3)',
+    border: '1px solid rgba(124, 58, 237, 0.2)',
     backdropFilter: 'blur(5px)',
     flexWrap: 'wrap',
     alignItems: 'flex-end',
@@ -248,27 +248,27 @@ const styles = {
   label: {
     fontSize: '12px',
     fontWeight: '600',
-    color: '#6b4c8a',
+    color: '#e0e0e0',
     textTransform: 'uppercase',
     letterSpacing: '0.5px',
   },
 
   input: {
     padding: '10px 12px',
-    border: '1px solid rgba(200, 150, 255, 0.4)',
+    border: '1px solid rgba(124, 58, 237, 0.3)',
     borderRadius: '6px',
     fontSize: '13px',
-    backgroundColor: 'rgba(230, 190, 255, 0.2)',
-    color: '#5a3f7d',
+    backgroundColor: 'rgba(30, 33, 57, 0.8)',
+    color: '#e0e0e0',
     backdropFilter: 'blur(5px)',
   },
 
   submitButton: {
     padding: '10px 20px',
-    backgroundColor: 'rgba(156, 180, 159, 0.4)',
-    border: '1px solid rgba(156, 180, 159, 0.6)',
+    backgroundColor: 'rgba(76, 175, 80, 0.3)',
+    border: '1px solid rgba(76, 175, 80, 0.5)',
     borderRadius: '6px',
-    color: '#4a6741',
+    color: '#76ff03',
     cursor: 'pointer',
     fontSize: '13px',
     fontWeight: '600',
@@ -278,9 +278,9 @@ const styles = {
 
   tableWrapper: {
     borderRadius: '8px',
-    border: '1px solid rgba(177, 156, 217, 0.2)',
+    border: '1px solid rgba(124, 58, 237, 0.2)',
     overflow: 'hidden',
-    background: 'rgba(255, 255, 255, 0.05)',
+    background: 'rgba(37, 45, 66, 0.5)',
     backdropFilter: 'blur(5px)',
   },
 
@@ -291,14 +291,14 @@ const styles = {
   },
 
   headerRow: {
-    backgroundColor: 'rgba(177, 156, 217, 0.15)',
-    borderBottom: '2px solid rgba(177, 156, 217, 0.3)',
+    backgroundColor: 'rgba(124, 58, 237, 0.2)',
+    borderBottom: '2px solid rgba(124, 58, 237, 0.3)',
   },
 
   th: {
     padding: '12px 15px',
     textAlign: 'left',
-    color: '#6b4c8a',
+    color: '#ffffff',
     fontWeight: '600',
     fontSize: '12px',
     textTransform: 'uppercase',
@@ -306,45 +306,45 @@ const styles = {
   },
 
   tr: {
-    borderBottom: '1px solid rgba(200, 150, 255, 0.2)',
+    borderBottom: '1px solid rgba(124, 58, 237, 0.15)',
     transition: 'background-color 0.2s ease',
   },
 
   td: {
     padding: '12px 15px',
-    color: '#5a3f7d',
+    color: '#e0e0e0',
   },
 
   loadingCell: {
     padding: '20px',
     textAlign: 'center',
-    color: '#b19cd9',
+    color: '#8b96a8',
     fontStyle: 'italic',
   },
 
   emptyCellBG: {
     padding: '20px',
     textAlign: 'center',
-    color: '#b19cd9',
+    color: '#8b96a8',
     fontStyle: 'italic',
   },
 
   roleSelect: {
     padding: '6px 8px',
-    border: '1px solid rgba(177, 156, 217, 0.4)',
+    border: '1px solid rgba(124, 58, 237, 0.3)',
     borderRadius: '4px',
     fontSize: '12px',
-    backgroundColor: 'rgba(230, 190, 255, 0.15)',
-    color: '#5a3f7d',
+    backgroundColor: 'rgba(30, 33, 57, 0.8)',
+    color: '#e0e0e0',
     cursor: 'pointer',
   },
 
   deleteButton: {
     padding: '6px 10px',
-    backgroundColor: 'rgba(214, 51, 132, 0.25)',
-    border: '1px solid rgba(214, 51, 132, 0.4)',
+    backgroundColor: 'rgba(218, 18, 125, 0.2)',
+    border: '1px solid rgba(218, 18, 125, 0.4)',
     borderRadius: '4px',
-    color: '#d63384',
+    color: '#ff6b9d',
     cursor: 'pointer',
     fontSize: '12px',
     fontWeight: '600',
@@ -355,15 +355,15 @@ const styles = {
   accessDenied: {
     padding: '40px 20px',
     textAlign: 'center',
-    background: 'rgba(214, 51, 132, 0.1)',
+    background: 'rgba(218, 18, 125, 0.1)',
     borderRadius: '8px',
-    border: '1px solid rgba(214, 51, 132, 0.3)',
+    border: '1px solid rgba(218, 18, 125, 0.3)',
   },
 
   deniedText: {
     margin: '0',
     fontSize: '16px',
     fontWeight: '600',
-    color: '#d63384',
+    color: '#ff6b9d',
   },
 };

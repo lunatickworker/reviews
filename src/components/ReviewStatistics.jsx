@@ -183,7 +183,7 @@ const styles = {
     textAlign: 'center',
     padding: '40px',
     fontSize: '16px',
-    color: '#888',
+    color: '#8b96a8',
   },
 
   header: {
@@ -193,7 +193,7 @@ const styles = {
   title: {
     fontSize: '24px',
     fontWeight: 'bold',
-    color: '#6b4c8a',
+    color: '#ffffff',
     marginBottom: '15px',
   },
 
@@ -205,10 +205,10 @@ const styles = {
 
   dateButton: {
     padding: '10px 20px',
-    border: '1px solid rgba(200, 150, 255, 0.4)',
+    border: '1px solid rgba(124, 58, 237, 0.3)',
     borderRadius: '8px',
-    backgroundColor: 'rgba(230, 190, 255, 0.2)',
-    color: '#6b4c8a',
+    backgroundColor: 'rgba(124, 58, 237, 0.1)',
+    color: '#b0b9c6',
     cursor: 'pointer',
     fontWeight: '500',
     fontSize: '13px',
@@ -216,9 +216,9 @@ const styles = {
   },
 
   dateButtonActive: {
-    backgroundColor: 'rgba(200, 150, 255, 0.6)',
-    color: '#5a3f7d',
-    borderColor: 'rgba(200, 150, 255, 0.8)',
+    backgroundColor: 'rgba(124, 58, 237, 0.4)',
+    color: '#ffffff',
+    borderColor: 'rgba(124, 58, 237, 0.6)',
   },
 
   summaryGrid: {
@@ -230,17 +230,17 @@ const styles = {
 
   summaryCard: {
     padding: '20px',
-    background: 'rgba(230, 190, 255, 0.3)',
+    background: 'rgba(124, 58, 237, 0.15)',
     backdropFilter: 'blur(10px)',
     borderRadius: '12px',
-    border: '1px solid rgba(200, 150, 255, 0.4)',
+    border: '1px solid rgba(124, 58, 237, 0.3)',
     textAlign: 'center',
   },
 
   summaryLabel: {
     margin: '0 0 10px 0',
     fontSize: '12px',
-    color: '#b19cd9',
+    color: '#8b96a8',
     fontWeight: '500',
   },
 
@@ -248,34 +248,34 @@ const styles = {
     margin: '0 0 5px 0',
     fontSize: '32px',
     fontWeight: 'bold',
-    color: '#6b4c8a',
+    color: '#ffffff',
   },
 
   summarySubValue: {
     margin: 0,
     fontSize: '12px',
-    color: '#b19cd9',
+    color: '#8b96a8',
   },
 
   section: {
     marginBottom: '30px',
     padding: '20px',
-    background: 'rgba(230, 190, 255, 0.2)',
+    background: 'rgba(37, 45, 66, 0.6)',
     backdropFilter: 'blur(10px)',
     borderRadius: '12px',
-    border: '1px solid rgba(200, 150, 255, 0.3)',
+    border: '1px solid rgba(124, 58, 237, 0.2)',
   },
 
   sectionTitle: {
     fontSize: '16px',
     fontWeight: 'bold',
-    color: '#6b4c8a',
+    color: '#ffffff',
     marginBottom: '20px',
   },
 
   emptyText: {
     textAlign: 'center',
-    color: '#bbb',
+    color: '#8b96a8',
     padding: '20px',
   },
 
@@ -290,32 +290,32 @@ const styles = {
   },
 
   thead: {
-    background: 'rgba(200, 150, 255, 0.3)',
+    background: 'rgba(124, 58, 237, 0.2)',
   },
 
   th: {
     padding: '12px',
     textAlign: 'left',
-    color: '#6b4c8a',
+    color: '#ffffff',
     fontWeight: '600',
-    borderBottom: '2px solid rgba(200, 150, 255, 0.4)',
+    borderBottom: '2px solid rgba(124, 58, 237, 0.3)',
   },
 
   tr: {
-    borderBottom: '1px solid rgba(200, 150, 255, 0.2)',
+    borderBottom: '1px solid rgba(124, 58, 237, 0.15)',
     transition: 'all 0.2s ease',
   },
 
   td: {
     padding: '12px',
-    color: '#555',
+    color: '#e0e0e0',
   },
 
   badge: {
     display: 'inline-block',
     padding: '4px 10px',
-    backgroundColor: 'rgba(200, 150, 255, 0.4)',
-    color: '#6b4c8a',
+    backgroundColor: 'rgba(124, 58, 237, 0.3)',
+    color: '#ffffff',
     borderRadius: '12px',
     fontWeight: '600',
     fontSize: '12px',
@@ -330,7 +330,7 @@ const styles = {
 
   progressBar: {
     height: '20px',
-    background: 'linear-gradient(90deg, #e6befc, #ffd6e8)',
+    background: 'linear-gradient(90deg, #7c3aed, #da127d)',
     borderRadius: '10px',
     minWidth: '20px',
     transition: 'width 0.3s ease',
@@ -338,7 +338,7 @@ const styles = {
 
   percentage: {
     fontSize: '12px',
-    color: '#999',
+    color: '#8b96a8',
     whiteSpace: 'nowrap',
   },
 
@@ -350,17 +350,17 @@ const styles = {
 
   chartCard: {
     padding: '20px',
-    background: 'rgba(255, 255, 255, 0.5)',
+    background: 'rgba(37, 45, 66, 0.6)',
     backdropFilter: 'blur(5px)',
     borderRadius: '10px',
-    border: '1px solid rgba(200, 150, 255, 0.3)',
+    border: '1px solid rgba(124, 58, 237, 0.2)',
     textAlign: 'center',
   },
 
   chartDate: {
     margin: '0 0 10px 0',
     fontSize: '12px',
-    color: '#b19cd9',
+    color: '#8b96a8',
     fontWeight: '500',
   },
 
@@ -368,13 +368,13 @@ const styles = {
     margin: '0 0 5px 0',
     fontSize: '24px',
     fontWeight: 'bold',
-    color: '#6b4c8a',
+    color: '#ffffff',
   },
 
   chartLabel: {
     margin: 0,
     fontSize: '12px',
-    color: '#999',
+    color: '#8b96a8',
   },
 
   barChartContainer: {
@@ -403,16 +403,16 @@ const styles = {
 
   bar: {
     width: '40px',
-    background: 'linear-gradient(180deg, #e6befc, #ffd6e8)',
+    background: 'linear-gradient(180deg, #7c3aed, #da127d)',
     borderRadius: '8px 8px 0 0',
     transition: 'all 0.3s ease',
-    boxShadow: '0 2px 8px rgba(230, 190, 255, 0.4)',
+    boxShadow: '0 2px 8px rgba(124, 58, 237, 0.3)',
   },
 
   barLabel: {
     margin: 0,
     fontSize: '12px',
-    color: '#b19cd9',
+    color: '#8b96a8',
     fontWeight: '500',
     whiteSpace: 'nowrap',
   },
@@ -421,6 +421,6 @@ const styles = {
     margin: 0,
     fontSize: '14px',
     fontWeight: 'bold',
-    color: '#6b4c8a',
+    color: '#ffffff',
   },
 };

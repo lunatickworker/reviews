@@ -35,7 +35,7 @@ export default function MapAutomation() {
   };
 
   return (
-    <div style={{ maxWidth: '600px', margin: '20px auto', fontFamily: 'Arial, sans-serif' }}>
+    <div style={{ maxWidth: '600px', margin: '20px auto', fontFamily: "'AsiaHead', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
       <h2>구글맵 자동화 도구</h2>
       <input
         type="text"

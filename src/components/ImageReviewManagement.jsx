@@ -183,13 +183,13 @@ const styles = {
     textAlign: 'center',
     padding: '40px',
     fontSize: '16px',
-    color: '#888',
+    color: '#8b96a8',
   },
 
   title: {
     fontSize: '24px',
     fontWeight: 'bold',
-    color: '#6b4c8a',
+    color: '#ffffff',
     marginBottom: '30px',
   },
 
@@ -202,17 +202,17 @@ const styles = {
 
   statCard: {
     padding: '20px',
-    background: 'rgba(230, 190, 255, 0.3)',
+    background: 'rgba(124, 58, 237, 0.15)',
     backdropFilter: 'blur(10px)',
     borderRadius: '12px',
-    border: '1px solid rgba(200, 150, 255, 0.4)',
+    border: '1px solid rgba(124, 58, 237, 0.3)',
     textAlign: 'center',
   },
 
   statLabel: {
     margin: '0 0 10px 0',
     fontSize: '12px',
-    color: '#b19cd9',
+    color: '#8b96a8',
     fontWeight: '500',
   },
 
@@ -220,7 +220,7 @@ const styles = {
     margin: 0,
     fontSize: '28px',
     fontWeight: 'bold',
-    color: '#6b4c8a',
+    color: '#ffffff',
   },
 
   filterSection: {
@@ -232,10 +232,10 @@ const styles = {
 
   filterButton: {
     padding: '10px 20px',
-    border: '1px solid rgba(200, 150, 255, 0.4)',
+    border: '1px solid rgba(124, 58, 237, 0.3)',
     borderRadius: '8px',
-    backgroundColor: 'rgba(230, 190, 255, 0.2)',
-    color: '#6b4c8a',
+    backgroundColor: 'rgba(124, 58, 237, 0.1)',
+    color: '#b0b9c6',
     cursor: 'pointer',
     fontWeight: '500',
     fontSize: '13px',
@@ -243,14 +243,14 @@ const styles = {
   },
 
   filterButtonActive: {
-    backgroundColor: 'rgba(200, 150, 255, 0.6)',
-    color: '#5a3f7d',
-    borderColor: 'rgba(200, 150, 255, 0.8)',
+    backgroundColor: 'rgba(124, 58, 237, 0.4)',
+    color: '#ffffff',
+    borderColor: 'rgba(124, 58, 237, 0.6)',
   },
 
   emptyText: {
     textAlign: 'center',
-    color: '#bbb',
+    color: '#8b96a8',
     padding: '40px 20px',
   },
 
@@ -261,10 +261,10 @@ const styles = {
   },
 
   card: {
-    background: 'rgba(230, 190, 255, 0.2)',
+    background: 'rgba(37, 45, 66, 0.6)',
     backdropFilter: 'blur(10px)',
     borderRadius: '12px',
-    border: '1px solid rgba(200, 150, 255, 0.3)',
+    border: '1px solid rgba(124, 58, 237, 0.2)',
     overflow: 'hidden',
     transition: 'all 0.3s ease',
   },
@@ -272,7 +272,7 @@ const styles = {
   imageSection: {
     width: '100%',
     height: '200px',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#1a1f2e',
     overflow: 'hidden',
     display: 'flex',
     alignItems: 'center',
@@ -298,7 +298,7 @@ const styles = {
     margin: '0 0 8px 0',
     fontSize: '16px',
     fontWeight: '600',
-    color: '#6b4c8a',
+    color: '#ffffff',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
@@ -307,7 +307,7 @@ const styles = {
   date: {
     margin: '0 0 10px 0',
     fontSize: '12px',
-    color: '#b19cd9',
+    color: '#8b96a8',
   },
 
   statusSection: {
@@ -317,7 +317,7 @@ const styles = {
   description: {
     margin: '10px 0 0 0',
     fontSize: '12px',
-    color: '#777',
+    color: '#b0b9c6',
     lineHeight: '1.4',
     maxHeight: '60px',
     overflow: 'hidden',

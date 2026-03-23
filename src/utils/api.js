@@ -65,10 +65,20 @@ export const taskApi = {
   delete: (id, token) => apiCall('DELETE', `/tasks/${id}`, null, token),
 };
 
+// 로그 API
+export const logsApi = {
+  getByTaskId: (taskId, limit = 100, token) =>
+    apiCall('GET', `/logs/${taskId}?limit=${limit}`, null, token),
+  getAll: (limit = 50, token) =>
+    apiCall('GET', `/logs?limit=${limit}`, null, token),
+  delete: (taskId, token) =>
+    apiCall('DELETE', `/logs/${taskId}`, null, token),
+};
+
 // 리뷰 배포 API
 export const mapApi = {
-  automateMap: (shortUrl, taskId, token) =>
-    apiCall('POST', '/automate-map', { shortUrl, taskId }, token),
+  automateMap: (shortUrl, notes, token) =>
+    apiCall('POST', '/automate-map', { shortUrl, notes }, token),
   getTasks: (token) => apiCall('GET', '/tasks', null, token),
   getReviews: (token) => apiCall('GET', '/reviews', null, token),
   getImageReviews: (token) => apiCall('GET', '/image-reviews', null, token),
