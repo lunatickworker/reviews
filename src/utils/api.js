@@ -9,6 +9,8 @@ export const apiCall = async (method, endpoint, body = null, token = null) => {
     method,
     headers: {
       'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true',  // ngrok 브라우저 경고 건너뛰기
+      'User-Agent': 'Mozilla/5.0 (Application)',
     },
   };
 
