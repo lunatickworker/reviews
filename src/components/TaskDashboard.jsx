@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { mapApi } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -14,21 +14,21 @@ export default function TaskDashboard() {
   });
   const [loading, setLoading] = useState(true);
 
-  const fetchTasks = useCallback(async () => {
-    try {
-      const data = await mapApi.getTasks(token);
-      setTasks(data || []);
-      calculateStats(data || []);
-    } catch (error) {
-      console.error('작업 데이터 조회 실패:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
-
   useEffect(() => {
-    fetchTasks();
-  }, [fetchTasks]);
+    const fetchTasks = async () => {
+      try {
+        const data = await mapApi.getTasks(token);
+        setTasks(data || []);
+        calculateStats(data || []);
+      } catch (error) {
+        console.error('작업 데이터 조회 실패:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    if (token) fetchTasks();
+  }, [token]);
 
   const calculateStats = (taskList) => {
     const total = taskList.length;
