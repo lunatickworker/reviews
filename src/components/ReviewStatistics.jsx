@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { mapApi } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -9,11 +9,7 @@ export default function ReviewStatistics() {
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState('7days'); // 7days, 30days, all
 
-  useEffect(() => {
-    fetchStatistics();
-  }, [token, dateRange]);
-
-  const fetchStatistics = async () => {
+  const fetchStatistics = useCallback(async () => {
     try {
       const data = await mapApi.getReviewStatistics(token, dateRange);
       setStatistics(data?.by_user || []);
@@ -23,7 +19,11 @@ export default function ReviewStatistics() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, dateRange]);
+
+  useEffect(() => {
+    fetchStatistics();
+  }, [fetchStatistics]);
 
   const totalReviews = statistics.reduce((sum, user) => sum + (user.count || 0), 0);
   const topUser = statistics.length > 0 ? statistics[0] : null;

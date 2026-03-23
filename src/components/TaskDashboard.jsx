@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { mapApi } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -14,11 +14,7 @@ export default function TaskDashboard() {
   });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchTasks();
-  }, [token]);
-
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     try {
       const data = await mapApi.getTasks(token);
       setTasks(data || []);
@@ -28,7 +24,11 @@ export default function TaskDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
 
   const calculateStats = (taskList) => {
     const total = taskList.length;

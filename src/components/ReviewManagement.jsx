@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { mapApi } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -8,11 +8,7 @@ export default function ReviewManagement() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
 
-  useEffect(() => {
-    fetchReviews();
-  }, [token]);
-
-  const fetchReviews = async () => {
+  const fetchReviews = useCallback(async () => {
     try {
       const data = await mapApi.getReviews(token);
       setReviews(data || []);
@@ -21,7 +17,11 @@ export default function ReviewManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    fetchReviews();
+  }, [fetchReviews]);
 
   const filteredReviews = reviews.filter((review) => {
     if (filter === 'pending') return review.status === 'pending';
