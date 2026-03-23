@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { mapApi } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -8,20 +8,20 @@ export default function ReviewManagement() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
 
-  const fetchReviews = useCallback(async () => {
-    try {
-      const data = await mapApi.getReviews(token);
-      setReviews(data || []);
-    } catch (error) {
-      console.error('리뷰 데이터 조회 실패:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
-
   useEffect(() => {
-    fetchReviews();
-  }, [fetchReviews]);
+    const fetchReviews = async () => {
+      try {
+        const data = await mapApi.getReviews(token);
+        setReviews(data || []);
+      } catch (error) {
+        console.error('리뷰 데이터 조회 실패:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (token) fetchReviews();
+  }, [token]);
 
   const filteredReviews = reviews.filter((review) => {
     if (filter === 'pending') return review.status === 'pending';

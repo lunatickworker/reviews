@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { mapApi } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -9,21 +9,21 @@ export default function ReviewStatistics() {
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState('7days'); // 7days, 30days, all
 
-  const fetchStatistics = useCallback(async () => {
-    try {
-      const data = await mapApi.getReviewStatistics(token, dateRange);
-      setStatistics(data?.by_user || []);
-      setDailyStats(data?.by_date || []);
-    } catch (error) {
-      console.error('통계 데이터 조회 실패:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [token, dateRange]);
-
   useEffect(() => {
-    fetchStatistics();
-  }, [fetchStatistics]);
+    const fetchStatistics = async () => {
+      try {
+        const data = await mapApi.getReviewStatistics(token, dateRange);
+        setStatistics(data?.by_user || []);
+        setDailyStats(data?.by_date || []);
+      } catch (error) {
+        console.error('통계 데이터 조회 실패:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (token) fetchStatistics();
+  }, [token, dateRange]);
 
   const totalReviews = statistics.reduce((sum, user) => sum + (user.count || 0), 0);
   const topUser = statistics.length > 0 ? statistics[0] : null;
