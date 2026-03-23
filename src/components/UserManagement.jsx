@@ -1,5 +1,5 @@
 // frontend/src/components/UserManagement.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { userApi, authApi } from '../utils/api';
 
@@ -13,11 +13,7 @@ export default function UserManagement() {
   const [newRole, setNewRole] = useState('agency');
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    loadUsers();
-  }, []);
-
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     if (!isAdmin) return;
     setLoading(true);
     try {
@@ -28,7 +24,13 @@ export default function UserManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAdmin, token]);
+
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
+
+
 
   const handleCreateUser = async (e) => {
     e.preventDefault();

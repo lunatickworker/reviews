@@ -1,19 +1,15 @@
 // frontend/src/components/TaskList.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { taskApi } from '../utils/api';
 
 export default function TaskList() {
-  const { token, user } = useAuth();
+  const { token } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    loadTasks();
-  }, []);
-
-  const loadTasks = async () => {
+  const loadTasks = useCallback(async () => {
     setLoading(true);
     try {
       const data = await taskApi.getAll(token);
@@ -23,7 +19,13 @@ export default function TaskList() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    loadTasks();
+  }, [loadTasks]);
+
+
 
   const handleUpdateTask = async (taskId, updates) => {
     try {
