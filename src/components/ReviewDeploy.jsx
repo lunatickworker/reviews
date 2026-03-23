@@ -10,7 +10,6 @@ export default function ReviewDeploy() {
   const [statusMsg, setStatusMsg] = useState('');
   const [loading, setLoading] = useState(false);
   const [logs, setLogs] = useState([]);
-  const [sessionId, setSessionId] = useState(null);
   const logsEndRef = useRef(null);
   const eventSourceRef = useRef(null);
 
@@ -98,7 +97,6 @@ export default function ReviewDeploy() {
     setPlaceName('');
 
     const newSessionId = `session_${Date.now()}`;
-    setSessionId(newSessionId);
 
     try {
       addLog('🚀 자동화 요청 시작');
