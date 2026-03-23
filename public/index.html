@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta
+      name="description"
+      content="Google Maps Automation Tool"
+    />
+    <!-- 크롬 확장 프로그램 오류 차단 -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' http://localhost:4000; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:" />
+    <title>구글맵 자동화 도구</title>
+    <script>
+      // 최우선 필터링 - 모든 오류 차단
+      const isExtensionError = (msg) => {
+        return msg && (
+          String(msg).includes('chrome-extension') ||
+          String(msg).includes('Origin not allowed') ||
+          String(msg).includes('NotAllowedError')
+        );
+      };
+
+      // 캡처 단계에서 오류 차단 (최상위)
+      window.addEventListener('error', (e) => {
+        if (isExtensionError(e.message) || isExtensionError(e.filename)) {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
+      }, true);
+
+      // 버블 단계에서도 차단
+      window.addEventListener('error', (e) => {
+        if (isExtensionError(e.message) || isExtensionError(e.filename)) {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
+      }, false);
+      
+      // Promise rejection 차단
+      window.addEventListener('unhandledrejection', (e) => {
+        if (isExtensionError(e.reason) || isExtensionError(e.reason?.message)) {
+          e.preventDefault();
+          return false;
+        }
+      }, true);
+
+      // 전역 네임스페이스 오염으로 인한 오류 무시
+      if (typeof window !== 'undefined') {
+        window.onerror = function(msg, url, line, col, error) {
+          if (isExtensionError(msg) || isExtensionError(url)) {
+            return true; // 오류 억제
+          }
+          return false;
+        };
+
+        window.onunhandledrejection = function(e) {
+          if (isExtensionError(e.reason) || isExtensionError(e.reason?.message)) {
+            return true; // 오류 억제
+          }
+          return false;
+        };
+      }
+    </script>
+  </head>
+  <body>
+    <noscript>자바스크립트를 활성화 해주세요.</noscript>
+    <div id="root"></div>
+  </body>
+</html>
