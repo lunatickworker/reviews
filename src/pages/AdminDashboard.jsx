@@ -4,15 +4,32 @@ import { useAuth } from '../context/AuthContext';
 import UserManagement from '../components/UserManagement';
 import TaskList from '../components/TaskList';
 import ReviewDeploy from '../components/ReviewDeploy';
+import TaskDashboard from '../components/TaskDashboard';
+import ReviewManagement from '../components/ReviewManagement';
+import ImageReviewManagement from '../components/ImageReviewManagement';
+import ReviewStatistics from '../components/ReviewStatistics';
 
 export default function AdminDashboard() {
   const { user, logout, isAdmin } = useAuth();
-  const [activeTab, setActiveTab] = useState('tasks');
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [expandedMenu, setExpandedMenu] = useState(null);
 
   const menuItems = [
-    { id: 'tasks', label: '📋 작업 관리', icon: '📋' },
-    ...(isAdmin ? [{ id: 'deploy', label: '🚀 배포', icon: '🚀' }] : []),
-    ...(isAdmin ? [{ id: 'users', label: '👥 계정 관리', icon: '👥' }] : []),
+    { id: 'dashboard', label: '📊 대시보드', icon: '📊', section: 'main' },
+    { id: 'tasks', label: '📋 작업 관리', icon: '📋', section: 'main' },
+    { 
+      id: 'management', 
+      label: '🔧 관리', 
+      icon: '🔧', 
+      section: 'main',
+      submenu: [
+        { id: 'reviews', label: '✍️ 리뷰 작성', icon: '✍️' },
+        { id: 'images', label: '🖼️ 이미지 리뷰', icon: '🖼️' },
+        { id: 'statistics', label: '📈 일일 통계', icon: '📈' },
+      ]
+    },
+    ...(isAdmin ? [{ id: 'deploy', label: '🚀 배포', icon: '🚀', section: 'admin' }] : []),
+    ...(isAdmin ? [{ id: 'users', label: '👥 계정 관리', icon: '👥', section: 'admin' }] : []),
   ];
 
   return (
@@ -26,17 +43,51 @@ export default function AdminDashboard() {
 
         <nav style={styles.menu}>
           {menuItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              style={{
-                ...styles.menuItem,
-                ...(activeTab === item.id ? styles.menuItemActive : {}),
-              }}
-            >
-              <span style={styles.menuIcon}>{item.icon}</span>
-              <span style={styles.menuLabel}>{item.label}</span>
-            </button>
+            <div key={item.id}>
+              <button
+                onClick={() => {
+                  if (item.submenu) {
+                    setExpandedMenu(expandedMenu === item.id ? null : item.id);
+                  } else {
+                    setActiveTab(item.id);
+                    setExpandedMenu(null);
+                  }
+                }}
+                style={{
+                  ...styles.menuItem,
+                  ...(activeTab === item.id ? styles.menuItemActive : {}),
+                }}
+              >
+                <span style={styles.menuIcon}>{item.icon}</span>
+                <span style={styles.menuLabel}>{item.label}</span>
+                {item.submenu && (
+                  <span style={styles.menuArrow}>
+                    {expandedMenu === item.id ? '▼' : '▶'}
+                  </span>
+                )}
+              </button>
+              
+              {item.submenu && expandedMenu === item.id && (
+                <div style={styles.submenu}>
+                  {item.submenu.map((subitem) => (
+                    <button
+                      key={subitem.id}
+                      onClick={() => {
+                        setActiveTab(subitem.id);
+                        setExpandedMenu(null);
+                      }}
+                      style={{
+                        ...styles.submenuItem,
+                        ...(activeTab === subitem.id ? styles.submenuItemActive : {}),
+                      }}
+                    >
+                      <span style={styles.submenuIcon}>{subitem.icon}</span>
+                      <span>{subitem.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           ))}
         </nav>
       </aside>
@@ -64,7 +115,11 @@ export default function AdminDashboard() {
         </header>
 
         <div style={styles.content}>
+          {activeTab === 'dashboard' && <TaskDashboard />}
           {activeTab === 'tasks' && <TaskList />}
+          {activeTab === 'reviews' && <ReviewManagement />}
+          {activeTab === 'images' && <ImageReviewManagement />}
+          {activeTab === 'statistics' && <ReviewStatistics />}
           {activeTab === 'deploy' && isAdmin && <ReviewDeploy />}
           {activeTab === 'users' && isAdmin && <UserManagement />}
         </div>
@@ -141,6 +196,46 @@ const styles = {
   menuLabel: {
     flex: 1,
     textAlign: 'left',
+  },
+
+  menuArrow: {
+    fontSize: '12px',
+    marginLeft: '8px',
+  },
+
+  submenu: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '5px',
+    paddingLeft: '20px',
+    marginTop: '5px',
+    marginBottom: '5px',
+  },
+
+  submenuItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '10px 12px',
+    border: 'none',
+    borderRadius: '6px',
+    backgroundColor: 'rgba(230, 190, 255, 0.2)',
+    color: '#8b6ba8',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    fontSize: '13px',
+    fontWeight: '400',
+    backdropFilter: 'blur(5px)',
+  },
+
+  submenuItemActive: {
+    background: 'rgba(200, 150, 255, 0.5)',
+    color: '#5a3f7d',
+    fontWeight: '500',
+  },
+
+  submenuIcon: {
+    fontSize: '16px',
   },
 
   userInfo: {
