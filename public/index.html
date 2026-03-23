@@ -9,7 +9,7 @@
       content="Google Maps Automation Tool"
     />
     <!-- 크롬 확장 프로그램 오류 차단 -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' http://localhost:4000; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' http://localhost:4000 https://dortha-gorillalike-sha.ngrok-free.dev https://*.ngrok-free.dev https://*.ngrok.io; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' http://localhost:4000 https://dortha-gorillalike-sha.ngrok-free.dev https://*.ngrok-free.dev https://*.ngrok.io https://*.supabase.co" />
     <title>구글맵 자동화 도구</title>
     <script>
       // 최우선 필터링 - 모든 오류 차단
