@@ -190,10 +190,6 @@ const styles = {
 
   header: {
     marginBottom: '32px',
-  },
-
-  header: {
-    marginBottom: '32px',
     paddingBottom: '16px',
     borderBottom: '1px solid rgba(124, 58, 237, 0.2)',
   },

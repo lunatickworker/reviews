@@ -10,7 +10,6 @@ export default function ReviewAnalytics() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [logs, setLogs] = useState([]);
   const [showLogModal, setShowLogModal] = useState(false);
-  const [selectedTaskId, setSelectedTaskId] = useState(null);
   const [logLoading, setLogLoading] = useState(false);
   const [filterType, setFilterType] = useState('all'); // all, review, image
   const [dateRange, setDateRange] = useState('today'); // today, week, month
@@ -95,7 +94,6 @@ export default function ReviewAnalytics() {
 
   // 로그 조회
   const handleViewLogs = async (task) => {
-    setSelectedTaskId(task.task_id);
     setLogLoading(true);
     try {
       const logData = await logsApi.getByTaskId(task.task_id, 100, token);
