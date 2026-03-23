@@ -13,8 +13,10 @@ export default function TaskList() {
     setLoading(true);
     try {
       const data = await taskApi.getAll(token);
+      console.log('📦 Tasks API Response:', data);
       setTasks(data);
     } catch (err) {
+      console.error('❌ Task Load Error:', err);
       setError('작업 조회 실패');
     } finally {
       setLoading(false);

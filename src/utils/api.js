@@ -14,12 +14,17 @@ export const apiCall = async (method, endpoint, body = null, token = null) => {
 
   if (token) {
     options.headers.Authorization = `Bearer ${token}`;
+    console.log('🔐 Token added:', token.substring(0, 20) + '...');
+  } else {
+    console.warn('⚠️ No token provided for', method, endpoint);
   }
 
   if (body) {
     options.body = JSON.stringify(body);
   }
 
+  console.log('📤 Request:', method, endpoint, {headers: options.headers});
+  
   const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
   const data = await response.json();
 
