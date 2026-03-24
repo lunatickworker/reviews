@@ -25,13 +25,38 @@ export const apiCall = async (method, endpoint, body = null, token = null) => {
     options.body = JSON.stringify(body);
   }
 
-  console.log('📤 Request:', method, endpoint, {headers: options.headers});
+  const fullUrl = `${API_BASE_URL}${endpoint}`;
+  console.log('📤 Full Request:', method, fullUrl);
+  console.log('📝 Body:', body);
+  console.log('🔗 Headers:', options.headers);
   
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
-  const data = await response.json();
+  const response = await fetch(fullUrl, options);
+  
+  console.log('📨 Response Status:', response.status, response.statusText);
+  console.log('📨 Response Headers:', Object.fromEntries(response.headers));
+  
+  // 응답 타입 확인
+  const contentType = response.headers.get('content-type');
+  let data;
+  
+  if (contentType && contentType.includes('application/json')) {
+    data = await response.json();
+  } else {
+    const text = await response.text();
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error('❌ JSON 파싱 실패:', text.substring(0, 100));
+        throw new Error(`서버 응답 오류: ${response.status} ${response.statusText}`);
+      }
+    } else {
+      data = null;
+    }
+  }
 
   if (!response.ok) {
-    throw new Error(data.error || '요청 실패');
+    throw new Error(data?.error || `요청 실패: ${response.status} ${response.statusText}`);
   }
 
   return data;

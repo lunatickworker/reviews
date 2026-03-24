@@ -240,58 +240,83 @@ export default function ReviewDeploy() {
           {filteredTasks.length === 0 ? (
             <p style={styles.emptyText}>작업이 없습니다.</p>
           ) : (
-            <div style={styles.taskCardsContainer}>
-              {filteredTasks.map((task) => (
-                <div
-                  key={task.id}
-                  style={{
-                    ...styles.taskCard,
-                    ...(selectedTask?.id === task.id && styles.taskCardSelected),
-                    cursor: 'pointer'
-                  }}
-                  onClick={() => setSelectedTask(task)}
-                >
-                  <div style={styles.taskHeader}>
-                    <h4 style={styles.taskTitle}>{task.place_name}</h4>
-                    <span style={{
-                      ...styles.statusBadge,
-                      backgroundColor: `${getReviewStatusColor(task.status)}20`,
-                      color: getReviewStatusColor(task.status)
-                    }}>
-                      {getReviewStatusLabel(task.status)}
-                    </span>
-                  </div>
-
-                  <div style={styles.taskDetails}>
-                    <div style={styles.detailRow}>
-                      <span style={styles.detailLabel}>리뷰:</span>
-                      <span style={{
-                        color: getReviewStatusColor(task.review_status || 'pending')
-                      }}>
-                        {getReviewStatusLabel(task.review_status || 'pending')}
-                      </span>
-                    </div>
-                    <div style={styles.detailRow}>
-                      <span style={styles.detailLabel}>이미지:</span>
-                      <span style={{
-                        color: getReviewStatusColor(task.image_status || 'pending')
-                      }}>
-                        {getReviewStatusLabel(task.image_status || 'pending')}
-                      </span>
-                    </div>
-                    <div style={styles.detailRow}>
-                      <span style={styles.detailLabel}>단계:</span>
-                      <span style={styles.currentStep}>
+            <div style={styles.tableWrapper}>
+              <table style={styles.table}>
+                <thead>
+                  <tr style={styles.tableHeader}>
+                    <th style={{ ...styles.th, width: '18%' }}>장소</th>
+                    <th style={{ ...styles.th, width: '12%' }}>등록자</th>
+                    <th style={{ ...styles.th, width: '15%' }}>리뷰</th>
+                    <th style={{ ...styles.th, width: '15%' }}>이미지</th>
+                    <th style={{ ...styles.th, width: '18%' }}>진행 단계</th>
+                    <th style={{ ...styles.th, width: '15%' }}>상태</th>
+                    <th style={{ ...styles.th, width: '12%' }}>등록일</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredTasks.map((task, idx) => (
+                    <tr
+                      key={task.id}
+                      style={{
+                        ...styles.tableRow,
+                        ...(selectedTask?.id === task.id && styles.tableRowSelected),
+                        backgroundColor: idx % 2 === 0 ? 'rgba(230, 190, 255, 0.08)' : 'rgba(255, 192, 203, 0.08)',
+                      }}
+                      onClick={() => setSelectedTask(task)}
+                    >
+                      <td style={{ ...styles.td, width: '18%', fontWeight: '600' }}>{task.place_name}</td>
+                      <td style={{ ...styles.td, width: '12%', fontSize: '15px', color: '#a78bfa' }}>
+                        {task.user?.user_id || '미등록'}
+                      </td>
+                      <td style={{ ...styles.td, width: '15%', fontSize: '15px' }}>
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '4px 10px',
+                          borderRadius: '4px',
+                          backgroundColor: `${getReviewStatusColor(task.review_status || 'pending')}20`,
+                          color: getReviewStatusColor(task.review_status || 'pending'),
+                          fontWeight: '500',
+                          fontSize: '13px',
+                        }}>
+                          {getReviewStatusLabel(task.review_status || 'pending')}
+                        </span>
+                      </td>
+                      <td style={{ ...styles.td, width: '15%', fontSize: '15px' }}>
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '4px 10px',
+                          borderRadius: '4px',
+                          backgroundColor: `${getReviewStatusColor(task.image_status || 'pending')}20`,
+                          color: getReviewStatusColor(task.image_status || 'pending'),
+                          fontWeight: '500',
+                          fontSize: '13px',
+                        }}>
+                          {getReviewStatusLabel(task.image_status || 'pending')}
+                        </span>
+                      </td>
+                      <td style={{ ...styles.td, width: '18%', fontSize: '14px' }}>
                         {task.current_step || '대기 중'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <p style={styles.taskDate}>
-                    {new Date(task.created_at).toLocaleString('ko-KR')}
-                  </p>
-                </div>
-              ))}
+                      </td>
+                      <td style={{ ...styles.td, width: '15%', fontSize: '15px' }}>
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '4px 10px',
+                          borderRadius: '4px',
+                          backgroundColor: `${getReviewStatusColor(task.status)}20`,
+                          color: getReviewStatusColor(task.status),
+                          fontWeight: '600',
+                          fontSize: '13px',
+                        }}>
+                          {getReviewStatusLabel(task.status)}
+                        </span>
+                      </td>
+                      <td style={{ ...styles.td, width: '12%', fontSize: '14px' }}>
+                        {new Date(task.created_at).toLocaleDateString('ko-KR')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
@@ -480,7 +505,7 @@ const styles = {
 
   mainContent: {
     display: 'grid',
-    gridTemplateColumns: 'minmax(300px, 1fr) 1fr',
+    gridTemplateColumns: '1fr',
     gap: '20px',
     marginBottom: '20px',
   },
@@ -491,7 +516,7 @@ const styles = {
     backdropFilter: 'blur(10px)',
     borderRadius: '12px',
     border: '1px solid rgba(124, 58, 237, 0.2)',
-    maxHeight: '700px',
+    maxHeight: 'calc(100vh - 450px)',
     overflowY: 'auto',
   },
 
@@ -671,4 +696,48 @@ const styles = {
     fontWeight: '600',
     color: '#ff6b9d',
   },
+
+  tableWrapper: {
+    width: '100%',
+    overflowX: 'auto',
+  },
+
+  table: {
+    width: '100%',
+    borderCollapse: 'collapse',
+    minWidth: '1200px',
+  },
+
+  tableHeader: {
+    backgroundColor: 'rgba(124, 58, 237, 0.2)',
+    borderBottom: '2px solid rgba(124, 58, 237, 0.3)',
+  },
+
+  th: {
+    padding: '12px 8px',
+    textAlign: 'left',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#a78bfa',
+    borderBottom: '1px solid rgba(124, 58, 237, 0.2)',
+  },
+
+  tableRow: {
+    borderBottom: '1px solid rgba(124, 58, 237, 0.1)',
+    transition: 'all 0.2s ease',
+    cursor: 'pointer',
+  },
+
+  tableRowSelected: {
+    backgroundColor: 'rgba(124, 58, 237, 0.25)',
+    boxShadow: 'inset 0 0 12px rgba(124, 58, 237, 0.2)',
+  },
+
+  td: {
+    padding: '10px 8px',
+    fontSize: '15px',
+    color: '#e0e0e0',
+    borderRight: '1px solid rgba(124, 58, 237, 0.05)',
+  },
 };
+

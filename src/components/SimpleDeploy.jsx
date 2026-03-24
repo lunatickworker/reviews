@@ -14,11 +14,7 @@ export default function SimpleDeploy() {
   const [storesLoading, setStoresLoading] = useState(true);
   const [searchText, setSearchText] = useState('');
   const [sortOrder, setSortOrder] = useState('asc'); // asc, desc
-  const [expandedAgencies, setExpandedAgencies] = useState({});
-  const [visibleCounts, setVisibleCounts] = useState({});
   const logsContainerRef = useRef(null);
-
-  const ITEMS_PER_PAGE = 30;
 
   // 현재 진행중인 배포 확인 (실시간)
   useEffect(() => {
@@ -63,14 +59,6 @@ export default function SimpleDeploy() {
         setStoresLoading(true);
         const data = await storeApi.getAll(token);
         setStores(data || []);
-        // 모든 에이전시를 기본으로 펼친 상태로 시작
-        const newExpanded = {};
-        const grouped = groupStoresByAgency(data || []);
-        Object.keys(grouped).forEach(agency => {
-          newExpanded[agency] = true;
-          setVisibleCounts(prev => ({ ...prev, [agency]: ITEMS_PER_PAGE }));
-        });
-        setExpandedAgencies(newExpanded);
       } catch (error) {
         console.error('매장 조회 실패:', error);
         setStores([]);
@@ -391,70 +379,52 @@ export default function SimpleDeploy() {
             ) : Object.keys(filteredGrouped).length === 0 ? (
               <div style={styles.emptyMessage}>검색 결과가 없습니다.</div>
             ) : (
-              <div style={styles.agencyGroups}>
-                {sortedAgencies.map(agency => {
-                  if (!filteredGrouped[agency]) return null;
-                  const agencyStores = filteredGrouped[agency];
-                  const isExpanded = expandedAgencies[agency];
-                  const visibleCount = visibleCounts[agency] || ITEMS_PER_PAGE;
-                  const displayedStores = agencyStores.slice(0, visibleCount);
-                  const hasMore = visibleCount < agencyStores.length;
-
-                  return (
-                    <div key={agency} style={styles.agencyGroup}>
-                      <div
-                        style={styles.agencyHeader}
-                        onClick={() => setExpandedAgencies(prev => ({
-                          ...prev,
-                          [agency]: !prev[agency]
-                        }))}
-                      >
-                        <div style={styles.agencyTitle}>
-                          <span style={styles.agencyToggle}>
-                            {isExpanded ? '▼' : '▶'}
-                          </span>
-                          <span>🏢 {agency}</span>
-                          <span style={styles.agencyCount}>({agencyStores.length})</span>
-                        </div>
-                      </div>
-
-                      {isExpanded && (
-                        <>
-                          <div style={styles.storesList}>
-                            {displayedStores.map((store) => (
-                              <div key={store.id} style={styles.storeItem}>
-                                <div style={styles.storeName}>📍 {store.store_name}</div>
-                                {store.address && (
-                                  <div style={styles.storeAddress}>🔗 {store.address}</div>
-                                )}
-                                {store.review_message && (
-                                  <div style={styles.storeReview}>💬 {store.review_message}</div>
-                                )}
-                                <div style={styles.storeDate}>
-                                  {new Date(store.created_at).toLocaleString('ko-KR')}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-
-                          {hasMore && (
-                            <button
-                              style={styles.loadMoreButton}
-                              onClick={() => {
-                                setVisibleCounts(prev => ({
-                                  ...prev,
-                                  [agency]: prev[agency] + ITEMS_PER_PAGE
-                                }));
-                              }}
-                            >
-                              더보기 ({visibleCount}/{agencyStores.length})
-                            </button>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  );
-                })}
+              <div style={styles.tableWrapper}>
+                <table style={styles.storesTable}>
+                  <thead>
+                    <tr style={styles.tableHeader}>
+                      <th style={{ ...styles.th, width: '18%' }}>매장명</th>
+                      <th style={{ ...styles.th, width: '15%' }}>에이전시</th>
+                      <th style={{ ...styles.th, width: '15%' }}>등록자</th>
+                      <th style={{ ...styles.th, width: '22%' }}>주소</th>
+                      <th style={{ ...styles.th, width: '20%' }}>리뷰 메세지</th>
+                      <th style={{ ...styles.th, width: '10%' }}>날짜</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedAgencies.map((agency) => 
+                      filteredGrouped[agency] && filteredGrouped[agency].map((store, idx) => (
+                        <tr key={store.id} style={{
+                          ...styles.tableRow,
+                          backgroundColor: idx % 2 === 0 ? 'rgba(230, 190, 255, 0.08)' : 'rgba(255, 192, 203, 0.08)',
+                        }}>
+                          <td style={{ ...styles.td, width: '18%', fontWeight: '600' }}>
+                            {store.store_name}
+                          </td>
+                          <td style={{ ...styles.td, width: '15%', fontSize: '14px', color: '#a78bfa' }}>
+                            {agency}
+                          </td>
+                          <td style={{ ...styles.td, width: '15%', fontSize: '14px', color: '#f0b90b' }}>
+                            {store.user?.user_id || '미등록'}
+                          </td>
+                          <td style={{ ...styles.td, width: '22%', fontSize: '13px' }}>
+                            {store.address ? (
+                              <a href={store.address} target="_blank" rel="noopener noreferrer" style={styles.link}>
+                                {store.address.substring(0, 25)}...
+                              </a>
+                            ) : '-'}
+                          </td>
+                          <td style={{ ...styles.td, width: '20%', fontSize: '13px' }}>
+                            {store.review_message || '-'}
+                          </td>
+                          <td style={{ ...styles.td, width: '10%', fontSize: '12px' }}>
+                            {new Date(store.created_at).toLocaleDateString('ko-KR')}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
@@ -846,6 +816,56 @@ const styles = {
     fontSize: '15px',
     fontWeight: '500',
     cursor: 'pointer',
+    transition: 'all 0.2s ease',
+  },
+
+  tableWrapper: {
+    width: '100%',
+    overflowX: 'auto',
+    borderRadius: '8px',
+    border: '1px solid rgba(124, 58, 237, 0.15)',
+    maxHeight: 'calc(100vh - 300px)',
+    overflowY: 'auto',
+  },
+
+  storesTable: {
+    width: '100%',
+    borderCollapse: 'collapse',
+    minWidth: '1000px',
+  },
+
+  tableHeader: {
+    backgroundColor: 'rgba(124, 58, 237, 0.15)',
+    borderBottom: '2px solid rgba(124, 58, 237, 0.3)',
+    position: 'sticky',
+    top: 0,
+  },
+
+  th: {
+    padding: '10px 8px',
+    textAlign: 'left',
+    fontSize: '13px',
+    fontWeight: '600',
+    color: '#a78bfa',
+    borderRight: '1px solid rgba(124, 58, 237, 0.15)',
+  },
+
+  tableRow: {
+    borderBottom: '1px solid rgba(124, 58, 237, 0.1)',
+    transition: 'background 0.2s ease',
+  },
+
+  td: {
+    padding: '9px 8px',
+    fontSize: '14px',
+    color: '#e0e0e0',
+    borderRight: '1px solid rgba(124, 58, 237, 0.05)',
+  },
+
+  link: {
+    color: '#90caf9',
+    textDecoration: 'none',
+    borderBottom: '1px solid rgba(144, 202, 249, 0.3)',
     transition: 'all 0.2s ease',
   },
 

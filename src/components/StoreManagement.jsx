@@ -4,7 +4,7 @@ import { storeApi } from '../utils/api';
 import * as XLSX from 'xlsx';
 
 const StoreManagement = () => {
-  const { token } = useAuth();
+  const { token, user, isAdmin } = useAuth();
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -12,6 +12,8 @@ const StoreManagement = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [addressWarning, setAddressWarning] = useState('');
+  const [sortConfig, setSortConfig] = useState({ key: 'created_at', order: 'desc' });
+  const [selectedUser, setSelectedUser] = useState('');
   
   const [newStore, setNewStore] = useState({
     storeName: '',
@@ -69,6 +71,68 @@ const StoreManagement = () => {
     setEditingId(null);
     setShowForm(false);
     setAddressWarning('');
+  };
+
+  const handleSort = (key) => {
+    setSortConfig({
+      key,
+      order: sortConfig.key === key && sortConfig.order === 'asc' ? 'desc' : 'asc',
+    });
+  };
+
+  // 등록자별 매장 수 계산
+  const getUserStoreStats = () => {
+    const stats = {};
+    stores.forEach(store => {
+      const userId = store.user?.user_id || '미등록';
+      stats[userId] = (stats[userId] || 0) + 1;
+    });
+    return stats;
+  };
+
+  const getSortedStores = () => {
+    let filtered = [...stores];
+
+    // 필터링: 선택된 등록자가 있으면 필터링
+    if (selectedUser) {
+      filtered = filtered.filter(store => {
+        const userId = store.user?.user_id || '미등록';
+        return userId === selectedUser;
+      });
+    }
+
+    // 정렬
+    const sorted = filtered.sort((a, b) => {
+      let aValue, bValue;
+
+      if (sortConfig.key === 'store_name') {
+        aValue = a.store_name || '';
+        bValue = b.store_name || '';
+        // 문자열 비교
+        if (sortConfig.order === 'asc') {
+          return aValue.localeCompare(bValue, 'ko-KR');
+        } else {
+          return bValue.localeCompare(aValue, 'ko-KR');
+        }
+      } else if (sortConfig.key === 'user_id') {
+        aValue = a.user?.user_id || '미등록';
+        bValue = b.user?.user_id || '미등록';
+        if (sortConfig.order === 'asc') {
+          return aValue.localeCompare(bValue, 'ko-KR');
+        } else {
+          return bValue.localeCompare(aValue, 'ko-KR');
+        }
+      } else if (sortConfig.key === 'created_at') {
+        aValue = new Date(a.created_at);
+        bValue = new Date(b.created_at);
+      }
+
+      if (aValue < bValue) return sortConfig.order === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortConfig.order === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return sorted;
   };
 
   const handleEditStore = (store) => {
@@ -242,7 +306,7 @@ const StoreManagement = () => {
           <span style={styles.countValue}>{stores.length}개</span>
         </div>
       </div>
-      
+
       {error && <p style={styles.error}>{error}</p>}
       {successMessage && (
         <p style={styles.success}>
@@ -255,22 +319,41 @@ const StoreManagement = () => {
         </p>
       )}
 
-      <div style={styles.buttonGroup}>
-        <button onClick={() => !showForm ? (setShowForm(true), setEditingId(null), setNewStore({ storeName: '', address: '', reviewMessage: '' }), setAddressWarning('')) : resetForm()} style={styles.createButton}>
-          {showForm ? '✕ 취소' : '➕ 새 매장 등록'}
-        </button>
-        <button onClick={downloadTemplate} style={styles.templateButton}>
-          📥 템플릿 다운로드
-        </button>
-        <label style={styles.excelButton}>
-          📤 엑셀 업로드
-          <input
-            type="file"
-            accept=".xlsx,.xls"
-            onChange={handleExcelUpload}
-            style={{ display: 'none' }}
-          />
-        </label>
+      <div style={styles.controlBar}>
+        <div style={styles.buttonGroup}>
+          <button onClick={() => !showForm ? (setShowForm(true), setEditingId(null), setNewStore({ storeName: '', address: '', reviewMessage: '' }), setAddressWarning('')) : resetForm()} style={styles.createButton}>
+            {showForm ? '✕ 취소' : '➕ 새 매장 등록'}
+          </button>
+          <button onClick={downloadTemplate} style={styles.templateButton}>
+            📥 템플릿 다운로드
+          </button>
+          <label style={styles.excelButton}>
+            📤 엑셀 업로드
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleExcelUpload}
+              style={{ display: 'none' }}
+            />
+          </label>
+        </div>
+        {isAdmin && stores.length > 0 && (
+          <div style={styles.filterSection}>
+            <label style={styles.filterLabel}>등록자:</label>
+            <select 
+              value={selectedUser} 
+              onChange={(e) => setSelectedUser(e.target.value)}
+              style={styles.filterSelect}
+            >
+              <option value="">전체 ({stores.length}개)</option>
+              {Object.entries(getUserStoreStats()).map(([userId, count]) => (
+                <option key={userId} value={userId}>
+                  {userId} ({count}개)
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {showForm && (
@@ -319,26 +402,39 @@ const StoreManagement = () => {
         <table style={styles.table}>
           <thead>
             <tr style={styles.headerRow}>
-              <th style={{ ...styles.th, width: '15%' }}>매장명</th>
-              <th style={{ ...styles.th, width: '25%' }}>주소</th>
-              <th style={{ ...styles.th, width: '35%' }}>리뷰 메세지</th>
-              <th style={{ ...styles.th, width: '15%' }}>등록일</th>
+              <th 
+                style={{ ...styles.th, width: '15%', cursor: 'pointer' }} 
+                onClick={() => handleSort('store_name')}
+              >
+                매장명 {sortConfig.key === 'store_name' && (sortConfig.order === 'asc' ? '▲' : '▼')}
+              </th>
+              <th style={{ ...styles.th, width: isAdmin ? '20%' : '25%' }}>주소</th>
+              <th style={{ ...styles.th, width: isAdmin ? '28%' : '35%' }}>리뷰 메세지</th>
+              {isAdmin && (
+                <th 
+                  style={{ ...styles.th, width: '12%', cursor: 'pointer' }}
+                  onClick={() => handleSort('user_id')}
+                >
+                  등록자 {sortConfig.key === 'user_id' && (sortConfig.order === 'asc' ? '▲' : '▼')}
+                </th>
+              )}
+              <th style={{ ...styles.th, width: '12%' }}>등록일</th>
               <th style={{ ...styles.th, width: '10%' }}>관리</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="5" style={styles.loadingCell}>로딩 중...</td>
+                <td colSpan={isAdmin ? 6 : 5} style={styles.loadingCell}>로딩 중...</td>
               </tr>
             ) : stores.length === 0 ? (
               <tr>
-                <td colSpan="5" style={styles.emptyCellBG}>
+                <td colSpan={isAdmin ? 6 : 5} style={styles.emptyCellBG}>
                   등록된 매장이 없습니다. 새 매장을 등록해주세요.
                 </td>
               </tr>
             ) : (
-              stores.map((store, idx) => (
+              getSortedStores().map((store, idx) => (
                 <tr
                   key={store.id}
                   style={{
@@ -347,7 +443,7 @@ const StoreManagement = () => {
                   }}
                 >
                   <td style={{ ...styles.td, width: '15%', fontWeight: '600' }}>{store.store_name}</td>
-                  <td style={{ ...styles.td, width: '25%', fontSize: '15px' }}>
+                  <td style={{ ...styles.td, width: isAdmin ? '20%' : '25%', fontSize: '15px' }}>
                     {store.address ? (
                       store.address.startsWith('http') ? (
                         <a href={store.address} target="_blank" rel="noopener noreferrer" style={styles.link}>
@@ -360,10 +456,15 @@ const StoreManagement = () => {
                       '-'
                     )}
                   </td>
-                  <td style={{ ...styles.td, width: '35%', fontSize: '15px' }}>
+                  <td style={{ ...styles.td, width: isAdmin ? '28%' : '35%', fontSize: '15px' }}>
                     {store.review_message || '-'}
                   </td>
-                  <td style={{ ...styles.td, width: '15%', fontSize: '15px' }}>
+                  {isAdmin && (
+                    <td style={{ ...styles.td, width: '12%', fontSize: '15px', fontWeight: '500', color: '#a78bfa' }}>
+                      {store.user?.user_id || '-'}
+                    </td>
+                  )}
+                  <td style={{ ...styles.td, width: '12%', fontSize: '15px' }}>
                     {new Date(store.created_at).toLocaleDateString('ko-KR')}
                   </td>
                   <td style={{ ...styles.td, width: '10%' }}>
@@ -373,14 +474,14 @@ const StoreManagement = () => {
                         style={styles.editButton}
                         title="수정"
                       >
-                        ✎ 수정
+                        수정
                       </button>
                       <button
                         onClick={() => handleDeleteStore(store.id)}
                         style={styles.deleteButton}
                         title="삭제"
                       >
-                        🗑️ 삭제
+                        삭제
                       </button>
                     </div>
                   </td>
@@ -448,6 +549,46 @@ const styles = {
     color: '#7c3aed',
   },
 
+  controlBar: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '15px',
+    marginBottom: '20px',
+    flexWrap: 'wrap',
+  },
+
+  filterSection: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '10px 15px',
+    backgroundColor: 'rgba(124, 58, 237, 0.08)',
+    border: '1px solid rgba(124, 58, 237, 0.2)',
+    borderRadius: '6px',
+    whiteSpace: 'nowrap',
+  },
+
+  filterLabel: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#a78bfa',
+  },
+
+  filterSelect: {
+    padding: '6px 10px',
+    backgroundColor: 'rgba(30, 35, 50, 0.8)',
+    color: '#ffffff',
+    border: '1px solid rgba(124, 58, 237, 0.4)',
+    borderRadius: '5px',
+    fontSize: '14px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    minWidth: '160px',
+  },
+
+
   error: {
     padding: '12px 15px',
     backgroundColor: 'rgba(218, 18, 125, 0.15)',
@@ -473,8 +614,8 @@ const styles = {
   buttonGroup: {
     display: 'flex',
     gap: '10px',
-    marginBottom: '20px',
     flexWrap: 'wrap',
+    marginBottom: 0,
   },
 
   createButton: {
@@ -589,13 +730,15 @@ const styles = {
     overflow: 'auto',
     background: 'rgba(37, 45, 66, 0.5)',
     backdropFilter: 'blur(5px)',
-    maxHeight: '60vh',
+    maxHeight: '70vh',
+    padding: '12px',
   },
 
   table: {
     width: '100%',
     borderCollapse: 'collapse',
-    fontSize: '16px',
+    fontSize: '14px',
+    minWidth: '1100px',
   },
 
   headerRow: {
@@ -623,7 +766,9 @@ const styles = {
 
   td: {
     padding: '12px 15px',
-    color: '#e0e0e0',
+    color: '#ffffff',
+    fontSize: '14px',
+    verticalAlign: 'middle',
   },
 
   loadingCell: {
@@ -642,13 +787,13 @@ const styles = {
   },
 
   deleteButton: {
-    padding: '6px 10px',
+    padding: '4px 8px',
     backgroundColor: 'rgba(218, 18, 125, 0.2)',
     border: '1px solid rgba(218, 18, 125, 0.4)',
     borderRadius: '4px',
     color: '#ff6b9d',
     cursor: 'pointer',
-    fontSize: '15px',
+    fontSize: '12px',
     fontWeight: '600',
     transition: 'all 0.2s ease',
     backdropFilter: 'blur(3px)',
@@ -656,24 +801,26 @@ const styles = {
   },
 
   editButton: {
-    padding: '6px 10px',
+    padding: '4px 8px',
     backgroundColor: 'rgba(33, 150, 243, 0.2)',
     border: '1px solid rgba(33, 150, 243, 0.4)',
     borderRadius: '4px',
     color: '#42a5f5',
     cursor: 'pointer',
-    fontSize: '15px',
+    fontSize: '12px',
     fontWeight: '600',
     transition: 'all 0.2s ease',
     backdropFilter: 'blur(3px)',
     whiteSpace: 'nowrap',
-    marginRight: '5px',
+    marginRight: '4px',
   },
 
   actionButtons: {
     display: 'flex',
-    gap: '5px',
-    flexWrap: 'wrap',
+    gap: '4px',
+    flexWrap: 'nowrap',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   link: {
