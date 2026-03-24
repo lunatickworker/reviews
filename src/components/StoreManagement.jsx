@@ -4,7 +4,7 @@ import { storeApi } from '../utils/api';
 import * as XLSX from 'xlsx';
 
 const StoreManagement = () => {
-  const { token, user, isAdmin } = useAuth();
+  const { token, isAdmin } = useAuth();
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
