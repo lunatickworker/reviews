@@ -55,16 +55,6 @@ export default function UserManagement() {
     }
   };
 
-  const handleUpdateRoleInternal = async (userId, newRole) => {
-    try {
-      await userApi.updateRole(userId, newRole, token);
-      loadUsers();
-      alert('권한이 업데이트되었습니다.');
-    } catch (err) {
-      setError('권한 업데이트 실패');
-    }
-  };
-
   const handleDeleteUser = async (userId) => {
     if (!window.confirm('정말 삭제하시겠습니까?')) return;
     try {
