@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { userApi, authApi } from '../utils/api';
 
 export default function UserManagement() {
-  const { token, user, isAdmin } = useAuth();
+  const { token, isAdmin } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -55,7 +55,7 @@ export default function UserManagement() {
     }
   };
 
-  const handleUpdateRole = async (userId, newRole) => {
+  const handleUpdateRoleInternal = async (userId, newRole) => {
     try {
       await userApi.updateRole(userId, newRole, token);
       loadUsers();

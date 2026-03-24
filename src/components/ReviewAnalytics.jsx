@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { mapApi, logsApi } from '../utils/api';
 
 export default function ReviewAnalytics() {
-  const { token, isAdmin } = useAuth();
+  const { token } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState('');

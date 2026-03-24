@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { mapApi, storeApi, taskApi } from '../utils/api';
+import { mapApi, storeApi } from '../utils/api';
 
 export default function TaskManagement() {
-  const { token, isAdmin, user } = useAuth();
+  const { token, isAdmin } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedStore, setSelectedStore] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', order: 'desc' });
-  const [showNewTask, setShowNewTask] = useState(false);
-  const [newTask, setNewTask] = useState({ placeName: '', stars: 0, storeId: null });
 
   // 매장 조회 및 작업 조회
   useEffect(() => {

@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { mapApi } from '../utils/api';
 
 export default function DashboardStats() {
-  const { token, isAdmin } = useAuth();
+  const { token } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
 
