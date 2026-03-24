@@ -3,37 +3,32 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import UserManagement from '../components/UserManagement';
 import TaskManagement from '../components/TaskManagement';
+import StoreManagement from '../components/StoreManagement';
 import SimpleDeploy from '../components/SimpleDeploy';
-import ReviewManagement from '../components/ReviewManagement';
-import ImageReviewManagement from '../components/ImageReviewManagement';
 import ReviewAnalytics from '../components/ReviewAnalytics';
 import DashboardStats from '../components/DashboardStats';
 
 export default function AdminDashboard() {
   const { user, logout, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [expandedMenu, setExpandedMenu] = useState(null);
+  // expandedMenu 제거: 현재 상단 메뉴는 드롭다운 없이 사용
 
   const mainMenu = [
     { id: 'dashboard', label: '📊 대시보드' },
+    { id: 'stores', label: '🏪 매장 등록' },
     { id: 'tasks', label: '📋 작업 관리' },
-    { id: 'management', label: '🔧 관리', hasSubmenu: true },
+    { id: 'reviews', label: '📖 리뷰관리' },
     ...(isAdmin ? [{ id: 'deploy', label: '🚀 배포' }] : []),
-    ...(isAdmin ? [{ id: 'users', label: '👥 계정 관리' }] : []),
-  ];
-
-  const managementMenu = [
-    { id: 'reviews', label: '✍️ 리뷰 작성' },
-    { id: 'images', label: '🖼️ 이미지 리뷰' },
-    { id: 'analytics', label: '📊 리뷰 분석' },
+    { id: 'users', label: '👥 계정 관리' },
   ];
 
   const styles = {
     container: {
       display: 'flex',
       flexDirection: 'column',
-      minHeight: '100vh',
+      height: '100vh',
       backgroundColor: '#0f1419',
+      overflow: 'hidden',
     },
 
     // Top Navigation
@@ -76,14 +71,14 @@ export default function AdminDashboard() {
     },
 
     logoText: {
-      fontSize: '16px',
+      fontSize: '20px',
       fontWeight: '700',
       color: '#ffffff',
       letterSpacing: '-0.5px',
     },
 
     logoSubtext: {
-      fontSize: '11px',
+      fontSize: '14px',
       color: '#8b96a8',
       fontWeight: '500',
     },
@@ -104,7 +99,7 @@ export default function AdminDashboard() {
       border: 'none',
       color: '#b0b9c6',
       cursor: 'pointer',
-      fontSize: '14px',
+      fontSize: '16px',
       fontWeight: '500',
       transition: 'all 0.3s ease',
       borderBottom: '2px solid transparent',
@@ -121,10 +116,12 @@ export default function AdminDashboard() {
     },
 
     dropdownArrow: {
+      // 드롭다운 메뉴 미사용 (상단 메뉴로 통합)
       fontSize: '12px',
       marginLeft: '4px',
     },
 
+    // 드롭다운 메뉴 스타일: 현재 사용 안함
     submenu: {
       position: 'absolute',
       top: '100%',
@@ -148,7 +145,7 @@ export default function AdminDashboard() {
       border: 'none',
       color: '#b0b9c6',
       cursor: 'pointer',
-      fontSize: '13px',
+      fontSize: '12px',
       textAlign: 'left',
       transition: 'all 0.2s ease',
       borderLeft: '3px solid transparent',
@@ -185,7 +182,7 @@ export default function AdminDashboard() {
       justifyContent: 'center',
       fontWeight: 'bold',
       color: '#ffffff',
-      fontSize: '14px',
+      fontSize: '18px',
     },
 
     userMeta: {
@@ -196,14 +193,14 @@ export default function AdminDashboard() {
 
     userName: {
       margin: 0,
-      fontSize: '12px',
+      fontSize: '15px',
       fontWeight: '600',
       color: '#ffffff',
     },
 
     userRole: {
       margin: 0,
-      fontSize: '11px',
+      fontSize: '14px',
       color: '#8b96a8',
     },
 
@@ -215,7 +212,7 @@ export default function AdminDashboard() {
       color: '#ff6b9d',
       cursor: 'pointer',
       fontWeight: '600',
-      fontSize: '12px',
+      fontSize: '15px',
       transition: 'all 0.3s ease',
     },
 
@@ -224,7 +221,7 @@ export default function AdminDashboard() {
       flex: 1,
       display: 'flex',
       flexDirection: 'column',
-      overflowY: 'auto',
+      overflow: 'hidden',
     },
 
     content: {
@@ -253,48 +250,18 @@ export default function AdminDashboard() {
                 <div key={item.id} style={styles.navItemWrapper}>
                   <button
                     onClick={() => {
-                      setActiveTab(item.id === 'management' ? 'reviews' : item.id);
-                      setExpandedMenu(
-                        item.hasSubmenu 
-                          ? (expandedMenu === item.id ? null : item.id)
-                          : null
-                      );
+                      setActiveTab(item.id);
+                      // setExpandedMenu(null); // 드롭다운 미사용
                     }}
                     style={{
                       ...styles.navButton,
-                      ...(activeTab.startsWith(item.id) || (item.id === 'management' && ['reviews', 'images', 'analytics'].includes(activeTab))
+                      ...(activeTab === item.id
                         ? styles.navButtonActive
                         : {}),
                     }}
                   >
                     {item.label}
-                    {item.hasSubmenu && (
-                      <span style={styles.dropdownArrow}>
-                        {expandedMenu === item.id ? '▼' : '▼'}
-                      </span>
-                    )}
                   </button>
-
-                  {/* Submenu */}
-                  {item.hasSubmenu && expandedMenu === item.id && (
-                    <div style={styles.submenu}>
-                      {managementMenu.map((sub) => (
-                        <button
-                          key={sub.id}
-                          onClick={() => {
-                            setActiveTab(sub.id);
-                            setExpandedMenu(null);
-                          }}
-                          style={{
-                            ...styles.submenuItem,
-                            ...(activeTab === sub.id ? styles.submenuItemActive : {}),
-                          }}
-                        >
-                          {sub.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
               ))}
             </nav>
@@ -320,12 +287,11 @@ export default function AdminDashboard() {
       <main style={styles.main}>
         <div style={styles.content}>
           {activeTab === 'dashboard' && <DashboardStats />}
+          {activeTab === 'stores' && <StoreManagement />}
           {activeTab === 'tasks' && <TaskManagement />}
-          {activeTab === 'reviews' && <ReviewManagement />}
-          {activeTab === 'images' && <ImageReviewManagement />}
-          {activeTab === 'analytics' && <ReviewAnalytics />}
+          {activeTab === 'reviews' && <ReviewAnalytics />}
           {activeTab === 'deploy' && isAdmin && <SimpleDeploy />}
-          {activeTab === 'users' && isAdmin && <UserManagement />}
+          {activeTab === 'users' && <UserManagement />}
         </div>
       </main>
     </div>

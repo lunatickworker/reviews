@@ -182,7 +182,7 @@ const styles = {
   loading: {
     textAlign: 'center',
     padding: '40px',
-    fontSize: '16px',
+    fontSize: '20px',
     color: '#8b96a8',
   },
 
@@ -211,7 +211,7 @@ const styles = {
     color: '#b0b9c6',
     cursor: 'pointer',
     fontWeight: '500',
-    fontSize: '13px',
+    fontSize: '16px',
     transition: 'all 0.3s ease',
   },
 
@@ -239,21 +239,21 @@ const styles = {
 
   summaryLabel: {
     margin: '0 0 10px 0',
-    fontSize: '12px',
+    fontSize: '15px',
     color: '#8b96a8',
     fontWeight: '500',
   },
 
   summaryValue: {
     margin: '0 0 5px 0',
-    fontSize: '32px',
+    fontSize: '20px',
     fontWeight: 'bold',
     color: '#ffffff',
   },
 
   summarySubValue: {
     margin: 0,
-    fontSize: '12px',
+    fontSize: '15px',
     color: '#8b96a8',
   },
 
@@ -267,7 +267,7 @@ const styles = {
   },
 
   sectionTitle: {
-    fontSize: '16px',
+    fontSize: '14px',
     fontWeight: 'bold',
     color: '#ffffff',
     marginBottom: '20px',
@@ -286,7 +286,7 @@ const styles = {
   table: {
     width: '100%',
     borderCollapse: 'collapse',
-    fontSize: '14px',
+    fontSize: '18px',
   },
 
   thead: {
@@ -318,7 +318,7 @@ const styles = {
     color: '#ffffff',
     borderRadius: '12px',
     fontWeight: '600',
-    fontSize: '12px',
+    fontSize: '15px',
   },
 
   progressWrapper: {
@@ -337,7 +337,7 @@ const styles = {
   },
 
   percentage: {
-    fontSize: '12px',
+    fontSize: '15px',
     color: '#8b96a8',
     whiteSpace: 'nowrap',
   },
@@ -366,7 +366,7 @@ const styles = {
 
   chartValue: {
     margin: '0 0 5px 0',
-    fontSize: '24px',
+    fontSize: '15px',
     fontWeight: 'bold',
     color: '#ffffff',
   },

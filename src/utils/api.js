@@ -51,7 +51,19 @@ export const userApi = {
   getById: (id, token) => apiCall('GET', `/users/${id}`, null, token),
   updateRole: (id, role, token) =>
     apiCall('PUT', `/users/${id}/role`, { role }, token),
+  updatePassword: (id, newPassword, token) =>
+    apiCall('PUT', `/users/${id}/password`, { newPassword }, token),
   delete: (id, token) => apiCall('DELETE', `/users/${id}`, null, token),
+};
+
+// 매장 API
+export const storeApi = {
+  getAll: (token) => apiCall('GET', '/stores', null, token),
+  create: (storeName, address, reviewMessage, token) =>
+    apiCall('POST', '/stores', { storeName, address, reviewMessage }, token),
+  update: (id, storeName, address, reviewMessage, token) =>
+    apiCall('PUT', `/stores/${id}`, { storeName, address, reviewMessage }, token),
+  delete: (id, token) => apiCall('DELETE', `/stores/${id}`, null, token),
 };
 
 // 작업 API

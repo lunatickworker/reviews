@@ -310,7 +310,7 @@ function getStatusStyle(status) {
       borderRadius: '4px',
       backgroundColor: 'rgba(255, 193, 7, 0.2)',
       color: '#f57f17',
-      fontSize: '12px',
+      fontSize: '15px',
       fontWeight: '600',
     },
     completed: {
@@ -318,7 +318,7 @@ function getStatusStyle(status) {
       borderRadius: '4px',
       backgroundColor: 'rgba(76, 175, 80, 0.2)',
       color: '#2e7d32',
-      fontSize: '12px',
+      fontSize: '15px',
       fontWeight: '600',
     },
     failed: {
@@ -326,7 +326,7 @@ function getStatusStyle(status) {
       borderRadius: '4px',
       backgroundColor: 'rgba(244, 67, 54, 0.2)',
       color: '#c62828',
-      fontSize: '12px',
+      fontSize: '15px',
       fontWeight: '600',
     },
   };
@@ -341,7 +341,7 @@ const styles = {
   loading: {
     textAlign: 'center',
     padding: '40px',
-    fontSize: '16px',
+    fontSize: '20px',
     color: '#8b96a8',
   },
 
@@ -370,14 +370,14 @@ const styles = {
 
   statLabel: {
     margin: '0 0 10px 0',
-    fontSize: '12px',
+    fontSize: '15px',
     color: '#8b96a8',
     fontWeight: '500',
   },
 
   statValue: {
     margin: 0,
-    fontSize: '28px',
+    fontSize: '35px',
     fontWeight: 'bold',
     color: '#ffffff',
   },
@@ -397,7 +397,7 @@ const styles = {
     color: '#b0b9c6',
     cursor: 'pointer',
     fontWeight: '500',
-    fontSize: '13px',
+    fontSize: '16px',
     transition: 'all 0.3s ease',
   },
 
@@ -424,7 +424,7 @@ const styles = {
   table: {
     width: '100%',
     borderCollapse: 'collapse',
-    fontSize: '14px',
+    fontSize: '18px',
   },
 
   thead: {
@@ -499,7 +499,7 @@ const styles = {
   logEntry: {
     display: 'flex',
     gap: '10px',
-    fontSize: '12px',
+    fontSize: '15px',
     color: '#b0b9c6',
   },
 
@@ -517,7 +517,7 @@ const styles = {
   logEmpty: {
     textAlign: 'center',
     color: '#8b96a8',
-    fontSize: '12px',
+    fontSize: '15px',
     padding: '20px 0',
   },
 
@@ -539,7 +539,7 @@ const styles = {
 
   placeName: {
     margin: '0 0 15px 0',
-    fontSize: '12px',
+    fontSize: '15px',
     color: '#8b96a8',
     fontWeight: '500',
   },
@@ -575,7 +575,7 @@ const styles = {
   ratingValue: {
     textAlign: 'center',
     margin: 0,
-    fontSize: '12px',
+    fontSize: '15px',
     color: '#7c3aed',
     fontWeight: '600',
   },
@@ -588,7 +588,7 @@ const styles = {
     border: '1px solid rgba(124, 58, 237, 0.2)',
     borderRadius: '6px',
     color: '#e0e0e0',
-    fontSize: '12px',
+    fontSize: '15px',
     fontFamily: 'inherit',
     marginBottom: '12px',
     resize: 'none',
@@ -602,7 +602,7 @@ const styles = {
     color: '#ffffff',
     cursor: 'pointer',
     fontWeight: '600',
-    fontSize: '12px',
+    fontSize: '15px',
     transition: 'all 0.3s ease',
     marginBottom: '8px',
   },
@@ -615,7 +615,7 @@ const styles = {
     color: '#ffffff',
     cursor: 'pointer',
     fontWeight: '600',
-    fontSize: '12px',
+    fontSize: '15px',
     transition: 'all 0.3s ease',
   },
 
@@ -626,7 +626,7 @@ const styles = {
     borderRadius: '4px',
     color: '#7c3aed',
     cursor: 'pointer',
-    fontSize: '11px',
+    fontSize: '14px',
     fontWeight: '600',
     transition: 'all 0.2s ease',
   },

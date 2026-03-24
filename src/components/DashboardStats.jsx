@@ -28,16 +28,6 @@ export default function DashboardStats() {
     }
   }, [token]);
 
-  if (!isAdmin) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.accessDenied}>
-          <p>🔒 이 메뉴는 관리자만 이용 가능합니다.</p>
-        </div>
-      </div>
-    );
-  }
-
   // 오늘 추가된 작업만 필터링
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -130,8 +120,7 @@ export default function DashboardStats() {
         
         {todayTasks.length === 0 ? (
           <div style={styles.emptyState}>
-            <p>오늘 등록된 매장이 없습니다.</p>
-            <p style={{ fontSize: '12px', color: '#888' }}>배포 탭에서 매장을 등록해주세요.</p>
+            <p>배포 탭에서 매장을 등록해주세요.</p>
           </div>
         ) : (
           <div style={styles.taskList}>
@@ -195,7 +184,7 @@ const styles = {
   },
 
   title: {
-    fontSize: '40px',
+    fontSize: '24px',
     fontWeight: '700',
     color: '#ffffff',
     margin: '0 0 8px 0',
@@ -205,7 +194,7 @@ const styles = {
   },
 
   date: {
-    fontSize: '14px',
+    fontSize: '15px',
     color: '#d1d5db',
     marginTop: '8px',
   },
@@ -227,20 +216,20 @@ const styles = {
   },
 
   statLabel: {
-    fontSize: '14px',
+    fontSize: '18px',
     color: '#e5e7eb',
     marginBottom: '12px',
     fontWeight: '500',
   },
 
   statValue: {
-    fontSize: '36px',
+    fontSize: '35px',
     fontWeight: 'bold',
     marginBottom: '8px',
   },
 
   statDescription: {
-    fontSize: '12px',
+    fontSize: '15px',
     color: '#d1d5db',
   },
 
@@ -256,14 +245,14 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     marginBottom: '12px',
-    fontSize: '14px',
+    fontSize: '16px',
     fontWeight: '500',
     color: '#e5e7eb',
   },
 
   progressPercent: {
     color: '#10b981',
-    fontSize: '18px',
+    fontSize: '20px',
     fontWeight: 'bold',
   },
 
@@ -282,7 +271,7 @@ const styles = {
   },
 
   progressInfo: {
-    fontSize: '12px',
+    fontSize: '15px',
     color: '#e5e7eb',
     textAlign: 'center',
   },
@@ -295,7 +284,7 @@ const styles = {
   },
 
   recentTasksTitle: {
-    fontSize: '16px',
+    fontSize: '20px',
     fontWeight: '600',
     marginBottom: '16px',
     color: '#e5e7eb',
@@ -324,14 +313,14 @@ const styles = {
   },
 
   taskName: {
-    fontSize: '14px',
+    fontSize: '18px',
     fontWeight: '500',
     color: '#e5e7eb',
     marginBottom: '4px',
   },
 
   taskNotes: {
-    fontSize: '12px',
+    fontSize: '15px',
     color: '#d1d5db',
     maxWidth: '300px',
     overflow: 'hidden',
@@ -344,7 +333,7 @@ const styles = {
   },
 
   statusBadge: {
-    fontSize: '12px',
+    fontSize: '15px',
     fontWeight: '500',
     padding: '6px 12px',
     borderRadius: '6px',

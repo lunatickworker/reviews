@@ -125,20 +125,10 @@ export default function ReviewAnalytics() {
     ? Math.round((statistics.completedImage / statistics.total) * 100)
     : 0;
 
-  if (!isAdmin) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.accessDenied}>
-          <p>🔒 이 메뉴는 관리자만 이용 가능합니다.</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <h1 style={styles.title}>📊 리뷰 작업 분석</h1>
+        <h1 style={styles.title}>📊 리뷰작성현황</h1>
         <p style={styles.subtitle}>리뷰 및 이미지 리뷰 작업 통계 및 분석</p>
       </div>
 
@@ -383,7 +373,7 @@ const styles = {
   },
 
   title: {
-    fontSize: '40px',
+    fontSize: '24px',
     fontWeight: '700',
     color: '#ffffff',
     margin: '0 0 8px 0',
@@ -420,7 +410,7 @@ const styles = {
   },
 
   label: {
-    fontSize: '12px',
+    fontSize: '15px',
     fontWeight: '600',
     color: '#e5e7eb',
     textTransform: 'uppercase',
@@ -429,31 +419,34 @@ const styles = {
 
   select: {
     padding: '8px 12px',
-    background: 'rgba(0, 0, 0, 0.2)',
-    border: '1px solid rgba(124, 58, 237, 0.3)',
+    background: 'rgba(40, 50, 70, 0.9)',
+    border: '1px solid rgba(124, 58, 237, 0.4)',
     borderRadius: '6px',
     color: '#e5e7eb',
-    fontSize: '13px',
+    fontSize: '16px',
     cursor: 'pointer',
+    transition: 'all 0.2s ease',
   },
 
   searchInput: {
     padding: '8px 12px',
-    background: 'rgba(0, 0, 0, 0.2)',
-    border: '1px solid rgba(124, 58, 237, 0.3)',
+    background: 'rgba(40, 50, 70, 0.9)',
+    border: '1px solid rgba(124, 58, 237, 0.4)',
     borderRadius: '6px',
     color: '#e5e7eb',
-    fontSize: '13px',
+    fontSize: '16px',
     minWidth: '200px',
+    transition: 'all 0.2s ease',
   },
 
   dateInput: {
     padding: '8px 12px',
-    background: 'rgba(0, 0, 0, 0.2)',
-    border: '1px solid rgba(124, 58, 237, 0.3)',
+    background: 'rgba(40, 50, 70, 0.9)',
+    border: '1px solid rgba(124, 58, 237, 0.4)',
     borderRadius: '6px',
     color: '#e5e7eb',
-    fontSize: '13px',
+    fontSize: '16px',
+    transition: 'all 0.2s ease',
   },
 
   resetButton: {
@@ -464,7 +457,7 @@ const styles = {
     color: '#d1d5db',
     cursor: 'pointer',
     fontWeight: '500',
-    fontSize: '12px',
+    fontSize: '15px',
     transition: 'all 0.2s ease',
   },
 
@@ -483,20 +476,20 @@ const styles = {
   },
 
   statLabel: {
-    fontSize: '14px',
+    fontSize: '18px',
     color: '#e5e7eb',
     marginBottom: '12px',
     fontWeight: '500',
   },
 
   statValue: {
-    fontSize: '36px',
+    fontSize: '45px',
     fontWeight: 'bold',
     marginBottom: '8px',
   },
 
   statDescription: {
-    fontSize: '12px',
+    fontSize: '15px',
     color: '#d1d5db',
   },
 
@@ -522,7 +515,7 @@ const styles = {
   th: {
     padding: '16px 12px',
     textAlign: 'left',
-    fontSize: '13px',
+    fontSize: '16px',
     fontWeight: '600',
     color: '#e5e7eb',
     whiteSpace: 'nowrap',
@@ -535,7 +528,7 @@ const styles = {
 
   td: {
     padding: '14px 12px',
-    fontSize: '13px',
+    fontSize: '16px',
     color: '#e5e7eb',
     verticalAlign: 'middle',
   },
@@ -547,7 +540,7 @@ const styles = {
   },
 
   notes: {
-    fontSize: '11px',
+    fontSize: '14px',
     color: '#d1d5db',
     marginTop: '4px',
     maxWidth: '200px',
@@ -563,7 +556,7 @@ const styles = {
     color: '#3b82f6',
     padding: '4px 8px',
     borderRadius: '4px',
-    fontSize: '12px',
+    fontSize: '15px',
     fontWeight: '500',
   },
 
@@ -571,7 +564,7 @@ const styles = {
     display: 'inline-block',
     padding: '6px 12px',
     borderRadius: '6px',
-    fontSize: '12px',
+    fontSize: '15px',
     fontWeight: '500',
     color: '#ffffff',
     whiteSpace: 'nowrap',
@@ -579,7 +572,7 @@ const styles = {
   },
 
   dateText: {
-    fontSize: '12px',
+    fontSize: '15px',
     color: '#d1d5db',
     whiteSpace: 'nowrap',
   },
@@ -591,7 +584,7 @@ const styles = {
     borderRadius: '6px',
     color: '#a78bfa',
     cursor: 'pointer',
-    fontSize: '12px',
+    fontSize: '15px',
     fontWeight: '500',
     transition: 'all 0.2s ease',
   },
@@ -642,7 +635,7 @@ const styles = {
   },
 
   modalTitle: {
-    fontSize: '18px',
+    fontSize: '23px',
     fontWeight: '700',
     color: '#ffffff',
     margin: 0,
@@ -683,14 +676,14 @@ const styles = {
   },
 
   logTime: {
-    fontSize: '11px',
+    fontSize: '14px',
     color: '#8b96a8',
     marginBottom: '4px',
     fontWeight: '500',
   },
 
   logMessage: {
-    fontSize: '12px',
+    fontSize: '15px',
     lineHeight: '1.4',
     fontFamily: 'monospace',
   },

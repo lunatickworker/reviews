@@ -42,12 +42,12 @@ export default function MapAutomation() {
         placeholder="단축 URL 입력 (예: https://maps.app.goo.gl/TPQUKwoHkBx5o1XB8)"
         value={shortUrl}
         onChange={e => setShortUrl(e.target.value)}
-        style={{ width: '100%', padding: '8px', fontSize: '16px' }}
+        style={{ width: '100%', padding: '8px', fontSize: '20px' }}
       />
       <button
         onClick={handleStart}
         disabled={loading}
-        style={{ marginTop: '10px', padding: '10px 20px', fontSize: '16px' }}
+        style={{ marginTop: '10px', padding: '10px 20px', fontSize: '20px' }}
       >
         {loading ? '자동화 중...' : '자동화 시작'}
       </button>

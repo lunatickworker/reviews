@@ -148,7 +148,7 @@ function getStatusStyle(status) {
       borderRadius: '4px',
       backgroundColor: 'rgba(255, 193, 7, 0.2)',
       color: '#f57f17',
-      fontSize: '12px',
+      fontSize: '15px',
       fontWeight: '600',
       display: 'inline-block',
     },
@@ -157,7 +157,7 @@ function getStatusStyle(status) {
       borderRadius: '4px',
       backgroundColor: 'rgba(76, 175, 80, 0.2)',
       color: '#2e7d32',
-      fontSize: '12px',
+      fontSize: '15px',
       fontWeight: '600',
       display: 'inline-block',
     },
@@ -166,7 +166,7 @@ function getStatusStyle(status) {
       borderRadius: '4px',
       backgroundColor: 'rgba(244, 67, 54, 0.2)',
       color: '#c62828',
-      fontSize: '12px',
+      fontSize: '15px',
       fontWeight: '600',
       display: 'inline-block',
     },
@@ -182,7 +182,7 @@ const styles = {
   loading: {
     textAlign: 'center',
     padding: '40px',
-    fontSize: '16px',
+    fontSize: '20px',
     color: '#8b96a8',
   },
 
@@ -211,14 +211,14 @@ const styles = {
 
   statLabel: {
     margin: '0 0 10px 0',
-    fontSize: '12px',
+    fontSize: '15px',
     color: '#8b96a8',
     fontWeight: '500',
   },
 
   statValue: {
     margin: 0,
-    fontSize: '28px',
+    fontSize: '35px',
     fontWeight: 'bold',
     color: '#ffffff',
   },
@@ -238,7 +238,7 @@ const styles = {
     color: '#b0b9c6',
     cursor: 'pointer',
     fontWeight: '500',
-    fontSize: '13px',
+    fontSize: '16px',
     transition: 'all 0.3s ease',
   },
 
@@ -296,7 +296,7 @@ const styles = {
 
   placeName: {
     margin: '0 0 8px 0',
-    fontSize: '16px',
+    fontSize: '20px',
     fontWeight: '600',
     color: '#ffffff',
     overflow: 'hidden',
@@ -306,7 +306,7 @@ const styles = {
 
   date: {
     margin: '0 0 10px 0',
-    fontSize: '12px',
+    fontSize: '15px',
     color: '#8b96a8',
   },
 
@@ -316,7 +316,7 @@ const styles = {
 
   description: {
     margin: '10px 0 0 0',
-    fontSize: '12px',
+    fontSize: '15px',
     color: '#b0b9c6',
     lineHeight: '1.4',
     maxHeight: '60px',

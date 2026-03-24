@@ -373,7 +373,7 @@ const styles = {
 
   sectionSubtitle: {
     margin: '0 0 15px 0',
-    fontSize: '14px',
+    fontSize: '18px',
     fontWeight: '600',
     color: '#ffffff',
   },
@@ -389,7 +389,7 @@ const styles = {
     padding: '10px 15px',
     border: '1px solid rgba(124, 58, 237, 0.3)',
     borderRadius: '8px',
-    fontSize: '13px',
+    fontSize: '16px',
     backgroundColor: 'rgba(30, 33, 57, 0.8)',
     color: '#e0e0e0',
     backdropFilter: 'blur(5px)',
@@ -400,7 +400,7 @@ const styles = {
     padding: '10px 15px',
     border: '1px solid rgba(124, 58, 237, 0.3)',
     borderRadius: '8px',
-    fontSize: '13px',
+    fontSize: '16px',
     backgroundColor: 'rgba(30, 33, 57, 0.8)',
     color: '#e0e0e0',
     backdropFilter: 'blur(5px)',
@@ -417,7 +417,7 @@ const styles = {
     borderRadius: '8px',
     color: '#ffffff',
     cursor: 'pointer',
-    fontSize: '13px',
+    fontSize: '16px',
     fontWeight: '600',
     transition: 'all 0.3s ease',
     backdropFilter: 'blur(5px)',
@@ -441,14 +441,14 @@ const styles = {
 
   statLabel: {
     margin: '0 0 10px 0',
-    fontSize: '12px',
+    fontSize: '15px',
     color: '#8b96a8',
     fontWeight: '500',
   },
 
   statValue: {
     margin: 0,
-    fontSize: '28px',
+    fontSize: '35px',
     fontWeight: 'bold',
     color: '#ffffff',
   },
@@ -468,7 +468,7 @@ const styles = {
     color: '#b0b9c6',
     cursor: 'pointer',
     fontWeight: '500',
-    fontSize: '13px',
+    fontSize: '16px',
     transition: 'all 0.3s ease',
   },
 
@@ -496,7 +496,7 @@ const styles = {
   },
 
   sectionTitle: {
-    fontSize: '16px',
+    fontSize: '20px',
     fontWeight: 'bold',
     color: '#ffffff',
     marginBottom: '15px',
@@ -537,7 +537,7 @@ const styles = {
 
   taskTitle: {
     margin: 0,
-    fontSize: '14px',
+    fontSize: '18px',
     fontWeight: '600',
     color: '#ffffff',
   },
@@ -545,12 +545,12 @@ const styles = {
   statusBadge: {
     padding: '4px 8px',
     borderRadius: '4px',
-    fontSize: '11px',
+    fontSize: '14px',
     fontWeight: '600',
   },
 
   taskDetails: {
-    fontSize: '12px',
+    fontSize: '15px',
     margin: '10px 0',
   },
 
@@ -573,7 +573,7 @@ const styles = {
 
   taskDate: {
     margin: '10px 0 0 0',
-    fontSize: '11px',
+    fontSize: '14px',
     color: '#8b96a8',
   },
 
@@ -598,7 +598,7 @@ const styles = {
   },
 
   logsInfo: {
-    fontSize: '12px',
+    fontSize: '15px',
     color: '#8b96a8',
     flex: 1,
     marginLeft: '10px',
@@ -608,7 +608,7 @@ const styles = {
     background: 'transparent',
     border: 'none',
     color: '#8b96a8',
-    fontSize: '18px',
+    fontSize: '23px',
     cursor: 'pointer',
     padding: '0 5px',
   },
@@ -629,7 +629,7 @@ const styles = {
 
   logsList: {
     fontFamily: 'monospace',
-    fontSize: '12px',
+    fontSize: '15px',
   },
 
   logEntry: {
@@ -644,11 +644,11 @@ const styles = {
 
   logTime: {
     color: '#90caf9',
-    fontSize: '11px',
+    fontSize: '14px',
   },
 
   logLevel: {
-    fontSize: '11px',
+    fontSize: '14px',
     fontWeight: '600',
   },
 
@@ -667,7 +667,7 @@ const styles = {
 
   deniedText: {
     margin: '0',
-    fontSize: '16px',
+    fontSize: '20px',
     fontWeight: '600',
     color: '#ff6b9d',
   },

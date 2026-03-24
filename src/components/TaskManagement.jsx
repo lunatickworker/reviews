@@ -1,48 +1,62 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { mapApi } from '../utils/api';
+import { mapApi, storeApi, taskApi } from '../utils/api';
 
 export default function TaskManagement() {
-  const { token, isAdmin } = useAuth();
+  const { token, isAdmin, user } = useAuth();
   const [tasks, setTasks] = useState([]);
+  const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedStore, setSelectedStore] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', order: 'desc' });
+  const [showNewTask, setShowNewTask] = useState(false);
+  const [newTask, setNewTask] = useState({ placeName: '', stars: 0, storeId: null });
 
+  // 매장 조회 및 작업 조회
   useEffect(() => {
-    const fetchTasks = async () => {
+    const fetchData = async () => {
       try {
-        const data = await mapApi.getTasks(token);
-        setTasks(data || []);
+        // agency 사용자는 자신의 매장만 조회
+        if (!isAdmin) {
+          const storeData = await storeApi.getAll(token);
+          setStores(storeData || []);
+          if (storeData && storeData.length > 0) {
+            setSelectedStore(storeData[0].id);
+          }
+        } else {
+          // admin은 모든 데이터 조회 가능
+          const storeData = await storeApi.getAll(token);
+          setStores(storeData || []);
+        }
+
+        const taskData = await mapApi.getTasks(token);
+        setTasks(taskData || []);
       } catch (error) {
-        console.error('작업 조회 실패:', error);
+        console.error('데이터 조회 실패:', error);
       } finally {
         setLoading(false);
       }
     };
 
     if (token) {
-      fetchTasks();
+      fetchData();
       // 10초마다 새로고침
-      const interval = setInterval(fetchTasks, 10000);
+      const interval = setInterval(fetchData, 10000);
       return () => clearInterval(interval);
     }
-  }, [token]);
+  }, [token, isAdmin]);
 
-  if (!isAdmin) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.accessDenied}>
-          <p>🔒 이 메뉴는 관리자만 이용 가능합니다.</p>
-        </div>
-      </div>
-    );
+  // 조직격리: 에이전시 사용자는 자신의 매장 작업만 필터링
+  let displayTasks = tasks;
+  if (!isAdmin && selectedStore) {
+    displayTasks = tasks.filter(task => task.store_id === selectedStore);
   }
 
   // 오늘 진행이 완료되거나 실패된 작업만 필터링
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const completedOrFailedTasks = tasks.filter(task => {
+  const completedOrFailedTasks = displayTasks.filter(task => {
     const taskDate = new Date(task.created_at);
     taskDate.setHours(0, 0, 0, 0);
     return (
@@ -112,6 +126,20 @@ export default function TaskManagement() {
     return `${year}-${month}-${day} ${hours}:${minutes}`;
   };
 
+  // 매장 웹사이트 URL 가져오기
+  const getStoreWebsiteAdmin = (storeId) => {
+    const store = stores.find(s => s.id === storeId);
+    return store?.address || null;
+  };
+
+  // 매장 클릭 핸들러
+  const handleStoreClickAdmin = (storeId) => {
+    const website = getStoreWebsiteAdmin(storeId);
+    if (website) {
+      window.open(website, '_blank', 'noopener,noreferrer');
+    }
+  };
+
   // 상태별 색상
   const getStatusColor = (status) => {
     const colors = {
@@ -168,7 +196,28 @@ export default function TaskManagement() {
               {sortedTasks.map((task) => (
                 <tr key={task.id} style={styles.tableRow}>
                   <td style={styles.td}>
-                    <div style={styles.taskName}>{task.place_name || '미지정'}</div>
+                    <div
+                      style={{
+                        ...styles.taskName,
+                        cursor: getStoreWebsiteAdmin(task.store_id) ? 'pointer' : 'default',
+                        color: getStoreWebsiteAdmin(task.store_id) ? '#60a5fa' : styles.taskName.color,
+                        textDecoration: getStoreWebsiteAdmin(task.store_id) ? 'underline' : 'none',
+                        transition: 'color 0.2s ease',
+                      }}
+                      onClick={() => handleStoreClickAdmin(task.store_id)}
+                      onMouseEnter={(e) => {
+                        if (getStoreWebsiteAdmin(task.store_id)) {
+                          e.currentTarget.style.color = '#93c5fd';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (getStoreWebsiteAdmin(task.store_id)) {
+                          e.currentTarget.style.color = '#60a5fa';
+                        }
+                      }}
+                    >
+                      {task.place_name || '미지정'}
+                    </div>
                     {task.notes && <div style={styles.notes}>{task.notes}</div>}
                   </td>
                   <td style={styles.td}>
@@ -222,7 +271,7 @@ const styles = {
   },
 
   title: {
-    fontSize: '40px',
+    fontSize: '24px',
     fontWeight: '700',
     color: '#ffffff',
     margin: '0 0 8px 0',
@@ -232,7 +281,7 @@ const styles = {
   },
 
   subtitle: {
-    fontSize: '14px',
+    fontSize: '15px',
     color: '#d1d5db',
     margin: '0',
   },
@@ -265,7 +314,7 @@ const styles = {
   th: {
     padding: '16px 12px',
     textAlign: 'left',
-    fontSize: '13px',
+    fontSize: '16px',
     fontWeight: '600',
     color: '#e5e7eb',
     whiteSpace: 'nowrap',
@@ -278,7 +327,7 @@ const styles = {
 
   td: {
     padding: '14px 12px',
-    fontSize: '13px',
+    fontSize: '16px',
     color: '#e5e7eb',
     verticalAlign: 'middle',
   },
@@ -290,7 +339,7 @@ const styles = {
   },
 
   notes: {
-    fontSize: '11px',
+    fontSize: '14px',
     color: '#d1d5db',
     marginTop: '4px',
     maxWidth: '200px',
@@ -306,7 +355,7 @@ const styles = {
     color: '#3b82f6',
     padding: '4px 8px',
     borderRadius: '4px',
-    fontSize: '12px',
+    fontSize: '15px',
     fontWeight: '500',
   },
 
@@ -314,7 +363,7 @@ const styles = {
     display: 'inline-block',
     padding: '6px 12px',
     borderRadius: '6px',
-    fontSize: '12px',
+    fontSize: '15px',
     fontWeight: '500',
     color: '#ffffff',
     whiteSpace: 'nowrap',
@@ -322,7 +371,7 @@ const styles = {
   },
 
   dateText: {
-    fontSize: '12px',
+    fontSize: '15px',
     color: '#d1d5db',
     whiteSpace: 'nowrap',
   },
@@ -330,5 +379,47 @@ const styles = {
   accessDenied: {
     padding: '32px',
     textAlign: 'center',
+  },
+
+  storeSelector: {
+    display: 'flex',
+    gap: '12px',
+    alignItems: 'center',
+    marginBottom: '20px',
+    padding: '15px',
+    background: 'rgba(124, 58, 237, 0.1)',
+    borderRadius: '8px',
+    border: '1px solid rgba(124, 58, 237, 0.2)',
+  },
+
+  label: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#e0e0e0',
+    whiteSpace: 'nowrap',
+  },
+
+  storeSelect: {
+    padding: '8px 12px',
+    border: '1px solid rgba(124, 58, 237, 0.3)',
+    borderRadius: '6px',
+    fontSize: '16px',
+    backgroundColor: 'rgba(30, 33, 57, 0.8)',
+    color: '#e0e0e0',
+    cursor: 'pointer',
+    flex: 1,
+    maxWidth: '300px',
+  },
+
+  loadingCell: {
+    padding: '20px',
+    textAlign: 'center',
+    color: '#8b96a8',
+  },
+
+  emptyCell: {
+    padding: '20px',
+    textAlign: 'center',
+    color: '#8b96a8',
   },
 };
