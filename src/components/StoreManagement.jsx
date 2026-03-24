@@ -291,7 +291,7 @@ const StoreManagement = () => {
             <label style={styles.label}>매장 주소</label>
             <input
               type="text"
-              placeholder="예: https://maps.app.goo.gl/... 또는 서울시 강남구"
+              placeholder="예: https://maps.app.goo.gl/ABC123XYZ..."
               value={newStore.address}
               onChange={(e) => handleAddressChange(e.target.value)}
               style={styles.input}
