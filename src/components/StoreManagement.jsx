@@ -19,6 +19,8 @@ const StoreManagement = () => {
     storeName: '',
     address: '',
     reviewMessage: '',
+    dailyFrequency: 1,
+    totalCount: 1,
   });
 
   // 주소 검증 함수 (URL만 허용)
@@ -67,7 +69,7 @@ const StoreManagement = () => {
   }, [loadStores]);
 
   const resetForm = () => {
-    setNewStore({ storeName: '', address: '', reviewMessage: '' });
+    setNewStore({ storeName: '', address: '', reviewMessage: '', dailyFrequency: 1, totalCount: 1 });
     setEditingId(null);
     setShowForm(false);
     setAddressWarning('');
@@ -140,6 +142,8 @@ const StoreManagement = () => {
       storeName: store.store_name,
       address: store.address || '',
       reviewMessage: store.review_message || '',
+      dailyFrequency: store.daily_frequency || 1,
+      totalCount: store.total_count || 1,
     });
     setEditingId(store.id);
     setShowForm(true);
@@ -182,6 +186,8 @@ const StoreManagement = () => {
           newStore.storeName.trim(),
           newStore.address.trim(),
           newStore.reviewMessage.trim(),
+          parseInt(newStore.dailyFrequency) || 1,
+          parseInt(newStore.totalCount) || 1,
           token
         );
         setSuccessMessage('매장이 수정되었습니다.');
@@ -190,6 +196,8 @@ const StoreManagement = () => {
           newStore.storeName.trim(),
           newStore.address.trim(),
           newStore.reviewMessage.trim(),
+          parseInt(newStore.dailyFrequency) || 1,
+          parseInt(newStore.totalCount) || 1,
           token
         );
         setSuccessMessage('매장이 등록되었습니다.');
@@ -236,6 +244,8 @@ const StoreManagement = () => {
             const storeName = row['매장명']?.toString().trim();
             const address = row['매장주소']?.toString().trim() || '';
             const reviewMessage = row['리뷰메세지']?.toString().trim() || '';
+            const dailyFrequency = parseInt(row['하루횟수']) || 1;
+            const totalCount = parseInt(row['총횟수']) || 1;
 
             if (!storeName) {
               failCount++;
@@ -251,7 +261,7 @@ const StoreManagement = () => {
             }
 
             try {
-              await storeApi.create(storeName, address, reviewMessage, token);
+              await storeApi.create(storeName, address, reviewMessage, dailyFrequency, totalCount, token);
               successCount++;
             } catch (err) {
               failCount++;
@@ -287,8 +297,8 @@ const StoreManagement = () => {
 
   const downloadTemplate = () => {
     const template = [
-      { 매장명: '장어맛집', 매장주소: 'https://maps.app.goo.gl/4C1ftLsCmzKvpw6Q7', 리뷰메세지: '맜있게 먹었어요.' },
-      { 매장명: '부산 해운대점', 매장주소: '부산시 해운대구', 리뷰메세지: '만족합니다' },
+      { 매장명: '장어맛집', 매장주소: 'https://maps.app.goo.gl/4C1ftLsCmzKvpw6Q7', 리뷰메세지: '맜있게 먹었어요.', 하루횟수: 2, 총횟수: 10 },
+      { 매장명: '부산 해운대점', 매장주소: '부산시 해운대구', 리뷰메세지: '만족합니다', 하루횟수: 1, 총횟수: 5 },
     ];
 
     const worksheet = XLSX.utils.json_to_sheet(template);
@@ -299,11 +309,50 @@ const StoreManagement = () => {
 
   return (
     <div style={styles.container}>
-      <div style={styles.titleSection}>
-        <h2 style={styles.title}>🏪 매장 등록</h2>
-        <div style={styles.storeCount}>
-          <span style={styles.countLabel}>등록된 매장:</span>
-          <span style={styles.countValue}>{stores.length}개</span>
+      <div style={styles.header}>
+        <div style={styles.titleSection}>
+          <h2 style={styles.title}>🏪 매장 등록</h2>
+          <div style={styles.storeCount}>
+            <span style={styles.countLabel}>등록된 매장</span>
+            <span style={styles.countValue}>{stores.length}</span>
+          </div>
+        </div>
+
+        <div style={styles.controlBar}>
+          <div style={styles.buttonGroup}>
+            <button onClick={() => !showForm ? (setShowForm(true), setEditingId(null), setNewStore({ storeName: '', address: '', reviewMessage: '' }), setAddressWarning('')) : resetForm()} style={styles.createButton}>
+              {showForm ? '✕ 취소' : '➕ 새 매장'}
+            </button>
+            <button onClick={downloadTemplate} style={styles.templateButton}>
+              📥 템플릿
+            </button>
+            <label style={styles.excelButton}>
+              📤 업로드
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleExcelUpload}
+                style={{ display: 'none' }}
+              />
+            </label>
+          </div>
+          {isAdmin && stores.length > 0 && (
+            <div style={styles.filterSection}>
+              <label style={styles.filterLabel}>등록자</label>
+              <select 
+                value={selectedUser} 
+                onChange={(e) => setSelectedUser(e.target.value)}
+                style={styles.filterSelect}
+              >
+                <option value="">전체 ({stores.length})</option>
+                {Object.entries(getUserStoreStats()).map(([userId, count]) => (
+                  <option key={userId} value={userId}>
+                    {userId} ({count})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </div>
 
@@ -318,43 +367,6 @@ const StoreManagement = () => {
           ))}
         </p>
       )}
-
-      <div style={styles.controlBar}>
-        <div style={styles.buttonGroup}>
-          <button onClick={() => !showForm ? (setShowForm(true), setEditingId(null), setNewStore({ storeName: '', address: '', reviewMessage: '' }), setAddressWarning('')) : resetForm()} style={styles.createButton}>
-            {showForm ? '✕ 취소' : '➕ 새 매장 등록'}
-          </button>
-          <button onClick={downloadTemplate} style={styles.templateButton}>
-            📥 템플릿 다운로드
-          </button>
-          <label style={styles.excelButton}>
-            📤 엑셀 업로드
-            <input
-              type="file"
-              accept=".xlsx,.xls"
-              onChange={handleExcelUpload}
-              style={{ display: 'none' }}
-            />
-          </label>
-        </div>
-        {isAdmin && stores.length > 0 && (
-          <div style={styles.filterSection}>
-            <label style={styles.filterLabel}>등록자:</label>
-            <select 
-              value={selectedUser} 
-              onChange={(e) => setSelectedUser(e.target.value)}
-              style={styles.filterSelect}
-            >
-              <option value="">전체 ({stores.length}개)</option>
-              {Object.entries(getUserStoreStats()).map(([userId, count]) => (
-                <option key={userId} value={userId}>
-                  {userId} ({count}개)
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-      </div>
 
       {showForm && (
         <form onSubmit={handleCreateOrUpdateStore} style={styles.form}>
@@ -392,6 +404,31 @@ const StoreManagement = () => {
             />
           </div>
 
+          <div style={{ display: 'flex', gap: '15px' }}>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>하루 발행 횟수</label>
+              <input
+                type="number"
+                min="1"
+                placeholder="1"
+                value={newStore.dailyFrequency}
+                onChange={(e) => setNewStore({ ...newStore, dailyFrequency: e.target.value })}
+                style={styles.input}
+              />
+            </div>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>총 발행 횟수</label>
+              <input
+                type="number"
+                min="1"
+                placeholder="1"
+                value={newStore.totalCount}
+                onChange={(e) => setNewStore({ ...newStore, totalCount: e.target.value })}
+                style={styles.input}
+              />
+            </div>
+          </div>
+
           <button type="submit" style={styles.submitButton}>
             {editingId ? '수정' : '등록'}
           </button>
@@ -402,24 +439,25 @@ const StoreManagement = () => {
         <table style={styles.table}>
           <thead>
             <tr style={styles.headerRow}>
-              <th 
-                style={{ ...styles.th, width: '15%', cursor: 'pointer' }} 
+              <th style={{ ...styles.th, width: '12%', cursor: 'pointer' }} 
                 onClick={() => handleSort('store_name')}
               >
                 매장명 {sortConfig.key === 'store_name' && (sortConfig.order === 'asc' ? '▲' : '▼')}
               </th>
-              <th style={{ ...styles.th, width: isAdmin ? '20%' : '25%' }}>주소</th>
-              <th style={{ ...styles.th, width: isAdmin ? '28%' : '35%' }}>리뷰 메세지</th>
+              <th style={{ ...styles.th, width: isAdmin ? '16%' : '20%' }}>주소</th>
+              <th style={{ ...styles.th, width: isAdmin ? '18%' : '22%' }}>리뷰 메세지</th>
+              <th style={{ ...styles.th, width: '8%' }}>하루발행</th>
+              <th style={{ ...styles.th, width: '8%' }}>총발행</th>
               {isAdmin && (
                 <th 
-                  style={{ ...styles.th, width: '12%', cursor: 'pointer' }}
+                  style={{ ...styles.th, width: '10%', cursor: 'pointer' }}
                   onClick={() => handleSort('user_id')}
                 >
                   등록자 {sortConfig.key === 'user_id' && (sortConfig.order === 'asc' ? '▲' : '▼')}
                 </th>
               )}
-              <th style={{ ...styles.th, width: '12%' }}>등록일</th>
-              <th style={{ ...styles.th, width: '10%' }}>관리</th>
+              <th style={{ ...styles.th, width: '10%' }}>등록일</th>
+              <th style={{ ...styles.th, width: '8%' }}>관리</th>
             </tr>
           </thead>
           <tbody>
@@ -429,7 +467,7 @@ const StoreManagement = () => {
               </tr>
             ) : stores.length === 0 ? (
               <tr>
-                <td colSpan={isAdmin ? 6 : 5} style={styles.emptyCellBG}>
+                <td colSpan={isAdmin ? 8 : 7} style={styles.emptyCellBG}>
                   등록된 매장이 없습니다. 새 매장을 등록해주세요.
                 </td>
               </tr>
@@ -442,12 +480,12 @@ const StoreManagement = () => {
                     backgroundColor: idx % 2 === 0 ? 'rgba(230, 190, 255, 0.08)' : 'rgba(255, 192, 203, 0.08)',
                   }}
                 >
-                  <td style={{ ...styles.td, width: '15%', fontWeight: '600' }}>{store.store_name}</td>
-                  <td style={{ ...styles.td, width: isAdmin ? '20%' : '25%', fontSize: '15px' }}>
+                  <td style={{ ...styles.td, width: '12%', fontWeight: '600' }}>{store.store_name}</td>
+                  <td style={{ ...styles.td, width: isAdmin ? '16%' : '20%', fontSize: '15px' }}>
                     {store.address ? (
                       store.address.startsWith('http') ? (
                         <a href={store.address} target="_blank" rel="noopener noreferrer" style={styles.link}>
-                          {store.address.substring(0, 30)}...
+                          {store.address.substring(0, 25)}...
                         </a>
                       ) : (
                         store.address
@@ -456,18 +494,24 @@ const StoreManagement = () => {
                       '-'
                     )}
                   </td>
-                  <td style={{ ...styles.td, width: isAdmin ? '28%' : '35%', fontSize: '15px' }}>
+                  <td style={{ ...styles.td, width: isAdmin ? '18%' : '22%', fontSize: '15px' }}>
                     {store.review_message || '-'}
                   </td>
+                  <td style={{ ...styles.td, width: '8%', fontSize: '15px', textAlign: 'center', fontWeight: '500', color: '#f59e0b' }}>
+                    {store.daily_frequency || '-'}회
+                  </td>
+                  <td style={{ ...styles.td, width: '8%', fontSize: '15px', textAlign: 'center', fontWeight: '500', color: '#06b6d4' }}>
+                    {store.total_count || '-'}회
+                  </td>
                   {isAdmin && (
-                    <td style={{ ...styles.td, width: '12%', fontSize: '15px', fontWeight: '500', color: '#a78bfa' }}>
+                    <td style={{ ...styles.td, width: '10%', fontSize: '15px', fontWeight: '500', color: '#a78bfa' }}>
                       {store.user?.user_id || '-'}
                     </td>
                   )}
-                  <td style={{ ...styles.td, width: '12%', fontSize: '15px' }}>
+                  <td style={{ ...styles.td, width: '10%', fontSize: '15px' }}>
                     {new Date(store.created_at).toLocaleDateString('ko-KR')}
                   </td>
-                  <td style={{ ...styles.td, width: '10%' }}>
+                  <td style={{ ...styles.td, width: '8%' }}>
                     <div style={styles.actionButtons}>
                       <button
                         onClick={() => handleEditStore(store)}
@@ -502,17 +546,23 @@ const styles = {
     background: 'rgba(37, 45, 66, 0.7)',
     backdropFilter: 'blur(10px)',
     borderRadius: '12px',
-    padding: '30px',
+    padding: '24px',
     border: '1px solid rgba(124, 58, 237, 0.2)',
     boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+  },
+
+  header: {
+    marginBottom: '20px',
+    paddingBottom: '16px',
+    borderBottom: '1px solid rgba(124, 58, 237, 0.2)',
   },
 
   titleSection: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '20px',
-    gap: '20px',
+    marginBottom: '16px',
+    gap: '16px',
   },
 
   title: {
@@ -526,17 +576,17 @@ const styles = {
   storeCount: {
     display: 'flex',
     alignItems: 'center',
-    gap: '10px',
-    padding: '12px 20px',
+    gap: '8px',
+    padding: '8px 14px',
     backgroundColor: 'rgba(124, 58, 237, 0.15)',
     border: '1px solid rgba(124, 58, 237, 0.3)',
-    borderRadius: '8px',
+    borderRadius: '6px',
     backdropFilter: 'blur(5px)',
     whiteSpace: 'nowrap',
   },
 
   countLabel: {
-    fontSize: '15px',
+    fontSize: '13px',
     fontWeight: '600',
     color: '#b0b9c6',
     textTransform: 'uppercase',
@@ -544,7 +594,7 @@ const styles = {
   },
 
   countValue: {
-    fontSize: '20px',
+    fontSize: '16px',
     fontWeight: '700',
     color: '#7c3aed',
   },
@@ -553,79 +603,82 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: '15px',
-    marginBottom: '20px',
+    gap: '16px',
+    marginBottom: '24px',
     flexWrap: 'wrap',
   },
 
   filterSection: {
     display: 'flex',
     alignItems: 'center',
-    gap: '10px',
-    padding: '10px 15px',
-    backgroundColor: 'rgba(124, 58, 237, 0.08)',
-    border: '1px solid rgba(124, 58, 237, 0.2)',
+    gap: '8px',
+    padding: '8px 14px',
+    backgroundColor: 'rgba(124, 58, 237, 0.1)',
+    border: '1px solid rgba(124, 58, 237, 0.25)',
     borderRadius: '6px',
     whiteSpace: 'nowrap',
   },
 
   filterLabel: {
-    fontSize: '14px',
+    fontSize: '13px',
     fontWeight: '600',
     color: '#a78bfa',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
   },
 
   filterSelect: {
     padding: '6px 10px',
     backgroundColor: 'rgba(30, 35, 50, 0.8)',
-    color: '#ffffff',
+    color: '#e5e7eb',
     border: '1px solid rgba(124, 58, 237, 0.4)',
     borderRadius: '5px',
     fontSize: '14px',
     fontWeight: '500',
     cursor: 'pointer',
     transition: 'all 0.2s ease',
-    minWidth: '160px',
+    minWidth: '140px',
   },
 
 
   error: {
-    padding: '12px 15px',
+    padding: '12px 14px',
     backgroundColor: 'rgba(218, 18, 125, 0.15)',
     border: '1px solid rgba(218, 18, 125, 0.3)',
-    borderRadius: '8px',
+    borderRadius: '6px',
     color: '#ff6b9d',
-    fontSize: '18px',
-    marginBottom: '15px',
+    fontSize: '14px',
+    marginBottom: '16px',
     whiteSpace: 'pre-wrap',
   },
 
   success: {
-    padding: '12px 15px',
+    padding: '12px 14px',
     backgroundColor: 'rgba(76, 175, 80, 0.15)',
     border: '1px solid rgba(76, 175, 80, 0.3)',
-    borderRadius: '8px',
+    borderRadius: '6px',
     color: '#76ff03',
-    fontSize: '18px',
-    marginBottom: '15px',
+    fontSize: '14px',
+    marginBottom: '16px',
     whiteSpace: 'pre-wrap',
   },
 
   buttonGroup: {
     display: 'flex',
-    gap: '10px',
+    gap: '8px',
     flexWrap: 'wrap',
+    alignItems: 'center',
     marginBottom: 0,
   },
 
   createButton: {
-    padding: '12px 20px',
+    padding: '8px 16px',
     backgroundColor: 'rgba(124, 58, 237, 0.5)',
     border: '1px solid rgba(124, 58, 237, 0.6)',
-    borderRadius: '8px',
+    borderRadius: '6px',
     color: '#ffffff',
     cursor: 'pointer',
-    fontSize: '18px',
+    fontSize: '14px',
     fontWeight: '600',
     transition: 'all 0.3s ease',
     backdropFilter: 'blur(5px)',
@@ -633,13 +686,13 @@ const styles = {
   },
 
   templateButton: {
-    padding: '12px 20px',
+    padding: '8px 16px',
     backgroundColor: 'rgba(76, 175, 80, 0.3)',
     border: '1px solid rgba(76, 175, 80, 0.5)',
-    borderRadius: '8px',
+    borderRadius: '6px',
     color: '#76ff03',
     cursor: 'pointer',
-    fontSize: '18px',
+    fontSize: '14px',
     fontWeight: '600',
     transition: 'all 0.3s ease',
     backdropFilter: 'blur(5px)',
@@ -647,13 +700,13 @@ const styles = {
   },
 
   excelButton: {
-    padding: '12px 20px',
+    padding: '8px 16px',
     backgroundColor: 'rgba(33, 150, 243, 0.3)',
     border: '1px solid rgba(33, 150, 243, 0.5)',
-    borderRadius: '8px',
+    borderRadius: '6px',
     color: '#42a5f5',
     cursor: 'pointer',
-    fontSize: '18px',
+    fontSize: '14px',
     fontWeight: '600',
     transition: 'all 0.3s ease',
     backdropFilter: 'blur(5px)',
@@ -664,9 +717,9 @@ const styles = {
   form: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
-    gap: '15px',
-    marginBottom: '25px',
-    padding: '20px',
+    gap: '12px',
+    marginBottom: '24px',
+    padding: '16px',
     background: 'rgba(124, 58, 237, 0.1)',
     borderRadius: '8px',
     border: '1px solid rgba(124, 58, 237, 0.2)',
@@ -677,19 +730,19 @@ const styles = {
   formGroup: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '5px',
+    gap: '4px',
   },
 
   label: {
-    fontSize: '15px',
+    fontSize: '13px',
     fontWeight: '600',
-    color: '#e0e0e0',
+    color: '#d1d5db',
     textTransform: 'uppercase',
     letterSpacing: '0.5px',
   },
 
   input: {
-    padding: '10px 12px',
+    padding: '8px 11px',
     border: '1px solid rgba(124, 58, 237, 0.3)',
     borderRadius: '6px',
     fontSize: '16px',
@@ -701,23 +754,23 @@ const styles = {
   },
 
   warning: {
-    fontSize: '15px',
+    fontSize: '14px',
     color: '#ffb74d',
-    marginTop: '5px',
-    padding: '8px',
+    marginTop: '4px',
+    padding: '6px',
     backgroundColor: 'rgba(255, 183, 77, 0.1)',
     borderRadius: '4px',
     border: '1px solid rgba(255, 183, 77, 0.3)',
   },
 
   submitButton: {
-    padding: '10px 20px',
+    padding: '8px 18px',
     backgroundColor: 'rgba(76, 175, 80, 0.3)',
     border: '1px solid rgba(76, 175, 80, 0.5)',
     borderRadius: '6px',
     color: '#76ff03',
     cursor: 'pointer',
-    fontSize: '16px',
+    fontSize: '14px',
     fontWeight: '600',
     transition: 'all 0.3s ease',
     backdropFilter: 'blur(5px)',
@@ -750,11 +803,11 @@ const styles = {
   },
 
   th: {
-    padding: '12px 15px',
+    padding: '10px 12px',
     textAlign: 'left',
-    color: '#ffffff',
+    color: '#e5e7eb',
     fontWeight: '600',
-    fontSize: '15px',
+    fontSize: '13px',
     textTransform: 'uppercase',
     letterSpacing: '0.5px',
   },
@@ -765,25 +818,26 @@ const styles = {
   },
 
   td: {
-    padding: '12px 15px',
-    color: '#ffffff',
+    padding: '10px 12px',
+    color: '#e5e7eb',
     fontSize: '14px',
     verticalAlign: 'middle',
   },
 
   loadingCell: {
-    padding: '20px',
+    padding: '16px',
     textAlign: 'center',
     color: '#8b96a8',
     fontStyle: 'italic',
+    fontSize: '14px',
   },
 
   emptyCellBG: {
-    padding: '40px 20px',
+    padding: '32px 16px',
     textAlign: 'center',
     color: '#8b96a8',
     fontStyle: 'italic',
-    fontSize: '18px',
+    fontSize: '15px',
   },
 
   deleteButton: {

@@ -1,6 +1,9 @@
 // frontend/src/pages/AdminDashboard.jsx
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { MENU_CONFIG } from '../config/menuConfig';
+
+// 동적 컴포넌트 임포트
 import UserManagement from '../components/UserManagement';
 import TaskManagement from '../components/TaskManagement';
 import StoreManagement from '../components/StoreManagement';
@@ -8,19 +11,22 @@ import SimpleDeploy from '../components/SimpleDeploy';
 import ReviewAnalytics from '../components/ReviewAnalytics';
 import DashboardStats from '../components/DashboardStats';
 
-export default function AdminDashboard() {
-  const { user, logout, isAdmin } = useAuth();
-  const [activeTab, setActiveTab] = useState('dashboard');
-  // expandedMenu 제거: 현재 상단 메뉴는 드롭다운 없이 사용
+const COMPONENT_MAP = {
+  DashboardStats,
+  StoreManagement,
+  TaskManagement,
+  ReviewAnalytics,
+  SimpleDeploy,
+  UserManagement,
+};
 
-  const mainMenu = [
-    { id: 'dashboard', label: '📊 대시보드' },
-    { id: 'stores', label: '🏪 매장 등록' },
-    { id: 'tasks', label: '📋 작업 관리' },
-    { id: 'reviews', label: '📖 리뷰관리' },
-    ...(isAdmin ? [{ id: 'deploy', label: '🚀 배포' }] : []),
-    { id: 'users', label: '👥 계정 관리' },
-  ];
+export default function AdminDashboard() {
+  const { user, logout } = useAuth();
+  const [activeTab, setActiveTab] = useState('dashboard');
+  
+  // 사용자 역할에 따라 메뉴 결정
+  const userRole = user?.role || 'agency';
+  const mainMenu = MENU_CONFIG[userRole] || MENU_CONFIG.agency;
 
   const styles = {
     container: {
@@ -221,12 +227,14 @@ export default function AdminDashboard() {
       flex: 1,
       display: 'flex',
       flexDirection: 'column',
-      overflow: 'hidden',
+      overflowY: 'auto',
     },
 
     content: {
       flex: 1,
       padding: '30px 40px',
+      overflowY: 'auto',
+      overflowX: 'hidden',
     },
   };
 
@@ -286,12 +294,13 @@ export default function AdminDashboard() {
       {/* Main Content */}
       <main style={styles.main}>
         <div style={styles.content}>
-          {activeTab === 'dashboard' && <DashboardStats />}
-          {activeTab === 'stores' && <StoreManagement />}
-          {activeTab === 'tasks' && <TaskManagement />}
-          {activeTab === 'reviews' && <ReviewAnalytics />}
-          {activeTab === 'deploy' && isAdmin && <SimpleDeploy />}
-          {activeTab === 'users' && <UserManagement />}
+          {mainMenu.map((menu) => {
+            if (activeTab === menu.id) {
+              const Component = COMPONENT_MAP[menu.component];
+              return Component ? <Component key={menu.id} /> : null;
+            }
+            return null;
+          })}
         </div>
       </main>
     </div>

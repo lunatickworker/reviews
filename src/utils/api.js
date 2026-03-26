@@ -55,10 +55,14 @@ export const apiCall = async (method, endpoint, body = null, token = null) => {
     }
   }
 
+  console.log('📦 Response Data:', data);
+
   if (!response.ok) {
+    console.error('❌ API Error:', data?.error || `요청 실패: ${response.status} ${response.statusText}`);
     throw new Error(data?.error || `요청 실패: ${response.status} ${response.statusText}`);
   }
 
+  console.log('✅ Success:', method, endpoint);
   return data;
 };
 
@@ -84,10 +88,10 @@ export const userApi = {
 // 매장 API
 export const storeApi = {
   getAll: (token) => apiCall('GET', '/stores', null, token),
-  create: (storeName, address, reviewMessage, token) =>
-    apiCall('POST', '/stores', { storeName, address, reviewMessage }, token),
-  update: (id, storeName, address, reviewMessage, token) =>
-    apiCall('PUT', `/stores/${id}`, { storeName, address, reviewMessage }, token),
+  create: (storeName, address, reviewMessage, dailyFrequency, totalCount, token) =>
+    apiCall('POST', '/stores', { storeName, address, reviewMessage, dailyFrequency, totalCount }, token),
+  update: (id, storeName, address, reviewMessage, dailyFrequency, totalCount, token) =>
+    apiCall('PUT', `/stores/${id}`, { storeName, address, reviewMessage, dailyFrequency, totalCount }, token),
   delete: (id, token) => apiCall('DELETE', `/stores/${id}`, null, token),
 };
 
@@ -112,10 +116,18 @@ export const logsApi = {
     apiCall('DELETE', `/logs/${taskId}`, null, token),
 };
 
+// 배포 스케줄 API
+export const scheduleApi = {
+  getAll: (token) => apiCall('GET', '/schedules', null, token),
+  create: (storeId, dailyFrequency, totalCount, token) =>
+    apiCall('POST', '/schedules', { storeId, dailyFrequency, totalCount }, token),
+  cancel: (id, token) => apiCall('PUT', `/schedules/${id}/cancel`, null, token),
+};
+
 // 리뷰 배포 API
 export const mapApi = {
-  automateMap: (shortUrl, notes, token) =>
-    apiCall('POST', '/automate-map', { shortUrl, notes }, token),
+  automateMap: (shortUrl, notes, storeId, totalCount, token) =>
+    apiCall('POST', '/automate-map', { shortUrl, notes, storeId, totalCount }, token),
   getTasks: (token) => apiCall('GET', '/tasks', null, token),
   getReviews: (token) => apiCall('GET', '/reviews', null, token),
   getImageReviews: (token) => apiCall('GET', '/image-reviews', null, token),

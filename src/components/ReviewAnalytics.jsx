@@ -84,10 +84,10 @@ export default function ReviewAnalytics() {
 
   const filteredTasks = getFilteredTasks();
 
-  // 작업계정 추출
+  // 작업계정 표시 (Google 계정 이메일의 @ 앞부분)
   const getWorkAccount = (task) => {
-    if (task.users && task.users.user_id) {
-      return task.users.user_id.split('@')[0];
+    if (task.work_account) {
+      return task.work_account;
     }
     return '미지정';
   };
@@ -206,9 +206,9 @@ export default function ReviewAnalytics() {
           <div style={{ ...styles.statValue, color: '#3b82f6' }}>{statistics.total}</div>
         </div>
 
-        <div style={{ ...styles.statCard, borderLeft: '4px solid #10b981' }}>
+        <div style={{ ...styles.statCard, borderLeft: '4px solid #059669' }}>
           <div style={styles.statLabel}>리뷰 완료</div>
-          <div style={{ ...styles.statValue, color: '#10b981' }}>{statistics.completedReview}</div>
+          <div style={{ ...styles.statValue, color: '#059669' }}>{statistics.completedReview}</div>
           <div style={styles.statDescription}>{reviewSuccessRate}% 성공</div>
         </div>
 
@@ -240,9 +240,10 @@ export default function ReviewAnalytics() {
               <tr style={styles.tableHeader}>
                 <th style={styles.th}>매장명</th>
                 <th style={styles.th}>작업계정</th>
+                <th style={styles.th}>일발행/총발행</th>
                 <th style={styles.th}>리뷰</th>
                 <th style={styles.th}>이미지</th>
-                <th style={styles.th}>생성일</th>
+                <th style={styles.th}>작업일</th>
                 <th style={styles.th}>로그</th>
               </tr>
             </thead>
@@ -257,10 +258,15 @@ export default function ReviewAnalytics() {
                     <span style={styles.accountBadge}>{getWorkAccount(task)}</span>
                   </td>
                   <td style={styles.td}>
+                    <span style={styles.scheduleInfo}>
+                      🟡 {task.store?.daily_frequency || '-'}회 / 🔵 {task.store?.total_count || '-'}회
+                    </span>
+                  </td>
+                  <td style={styles.td}>
                     <span
                       style={{
                         ...styles.statusBadge,
-                        backgroundColor: task.review_status === 'completed' ? '#10b981' :
+                        backgroundColor: task.review_status === 'completed' ? '#059669' :
                           task.review_status === 'failed' ? '#ef4444' : '#8b5cf6',
                       }}
                     >
@@ -272,7 +278,7 @@ export default function ReviewAnalytics() {
                     <span
                       style={{
                         ...styles.statusBadge,
-                        backgroundColor: task.image_status === 'completed' ? '#10b981' :
+                        backgroundColor: task.image_status === 'completed' ? '#059669' :
                           task.image_status === 'failed' ? '#ef4444' : '#8b5cf6',
                       }}
                     >
@@ -363,7 +369,6 @@ const styles = {
     padding: '24px',
     background: 'linear-gradient(135deg, rgba(15, 20, 25, 0.9) 0%, rgba(20, 30, 48, 0.8) 100%)',
     borderRadius: '12px',
-    minHeight: '100vh',
   },
 
   header: {
@@ -558,6 +563,18 @@ const styles = {
     borderRadius: '4px',
     fontSize: '15px',
     fontWeight: '500',
+  },
+
+  scheduleInfo: {
+    display: 'inline-block',
+    backgroundColor: 'rgba(168, 85, 247, 0.1)',
+    border: '1px solid rgba(168, 85, 247, 0.3)',
+    color: '#a855f7',
+    padding: '4px 8px',
+    borderRadius: '4px',
+    fontSize: '15px',
+    fontWeight: '500',
+    whiteSpace: 'nowrap',
   },
 
   statusBadge: {

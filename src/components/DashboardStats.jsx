@@ -70,9 +70,9 @@ export default function DashboardStats() {
         </div>
 
         {/* 완료된 매장 */}
-        <div style={{ ...styles.statCard, borderLeft: '4px solid #10b981' }}>
+        <div style={{ ...styles.statCard, borderLeft: '4px solid #059669' }}>
           <div style={styles.statLabel}>작업 완료 매장</div>
-          <div style={{ ...styles.statValue, color: '#10b981' }}>{stats.completed}</div>
+          <div style={{ ...styles.statValue, color: '#059669' }}>{stats.completed}</div>
           <div style={styles.statDescription}>리뷰 작성 및 별점 완료</div>
         </div>
 
@@ -93,80 +93,115 @@ export default function DashboardStats() {
 
       {/* 진행률 */}
       <div style={styles.progressContainer}>
-        <div style={styles.progressHeader}>
-          <span>✅ 완료율</span>
-          <span style={styles.progressPercent}>{completionRate}%</span>
-        </div>
-        <div style={styles.progressBar}>
-          <div 
-            style={{
-              ...styles.progressFill,
-              width: `${completionRate}%`,
-            }}
-          />
-        </div>
-        <div style={styles.progressInfo}>
-          {completionRate === 100 ? (
-            <span style={{ color: '#10b981' }}>🎉 오늘의 모든 매장 작업이 완료되었습니다!</span>
-          ) : (
-            <span>{stats.total - stats.completed}개 매장 남음</span>
-          )}
-        </div>
-      </div>
-
-      {/* 최근 작업 리스트 */}
-      <div style={styles.recentTasksContainer}>
-        <h2 style={styles.recentTasksTitle}>📋 최근 작업 현황</h2>
-        
-        {todayTasks.length === 0 ? (
-          <div style={styles.emptyState}>
-            <p>배포 탭에서 매장을 등록해주세요.</p>
+          <div style={styles.progressHeader}>
+            <span>✅ 완료율</span>
+            <span style={styles.progressPercent}>{completionRate}%</span>
           </div>
-        ) : (
-          <div style={styles.taskList}>
-            {todayTasks.map((task) => (
-              <div key={task.id} style={styles.taskItem}>
-                <div style={styles.taskInfo}>
-                  <div style={styles.taskName}>{task.place_name || '로딩 중...'}</div>
-                  {task.notes && <div style={styles.taskNotes}>{task.notes}</div>}
-                </div>
-                <div style={styles.taskStatus}>
-                  <div style={{
-                    ...styles.statusBadge,
-                    backgroundColor: getStatusColor(task.review_status),
-                  }}>
-                    {getStatusLabel(task.review_status)}
+          <div style={styles.progressBar}>
+            <div 
+              style={{
+                ...styles.progressFill,
+                width: `${completionRate}%`,
+              }}
+            />
+          </div>
+          <div style={styles.progressInfo}>
+            {completionRate === 100 ? (
+              <span style={{ color: '#059669' }}>🎉 모든 매장 완료!</span>
+            ) : (
+              <span>{stats.total - stats.completed}개 매장 남음</span>
+            )}
+          </div>
+        </div>
+
+        {/* 최근 작업 리스트 */}
+        <div style={styles.recentTasksContainer}>
+          <h2 style={styles.recentTasksTitle}>📋 최근 작업</h2>
+          
+          {todayTasks.length === 0 ? (
+            <div style={styles.emptyState}>
+              <p>배포 탭에서 매장을 등록해주세요.</p>
+            </div>
+          ) : (
+            <div style={styles.taskList}>
+              {todayTasks.map((task) => (
+                <div key={task.id} style={styles.taskItem}>
+                  <div style={styles.taskInfo}>
+                    <div style={styles.taskName}>{task.place_name || '로딩 중...'}</div>
+                    {task.notes && <div style={styles.taskNotes}>{task.notes}</div>}
+                  </div>
+                  <div style={styles.taskStatus}>
+                    <div style={{
+                      ...styles.statusBadge,
+                      backgroundColor: getStatusBgColor(task.review_status),
+                      color: getStatusTextColor(task.review_status),
+                      borderLeft: `3px solid ${getStatusBorderColor(task.review_status)}`,
+                    }}>
+                      {getStatusLabel(task.review_status)}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </div>
     </div>
   );
 }
 
-// 상태에 따른 색상 반환
-function getStatusColor(status) {
+// 상태에 따른 배경색 반환
+function getStatusBgColor(status) {
   const colors = {
-    'completed': '#d1fae5',
-    'in_progress': '#dbeafe',
-    'pending': '#f3e8ff',
-    'failed': '#fee2e2'
+    'completed': 'rgba(5, 150, 105, 0.1)',
+    'in_progress': 'rgba(59, 130, 246, 0.1)',
+    'pending': 'rgba(139, 92, 246, 0.1)',
+    'failed': 'rgba(239, 68, 68, 0.1)'
   };
-  return colors[status] || '#f3f4f6';
+  return colors[status] || 'rgba(107, 114, 128, 0.1)';
+}
+
+// 상태에 따른 텍스트색 반환
+function getStatusTextColor(status) {
+  const colors = {
+    'completed': '#059669',
+    'in_progress': '#3b82f6',
+    'pending': '#8b5cf6',
+    'failed': '#ef4444'
+  };
+  return colors[status] || '#6b7280';
+}
+
+// 상태에 따른 보더색 반환
+function getStatusBorderColor(status) {
+  const colors = {
+    'completed': '#059669',
+    'in_progress': '#3b82f6',
+    'pending': '#8b5cf6',
+    'failed': '#ef4444'
+  };
+  return colors[status] || '#6b7280';
 }
 
 // 상태에 따른 레이블 반환
 function getStatusLabel(status) {
   const labels = {
-    'completed': '✅ 완료',
-    'in_progress': '⏳ 진행중',
-    'pending': '⏹️ 대기',
-    'failed': '❌ 실패'
+    'completed': '✓ 완료',
+    'in_progress': '◷ 진행',
+    'pending': '○ 대기',
+    'failed': '✕ 실패'
   };
   return labels[status] || status;
+}
+
+// 상태에 따른 색상 반환 (하위호환성)
+function getStatusColor(status) {
+  const colors = {
+    'completed': 'rgba(5, 150, 105, 0.1)',
+    'in_progress': 'rgba(59, 130, 246, 0.1)',
+    'pending': 'rgba(139, 92, 246, 0.1)',
+    'failed': 'rgba(239, 68, 68, 0.1)'
+  };
+  return colors[status] || '#f3f4f6';
 }
 
 const styles = {
@@ -174,11 +209,10 @@ const styles = {
     padding: '24px',
     background: 'linear-gradient(135deg, rgba(15, 20, 25, 0.9) 0%, rgba(20, 30, 48, 0.8) 100%)',
     borderRadius: '12px',
-    minHeight: '100vh',
   },
 
   header: {
-    marginBottom: '32px',
+    marginBottom: '24px',
     paddingBottom: '16px',
     borderBottom: '1px solid rgba(124, 58, 237, 0.2)',
   },
@@ -201,100 +235,104 @@ const styles = {
 
   statsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
     gap: '16px',
-    marginBottom: '32px',
+    marginBottom: '24px',
   },
 
   statCard: {
     background: 'linear-gradient(135deg, rgba(30, 40, 60, 0.8) 0%, rgba(40, 50, 70, 0.6) 100%)',
     border: '1px solid rgba(124, 58, 237, 0.2)',
-    borderRadius: '12px',
-    padding: '20px',
+    borderRadius: '8px',
+    padding: '16px',
     backdropFilter: 'blur(10px)',
     transition: 'all 0.3s ease',
   },
 
   statLabel: {
-    fontSize: '18px',
-    color: '#e5e7eb',
-    marginBottom: '12px',
+    fontSize: '14px',
+    color: '#a0aec0',
+    marginBottom: '6px',
     fontWeight: '500',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
   },
 
   statValue: {
-    fontSize: '35px',
-    fontWeight: 'bold',
-    marginBottom: '8px',
+    fontSize: '32px',
+    fontWeight: '700',
+    marginBottom: '4px',
   },
 
   statDescription: {
-    fontSize: '15px',
-    color: '#d1d5db',
+    fontSize: '13px',
+    color: '#cbd5e0',
   },
 
   progressContainer: {
     background: 'linear-gradient(135deg, rgba(30, 40, 60, 0.8) 0%, rgba(40, 50, 70, 0.6) 100%)',
     border: '1px solid rgba(124, 58, 237, 0.2)',
-    borderRadius: '12px',
-    padding: '20px',
-    marginBottom: '32px',
+    borderRadius: '8px',
+    padding: '16px',
+    marginBottom: '20px',
   },
 
   progressHeader: {
     display: 'flex',
     justifyContent: 'space-between',
-    marginBottom: '12px',
-    fontSize: '16px',
-    fontWeight: '500',
+    alignItems: 'center',
+    marginBottom: '10px',
+    fontSize: '14px',
+    fontWeight: '600',
     color: '#e5e7eb',
   },
 
   progressPercent: {
-    color: '#10b981',
-    fontSize: '20px',
-    fontWeight: 'bold',
+    color: '#059669',
+    fontSize: '28px',
+    fontWeight: '900',
   },
 
   progressBar: {
-    height: '8px',
+    height: '6px',
     backgroundColor: 'rgba(124, 58, 237, 0.1)',
-    borderRadius: '4px',
+    borderRadius: '3px',
     overflow: 'hidden',
-    marginBottom: '12px',
+    marginBottom: '8px',
   },
 
   progressFill: {
     height: '100%',
-    background: 'linear-gradient(90deg, #3b82f6 0%, #10b981 100%)',
+    background: 'linear-gradient(90deg, #3b82f6 0%, #059669 100%)',
     transition: 'width 0.3s ease',
   },
 
   progressInfo: {
-    fontSize: '15px',
-    color: '#e5e7eb',
+    fontSize: '13px',
+    color: '#cbd5e0',
     textAlign: 'center',
   },
 
   recentTasksContainer: {
     background: 'linear-gradient(135deg, rgba(30, 40, 60, 0.8) 0%, rgba(40, 50, 70, 0.6) 100%)',
     border: '1px solid rgba(124, 58, 237, 0.2)',
-    borderRadius: '12px',
-    padding: '20px',
+    borderRadius: '8px',
+    padding: '16px',
   },
 
   recentTasksTitle: {
-    fontSize: '20px',
+    fontSize: '16px',
     fontWeight: '600',
-    marginBottom: '16px',
+    marginBottom: '12px',
     color: '#e5e7eb',
+    margin: '0 0 12px 0',
   },
 
   taskList: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '12px',
-    maxHeight: '400px',
+    gap: '6px',
+    maxHeight: '300px',
     overflowY: 'auto',
   },
 
@@ -302,50 +340,61 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '12px',
+    padding: '8px 10px',
     backgroundColor: 'rgba(124, 58, 237, 0.05)',
-    borderRadius: '8px',
+    borderRadius: '6px',
     border: '1px solid rgba(124, 58, 237, 0.1)',
+    transition: 'all 0.2s ease',
   },
 
   taskInfo: {
     flex: 1,
+    minWidth: 0,
   },
 
   taskName: {
-    fontSize: '18px',
+    fontSize: '15px',
     fontWeight: '500',
     color: '#e5e7eb',
-    marginBottom: '4px',
+    marginBottom: '2px',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
 
   taskNotes: {
-    fontSize: '15px',
-    color: '#d1d5db',
-    maxWidth: '300px',
+    fontSize: '12px',
+    color: '#a0aec0',
+    maxWidth: '250px',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
   },
 
   taskStatus: {
-    marginLeft: '12px',
+    marginLeft: '10px',
+    flexShrink: 0,
   },
 
   statusBadge: {
-    fontSize: '15px',
-    fontWeight: '500',
+    fontSize: '14px',
+    fontWeight: '600',
     padding: '6px 12px',
     borderRadius: '6px',
-    color: '#ffffff',
     whiteSpace: 'nowrap',
-    textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+    backdropFilter: 'blur(10px)',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
+    display: 'inline-block',
+    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+    transition: 'all 0.2s ease',
+    textShadow: 'none',
   },
 
   emptyState: {
     textAlign: 'center',
-    padding: '32px 16px',
-    color: '#d1d5db',
+    padding: '24px 16px',
+    color: '#cbd5e0',
+    fontSize: '14px',
   },
 
   accessDenied: {

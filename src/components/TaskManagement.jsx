@@ -1,34 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { mapApi, storeApi } from '../utils/api';
+import { mapApi, storeApi, scheduleApi } from '../utils/api';
 
 export default function TaskManagement() {
   const { token, isAdmin } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [stores, setStores] = useState([]);
+  const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedStore, setSelectedStore] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', order: 'desc' });
+  const [searchText, setSearchText] = useState('');
 
-  // 매장 조회 및 작업 조회
+  // 매장 조회, 작업 조회, 스케줄 조회
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // agency 사용자는 자신의 매장만 조회
-        if (!isAdmin) {
-          const storeData = await storeApi.getAll(token);
-          setStores(storeData || []);
-          if (storeData && storeData.length > 0) {
-            setSelectedStore(storeData[0].id);
-          }
-        } else {
-          // admin은 모든 데이터 조회 가능
-          const storeData = await storeApi.getAll(token);
-          setStores(storeData || []);
+        const storeData = await storeApi.getAll(token);
+        setStores(storeData || []);
+        
+        // Admin은 첫 번째 매장을 기본 선택, Agency는 자신의 모든 매장이므로 선택 불필요
+        if (isAdmin && storeData && storeData.length > 0) {
+          setSelectedStore(storeData[0].id);
         }
 
         const taskData = await mapApi.getTasks(token);
         setTasks(taskData || []);
+
+        // 스케줄 정보도 함께 조회
+        const scheduleData = await scheduleApi.getAll(token);
+        setSchedules(scheduleData || []);
       } catch (error) {
         console.error('데이터 조회 실패:', error);
       } finally {
@@ -44,27 +45,30 @@ export default function TaskManagement() {
     }
   }, [token, isAdmin]);
 
-  // 조직격리: 에이전시 사용자는 자신의 매장 작업만 필터링
+  // 필터링: Backend에서 role별로 이미 필터링됨 (Admin은 모든 작업, Agency는 자신의 작업)
+  // store_id column 추가 후 Admin이 선택한 매장별 필터링 가능
   let displayTasks = tasks;
-  if (!isAdmin && selectedStore) {
-    displayTasks = tasks.filter(task => task.store_id === selectedStore);
+
+  // 검색 필터링
+  if (searchText.trim()) {
+    const query = searchText.toLowerCase();
+    displayTasks = displayTasks.filter(task => 
+      (task.place_name && task.place_name.toLowerCase().includes(query)) ||
+      (task.work_account && task.work_account.toLowerCase().includes(query)) ||
+      (task.notes && task.notes.toLowerCase().includes(query))
+    );
   }
 
-  // 오늘 진행이 완료되거나 실패된 작업만 필터링
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const completedOrFailedTasks = displayTasks.filter(task => {
-    const taskDate = new Date(task.created_at);
-    taskDate.setHours(0, 0, 0, 0);
-    return (
-      taskDate.getTime() === today.getTime() &&
-      (task.review_status === 'completed' || task.review_status === 'failed')
-    );
+  // 진행 중이거나 아직 완료되지 않은 작업만 필터링 (완료 작업은 리뷰현황에서만 볼 수 있음)
+  const activeTasks = displayTasks.filter(task => {
+    // review_status와 image_status 모두 'completed'가 아닐 때만 표시
+    const isNotCompleted = 
+      (task.review_status !== 'completed' || task.image_status !== 'completed');
+    return isNotCompleted;
   });
 
   // 정렬
-  const sortedTasks = [...completedOrFailedTasks].sort((a, b) => {
+  const sortedTasks = [...activeTasks].sort((a, b) => {
     const aValue = a[sortConfig.key];
     const bValue = b[sortConfig.key];
 
@@ -80,10 +84,10 @@ export default function TaskManagement() {
     });
   };
 
-  // 작업 계정 추출 (이메일의 @ 앞부분)
+  // 작업 계정 표시 (Google 계정 이메일의 @ 앞부분)
   const getWorkAccount = (task) => {
-    if (task.users && task.users.user_id) {
-      return task.users.user_id.split('@')[0];
+    if (task.work_account) {
+      return task.work_account;
     }
     return '미지정';
   };
@@ -141,7 +145,7 @@ export default function TaskManagement() {
   // 상태별 색상
   const getStatusColor = (status) => {
     const colors = {
-      '완료': '#10b981',
+      '완료': '#059669',
       '진행중': '#f59e0b',
       '오류': '#ef4444',
       '대기': '#8b5cf6',
@@ -169,6 +173,25 @@ export default function TaskManagement() {
         </p>
       </div>
 
+      <div style={styles.searchContainer}>
+        <input
+          type="text"
+          placeholder="매장명, 작업계정, 메모로 검색..."
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          style={styles.searchInput}
+        />
+        {searchText && (
+          <button
+            onClick={() => setSearchText('')}
+            style={styles.clearButton}
+            title="검색 초기화"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
       {sortedTasks.length === 0 ? (
         <div style={styles.emptyState}>
           <p>오늘 완료되거나 실패된 작업이 없습니다.</p>
@@ -182,16 +205,24 @@ export default function TaskManagement() {
                   매장명 {sortConfig.key === 'place_name' && (sortConfig.order === 'asc' ? '↑' : '↓')}
                 </th>
                 <th style={styles.th}>작업계정</th>
+                <th style={styles.th}>진행상황</th>
+                <th style={styles.th}>마지막배포</th>
                 <th style={styles.th}>리뷰</th>
+                <th style={styles.th}>리뷰내용</th>
                 <th style={styles.th}>상태</th>
                 <th style={styles.th}>이미지</th>
+                <th style={styles.th}>스크린샷</th>
                 <th style={{ ...styles.th, cursor: 'pointer' }} onClick={() => handleSort('created_at')}>
-                  생성일 {sortConfig.key === 'created_at' && (sortConfig.order === 'asc' ? '↑' : '↓')}
+                  작업일 {sortConfig.key === 'created_at' && (sortConfig.order === 'asc' ? '↑' : '↓')}
                 </th>
               </tr>
             </thead>
             <tbody>
-              {sortedTasks.map((task) => (
+              {sortedTasks.map((task) => {
+                // 현재 task와 관련된 schedule 찾기
+                const relatedSchedule = schedules.find(s => s.store_id === task.store_id && s.status === 'active');
+                
+                return (
                 <tr key={task.id} style={styles.tableRow}>
                   <td style={styles.td}>
                     <div
@@ -216,15 +247,39 @@ export default function TaskManagement() {
                     >
                       {task.place_name || '미지정'}
                     </div>
-                    {task.notes && <div style={styles.notes}>{task.notes}</div>}
                   </td>
                   <td style={styles.td}>
                     <span style={styles.accountBadge}>{getWorkAccount(task)}</span>
                   </td>
                   <td style={styles.td}>
+                    {relatedSchedule ? (
+                      <div style={styles.scheduleInfo}>
+                        <small style={{ color: '#a78bfa', fontWeight: '600' }}>
+                          {relatedSchedule.completed_count || 0}/{relatedSchedule.total_count}
+                        </small>
+                      </div>
+                    ) : (
+                      <span style={{ color: '#6b7280', fontSize: '12px' }}>-</span>
+                    )}
+                  </td>
+                  <td style={styles.td}>
+                    {relatedSchedule && relatedSchedule.last_deploy_date ? (
+                      <small style={{ color: '#9ca3af' }}>
+                        {new Date(relatedSchedule.last_deploy_date).toLocaleDateString('ko-KR')}
+                      </small>
+                    ) : (
+                      <span style={{ color: '#6b7280', fontSize: '12px' }}>-</span>
+                    )}
+                  </td>
+                  <td style={styles.td}>
                     <span style={styles.statusBadge}>
                       {getReviewStatus(task.review_status)}
                     </span>
+                  </td>
+                  <td style={styles.td}>
+                    <div style={styles.reviewContent}>
+                      {task.notes || '내용 없음'}
+                    </div>
                   </td>
                   <td style={styles.td}>
                     <span
@@ -242,10 +297,26 @@ export default function TaskManagement() {
                     </span>
                   </td>
                   <td style={styles.td}>
+                    {task.screenshot_url ? (
+                      <a
+                        href={task.screenshot_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={styles.screenshotLink}
+                        title="스크린샷 보기"
+                      >
+                        📸 보기
+                      </a>
+                    ) : (
+                      <span style={{ color: '#8b5cf6', fontSize: '14px' }}>-</span>
+                    )}
+                  </td>
+                  <td style={styles.td}>
                     <span style={styles.dateText}>{formatDateTime(task.created_at)}</span>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -259,7 +330,6 @@ const styles = {
     padding: '24px',
     background: 'linear-gradient(135deg, rgba(15, 20, 25, 0.9) 0%, rgba(20, 30, 48, 0.8) 100%)',
     borderRadius: '12px',
-    minHeight: '100vh',
   },
 
   header: {
@@ -374,6 +444,13 @@ const styles = {
     whiteSpace: 'nowrap',
   },
 
+  scheduleInfo: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '4px',
+  },
+
   accessDenied: {
     padding: '32px',
     textAlign: 'center',
@@ -419,5 +496,64 @@ const styles = {
     padding: '20px',
     textAlign: 'center',
     color: '#8b96a8',
+  },
+
+  searchContainer: {
+    position: 'relative',
+    marginBottom: '24px',
+    display: 'flex',
+    alignItems: 'center',
+  },
+
+  searchInput: {
+    width: '100%',
+    padding: '12px 40px 12px 16px',
+    fontSize: '16px',
+    border: '1px solid rgba(124, 58, 237, 0.3)',
+    borderRadius: '8px',
+    backgroundColor: 'rgba(30, 33, 57, 0.8)',
+    color: '#e5e7eb',
+    outline: 'none',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+  },
+
+  clearButton: {
+    position: 'absolute',
+    right: '12px',
+    background: 'none',
+    border: 'none',
+    color: '#d1d5db',
+    fontSize: '18px',
+    cursor: 'pointer',
+    padding: '4px 8px',
+    transition: 'color 0.2s ease',
+    lineHeight: '1',
+  },
+
+  reviewContent: {
+    fontSize: '15px',
+    color: '#e5e7eb',
+    maxWidth: '250px',
+    maxHeight: '60px',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'normal',
+    lineHeight: '1.4',
+    wordWrap: 'break-word',
+  },
+
+  screenshotLink: {
+    color: '#60a5fa',
+    textDecoration: 'none',
+    fontSize: '14px',
+    fontWeight: '500',
+    padding: '4px 8px',
+    borderRadius: '4px',
+    transition: 'all 0.2s ease',
+    cursor: 'pointer',
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    border: '1px solid rgba(59, 130, 246, 0.3)',
+    display: 'inline-block',
   },
 };
