@@ -17,11 +17,6 @@ export default function TaskManagement() {
       try {
         const storeData = await storeApi.getAll(token);
         setStores(storeData || []);
-        
-        // Admin은 첫 번째 매장을 기본 선택, Agency는 자신의 모든 매장이므로 선택 불필요
-        if (isAdmin && storeData && storeData.length > 0) {
-          setSelectedStore(storeData[0].id);
-        }
 
         const taskData = await mapApi.getTasks(token);
         setTasks(taskData || []);
