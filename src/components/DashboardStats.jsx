@@ -193,17 +193,6 @@ function getStatusLabel(status) {
   return labels[status] || status;
 }
 
-// 상태에 따른 색상 반환 (하위호환성)
-function getStatusColor(status) {
-  const colors = {
-    'completed': 'rgba(5, 150, 105, 0.1)',
-    'in_progress': 'rgba(59, 130, 246, 0.1)',
-    'pending': 'rgba(139, 92, 246, 0.1)',
-    'failed': 'rgba(239, 68, 68, 0.1)'
-  };
-  return colors[status] || '#f3f4f6';
-}
-
 const styles = {
   container: {
     padding: '24px',

@@ -8,7 +8,6 @@ export default function TaskManagement() {
   const [stores, setStores] = useState([]);
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedStore, setSelectedStore] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', order: 'desc' });
   const [searchText, setSearchText] = useState('');
 
