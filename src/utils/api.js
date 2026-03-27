@@ -88,10 +88,10 @@ export const userApi = {
 // 매장 API
 export const storeApi = {
   getAll: (token) => apiCall('GET', '/stores', null, token),
-  create: (storeName, address, reviewMessage, imageUrl, dailyFrequency, totalCount, token) =>
-    apiCall('POST', '/stores', { storeName, address, reviewMessage, imageUrl, dailyFrequency, totalCount }, token),
-  update: (id, storeName, address, reviewMessage, imageUrl, dailyFrequency, totalCount, token) =>
-    apiCall('PUT', `/stores/${id}`, { storeName, address, reviewMessage, imageUrl, dailyFrequency, totalCount }, token),
+  create: (storeName, address, reviewMessage, imageUrls, dailyFrequency, totalCount, token) =>
+    apiCall('POST', '/stores', { storeName, address, reviewMessage, imageUrls, dailyFrequency, totalCount }, token),
+  update: (id, storeName, address, reviewMessage, imageUrls, dailyFrequency, totalCount, token) =>
+    apiCall('PUT', `/stores/${id}`, { storeName, address, reviewMessage, imageUrls, dailyFrequency, totalCount }, token),
   delete: (id, token) => apiCall('DELETE', `/stores/${id}`, null, token),
 };
 

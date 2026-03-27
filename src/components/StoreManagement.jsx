@@ -19,10 +19,12 @@ const StoreManagement = () => {
     storeName: '',
     address: '',
     reviewMessage: '',
-    imageUrl: '',
+    imageUrls: [],
     dailyFrequency: 1,
     totalCount: 1,
   });
+
+  const [tempImageUrl, setTempImageUrl] = useState('');  // 임시 이미지 URL 입력 필드
 
   // 주소 검증 함수 (URL만 허용)
   const validateAddress = (address) => {
@@ -70,7 +72,8 @@ const StoreManagement = () => {
   }, [loadStores]);
 
   const resetForm = () => {
-    setNewStore({ storeName: '', address: '', reviewMessage: '', imageUrl: '', dailyFrequency: 1, totalCount: 1 });
+    setNewStore({ storeName: '', address: '', reviewMessage: '', imageUrls: [], dailyFrequency: 1, totalCount: 1 });
+    setTempImageUrl('');
     setEditingId(null);
     setShowForm(false);
     setAddressWarning('');
@@ -143,9 +146,11 @@ const StoreManagement = () => {
       storeName: store.store_name,
       address: store.address || '',
       reviewMessage: store.review_message || '',
+      imageUrls: Array.isArray(store.image_urls) ? store.image_urls : [],
       dailyFrequency: store.daily_frequency || 1,
       totalCount: store.total_count || 1,
     });
+    setTempImageUrl('');
     setEditingId(store.id);
     setShowForm(true);
     setError('');
@@ -157,6 +162,48 @@ const StoreManagement = () => {
     setNewStore({ ...newStore, address: value });
     const validation = validateAddress(value);
     setAddressWarning(validation.warning);
+  };
+
+  // 이미지 URL 추가
+  const handleAddImageUrl = () => {
+    if (!tempImageUrl.trim()) {
+      setError('이미지 URL을 입력하세요.');
+      return;
+    }
+
+    // URL 형식 검증
+    if (!tempImageUrl.trim().startsWith('http://') && !tempImageUrl.trim().startsWith('https://')) {
+      setError('⚠️ 이미지 URL은 http:// 또는 https://로 시작해야 합니다.');
+      return;
+    }
+
+    try {
+      new URL(tempImageUrl.trim());
+    } catch {
+      setError('⚠️ 유효한 URL 형식이 아닙니다.');
+      return;
+    }
+
+    // 중복 체크
+    if (newStore.imageUrls.includes(tempImageUrl.trim())) {
+      setError('이미 추가된 이미지 URL입니다.');
+      return;
+    }
+
+    setNewStore({
+      ...newStore,
+      imageUrls: [...newStore.imageUrls, tempImageUrl.trim()]
+    });
+    setTempImageUrl('');
+    setError('');
+  };
+
+  // 이미지 URL 제거
+  const handleRemoveImageUrl = (index) => {
+    setNewStore({
+      ...newStore,
+      imageUrls: newStore.imageUrls.filter((_, i) => i !== index)
+    });
   };
 
   const handleCreateOrUpdateStore = async (e) => {
@@ -196,7 +243,7 @@ const StoreManagement = () => {
           newStore.storeName.trim(),
           newStore.address.trim(),
           newStore.reviewMessage.trim(),
-          newStore.imageUrl.trim(),
+          newStore.imageUrls,
           dailyFreq,
           totalCnt,
           token
@@ -207,7 +254,7 @@ const StoreManagement = () => {
           newStore.storeName.trim(),
           newStore.address.trim(),
           newStore.reviewMessage.trim(),
-          newStore.imageUrl.trim(),
+          newStore.imageUrls,
           dailyFreq,
           totalCnt,
           token
@@ -256,7 +303,11 @@ const StoreManagement = () => {
             const storeName = row['매장명']?.toString().trim();
             const address = row['매장주소']?.toString().trim() || '';
             const reviewMessage = row['리뷰메세지']?.toString().trim() || '';
-            const imageUrl = row['이미지주소']?.toString().trim() || '';
+            const imageUrlsText = row['이미지주소']?.toString().trim() || '';
+            // 쉼표로 구분된 여러 이미지 URL이 있을 수 있음
+            const imageUrls = imageUrlsText
+              ? imageUrlsText.split(',').map(url => url.trim()).filter(url => url.length > 0)
+              : [];
             const dailyFrequency = parseInt(row['하루횟수']) || 1;
             const totalCount = parseInt(row['총횟수']) || 1;
 
@@ -274,7 +325,7 @@ const StoreManagement = () => {
             }
 
             try {
-              await storeApi.create(storeName, address, reviewMessage, imageUrl, dailyFrequency, totalCount, token);
+              await storeApi.create(storeName, address, reviewMessage, imageUrls, dailyFrequency, totalCount, token);
               successCount++;
             } catch (err) {
               failCount++;
@@ -310,7 +361,7 @@ const StoreManagement = () => {
 
   const downloadTemplate = () => {
     const template = [
-      { 매장명: '장어맛집', 매장주소: 'https://maps.app.goo.gl/4C1ftLsCmzKvpw6Q7', 리뷰메세지: '맜있게 먹었어요.', 이미지주소: 'https://example.com/image.jpg', 하루횟수: 2, 총횟수: 10 },
+      { 매장명: '장어맛집', 매장주소: 'https://maps.app.goo.gl/4C1ftLsCmzKvpw6Q7', 리뷰메세지: '맜있게 먹었어요.', 이미지주소: 'https://example.com/image1.jpg, https://example.com/image2.jpg', 하루횟수: 2, 총횟수: 10 },
     ];
 
     const worksheet = XLSX.utils.json_to_sheet(template);
@@ -332,7 +383,7 @@ const StoreManagement = () => {
 
         <div style={styles.controlBar}>
           <div style={styles.buttonGroup}>
-            <button onClick={() => !showForm ? (setShowForm(true), setEditingId(null), setNewStore({ storeName: '', address: '', reviewMessage: '' }), setAddressWarning('')) : resetForm()} style={styles.createButton}>
+            <button onClick={() => !showForm ? (setShowForm(true), setEditingId(null), setNewStore({ storeName: '', address: '', reviewMessage: '', imageUrls: [], dailyFrequency: 1, totalCount: 1 }), setTempImageUrl(''), setAddressWarning('')) : resetForm()} style={styles.createButton}>
               {showForm ? '✕ 취소' : '➕ 새 매장'}
             </button>
             <button onClick={downloadTemplate} style={styles.templateButton}>
@@ -418,16 +469,48 @@ const StoreManagement = () => {
 
           <div style={styles.formGroup}>
             <label style={styles.label}>이미지 주소</label>
-            <input
-              type="text"
-              placeholder="예: https://example.com/image.jpg (선택입력)"
-              value={newStore.imageUrl}
-              onChange={(e) => setNewStore({ ...newStore, imageUrl: e.target.value })}
-              style={styles.input}
-            />
+            <div style={styles.imageInputGroup}>
+              <input
+                type="text"
+                placeholder="예: https://example.com/image.jpg"
+                value={tempImageUrl}
+                onChange={(e) => setTempImageUrl(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleAddImageUrl()}
+                style={{ ...styles.input, flex: 1 }}
+              />
+              <button
+                type="button"
+                onClick={handleAddImageUrl}
+                style={styles.addImageButton}
+              >
+                ➕ 추가
+              </button>
+            </div>
             <p style={styles.helperText}>
               ℹ️ 이미지 URL은 https://로 시작하는 형식이어야 합니다. (선택입력)
             </p>
+
+            {newStore.imageUrls.length > 0 && (
+              <div style={styles.imageList}>
+                <label style={styles.imageListLabel}>추가된 이미지 ({newStore.imageUrls.length}개)</label>
+                <ul style={styles.imageListUl}>
+                  {newStore.imageUrls.map((imageUrl, idx) => (
+                    <li key={idx} style={styles.imageListItem}>
+                      <a href={imageUrl} target="_blank" rel="noopener noreferrer" style={styles.imageLink}>
+                        {imageUrl.substring(0, 50)}...
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveImageUrl(idx)}
+                        style={styles.removeImageButton}
+                      >
+                        ✕
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
 
           <div style={{ display: 'flex', gap: '15px' }}>
@@ -492,7 +575,7 @@ const StoreManagement = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={isAdmin ? 6 : 5} style={styles.loadingCell}>로딩 중...</td>
+                <td colSpan={isAdmin ? 8 : 7} style={styles.loadingCell}>로딩 중...</td>
               </tr>
             ) : stores.length === 0 ? (
               <tr>
@@ -921,5 +1004,90 @@ const styles = {
     color: '#42a5f5',
     textDecoration: 'underline',
     cursor: 'pointer',
+  },
+
+  imageInputGroup: {
+    display: 'flex',
+    gap: '8px',
+    alignItems: 'flex-start',
+  },
+
+  addImageButton: {
+    padding: '8px 14px',
+    backgroundColor: 'rgba(76, 175, 80, 0.3)',
+    border: '1px solid rgba(76, 175, 80, 0.5)',
+    borderRadius: '6px',
+    color: '#76ff03',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '600',
+    transition: 'all 0.3s ease',
+    backdropFilter: 'blur(5px)',
+    whiteSpace: 'nowrap',
+    height: 'fit-content',
+    marginTop: '0px',
+  },
+
+  imageList: {
+    marginTop: '12px',
+    padding: '10px',
+    backgroundColor: 'rgba(76, 175, 80, 0.08)',
+    border: '1px solid rgba(76, 175, 80, 0.2)',
+    borderRadius: '6px',
+  },
+
+  imageListLabel: {
+    fontSize: '12px',
+    fontWeight: '600',
+    color: '#76ff03',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+    display: 'block',
+    marginBottom: '8px',
+  },
+
+  imageListUl: {
+    listStyle: 'none',
+    padding: 0,
+    margin: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+  },
+
+  imageListItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '6px 8px',
+    backgroundColor: 'rgba(40, 50, 70, 0.6)',
+    border: '1px solid rgba(76, 175, 80, 0.2)',
+    borderRadius: '4px',
+    fontSize: '12px',
+  },
+
+  imageLink: {
+    color: '#42a5f5',
+    textDecoration: 'none',
+    flex: 1,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    marginRight: '8px',
+  },
+
+  removeImageButton: {
+    padding: '2px 6px',
+    backgroundColor: 'rgba(218, 18, 125, 0.2)',
+    border: '1px solid rgba(218, 18, 125, 0.4)',
+    borderRadius: '4px',
+    color: '#ff6b9d',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: '600',
+    transition: 'all 0.2s ease',
+    backdropFilter: 'blur(3px)',
+    whiteSpace: 'nowrap',
+    minWidth: '28px',
   },
 };
