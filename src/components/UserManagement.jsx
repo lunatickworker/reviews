@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { userApi, authApi } from '../utils/api';
 
 export default function UserManagement() {
-  const { token, isAdmin } = useAuth();
+  const { token, isAdmin, isAgency, user } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -96,143 +96,11 @@ export default function UserManagement() {
     }
   };
 
-  if (!isAdmin) {
+  if (!isAdmin && !isAgency) {
     return (
       <div style={styles.container}>
-        <h2 style={styles.title}>👥 팀원 관리</h2>
-        {error && <p style={styles.error}>{error}</p>}
-
-        <button onClick={() => setShowForm(!showForm)} style={styles.createButton}>
-          {showForm ? '✕ 취소' : '➕ 새 팀원 추가'}
-        </button>
-
-        {showForm && (
-          <form onSubmit={handleCreateUser} style={styles.form}>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>아이디</label>
-              <input
-                type="text"
-                placeholder="user123"
-                value={newUserId}
-                onChange={(e) => setNewUserId(e.target.value)}
-                style={styles.input}
-              />
-            </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>비밀번호</label>
-              <input
-                type="password"
-                placeholder="••••••••"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                style={styles.input}
-              />
-            </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>권한</label>
-              <select value={newRole} onChange={(e) => setNewRole(e.target.value)} style={styles.input}>
-                <option value="agency">에이전시</option>
-              </select>
-            </div>
-            <button type="submit" style={styles.submitButton}>
-              추가
-            </button>
-          </form>
-        )}
-
-        <div style={styles.tableWrapper}>
-          <table style={styles.table}>
-            <thead>
-              <tr style={styles.headerRow}>
-                <th style={{ ...styles.th, width: '22%' }}>아이디</th>
-                <th style={{ ...styles.th, width: '18%' }}>권한</th>
-                <th style={{ ...styles.th, width: '17%' }}>상위명</th>
-                <th style={{ ...styles.th, width: '18%' }}>생성일</th>
-                <th style={{ ...styles.th, width: '25%' }}>관리</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan="5" style={styles.loadingCell}>로딩 중...</td>
-                </tr>
-              ) : users.length === 0 ? (
-                <tr>
-                  <td colSpan="5" style={styles.emptyCellBG}>등록된 팀원이 없습니다.</td>
-                </tr>
-              ) : (
-                users.map((user, idx) => (
-                  <tr key={user.id} style={{
-                    ...styles.tr,
-                    backgroundColor: idx % 2 === 0 ? 'rgba(230, 190, 255, 0.08)' : 'rgba(255, 192, 203, 0.08)',
-                  }}>
-                    <td style={{ ...styles.td, width: '22%' }}>{user.user_id}</td>
-                    <td style={{ ...styles.td, width: '18%' }}>
-                      <span style={styles.roleText}>{user.role === 'admin' ? '관리자' : '에이전시'}</span>
-                    </td>
-                    <td style={{ ...styles.td, width: '17%' }}>{user.superior_name || '-'}</td>
-                    <td style={{ ...styles.td, width: '18%' }}>{new Date(user.created_at).toLocaleDateString()}</td>
-                    <td style={{ ...styles.td, width: '25%' }}>
-                      <button
-                        onClick={() => handleOpenPasswordModal(user.id, user.user_id)}
-                        style={styles.passwordButton}
-                      >
-                        🔐 비밀번호
-                      </button>
-                      <button
-                        onClick={() => handleDeleteUser(user.id)}
-                        style={styles.deleteButton}
-                      >
-                        🗑️ 삭제
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {showPasswordModal && (
-          <div style={styles.modalOverlay}>
-            <div style={styles.modal}>
-              <h3 style={styles.modalTitle}>🔐 비밀번호 변경</h3>
-              <p style={styles.modalSubtitle}>사용자: <strong>{selectedUserName}</strong></p>
-              
-              <div style={styles.modalFormGroup}>
-                <label style={styles.modalLabel}>새 비밀번호</label>
-                <input
-                  type="password"
-                  placeholder="새 비밀번호 입력"
-                  value={passwordInput}
-                  onChange={(e) => setPasswordInput(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleChangePassword()}
-                  style={styles.modalInput}
-                  autoFocus
-                />
-              </div>
-
-              <div style={styles.modalButtonGroup}>
-                <button
-                  onClick={handleChangePassword}
-                  style={styles.modalConfirmButton}
-                >
-                  변경
-                </button>
-                <button
-                  onClick={() => {
-                    setShowPasswordModal(false);
-                    setPasswordInput('');
-                    setSelectedUserId(null);
-                  }}
-                  style={styles.modalCancelButton}
-                >
-                  취소
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <h2 style={styles.title}>👥 계정 관리</h2>
+        <p style={styles.error}>계정 관리 권한이 없습니다.</p>
       </div>
     );
   }
@@ -243,7 +111,7 @@ export default function UserManagement() {
       {error && <p style={styles.error}>{error}</p>}
 
       <button onClick={() => setShowForm(!showForm)} style={styles.createButton}>
-        {showForm ? '✕ 취소' : '➕ 새 계정 생성'}
+        {showForm ? '✕ 취소' : '➕ ' + (isAdmin ? '새 계정 생성' : '새 팀원 추가')}
       </button>
 
       {showForm && (
@@ -276,7 +144,7 @@ export default function UserManagement() {
             </select>
           </div>
           <button type="submit" style={styles.submitButton}>
-            생성
+            {isAdmin ? '생성' : '추가'}
           </button>
         </form>
       )}
@@ -299,7 +167,9 @@ export default function UserManagement() {
               </tr>
             ) : users.length === 0 ? (
               <tr>
-                <td colSpan="5" style={styles.emptyCellBG}>등록된 계정이 없습니다.</td>
+                <td colSpan="5" style={styles.emptyCellBG}>
+                  {isAdmin ? '등록된 계정이 없습니다.' : '등록된 팀원이 없습니다.'}
+                </td>
               </tr>
             ) : (
               users.map((user, idx) => (
@@ -334,7 +204,6 @@ export default function UserManagement() {
         </table>
       </div>
 
-      {/* 비밀번호 변경 모달 */}
       {showPasswordModal && (
         <div style={styles.modalOverlay}>
           <div style={styles.modal}>
