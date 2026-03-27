@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { storeApi, taskApi, scheduleApi } from '../utils/api';
 import { FiPlus } from 'react-icons/fi';
@@ -42,13 +42,7 @@ const PublishWorkflow = () => {
   const [taskSearchTerm, setTaskSearchTerm] = useState('');
   const [taskStatusFilter, setTaskStatusFilter] = useState('all'); // all, pending, in_progress, completed
 
-  useEffect(() => {
-    loadData();
-    const interval = setInterval(loadData, 10000); // 10초마다 새로고침
-    return () => clearInterval(interval);
-  }, [token, loadData]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const [storesData, tasksData] = await Promise.all([
@@ -62,7 +56,13 @@ const PublishWorkflow = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    loadData();
+    const interval = setInterval(loadData, 10000); // 10초마다 새로고침
+    return () => clearInterval(interval);
+  }, [loadData]);
 
   // 매장 추가/편집
   const handleAddStore = async () => {

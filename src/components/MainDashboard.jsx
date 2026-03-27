@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { taskApi, storeApi, scheduleApi } from '../utils/api';
 import KPICard from './widgets/KPICard';
@@ -29,13 +29,7 @@ const MainDashboard = () => {
   const [error, setError] = useState('');
 
   // 데이터 로드
-  useEffect(() => {
-    loadDashboardData();
-    const interval = setInterval(loadDashboardData, 30000); // 30초마다 새로고침
-    return () => clearInterval(interval);
-  }, [token]);
-
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -72,7 +66,13 @@ const MainDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    loadDashboardData();
+    const interval = setInterval(loadDashboardData, 30000); // 30초마다 새로고침
+    return () => clearInterval(interval);
+  }, [loadDashboardData]);
 
   const generateChartData = (tasks, stores, schedules) => {
     // 일일 작업량

@@ -5,10 +5,8 @@ import {
   FiHome,
   FiBarChart2,
   FiTruck,
-  FiClipboard,
   FiUsers,
   FiLogOut,
-  FiChevronRight,
 } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 
@@ -17,7 +15,7 @@ import { useAuth } from '../context/AuthContext';
  * 역할 기반 메뉴 표시 (Admin vs Regular User)
  */
 const Navigation = ({ currentPage, onNavigate }) => {
-  const { user, isAdmin, logout } = useAuth();
+  const { user, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const menuItems = [
