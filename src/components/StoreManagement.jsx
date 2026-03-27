@@ -19,6 +19,7 @@ const StoreManagement = () => {
     storeName: '',
     address: '',
     reviewMessage: '',
+    imageUrl: '',
     dailyFrequency: 1,
     totalCount: 1,
   });
@@ -69,7 +70,7 @@ const StoreManagement = () => {
   }, [loadStores]);
 
   const resetForm = () => {
-    setNewStore({ storeName: '', address: '', reviewMessage: '', dailyFrequency: 1, totalCount: 1 });
+    setNewStore({ storeName: '', address: '', reviewMessage: '', imageUrl: '', dailyFrequency: 1, totalCount: 1 });
     setEditingId(null);
     setShowForm(false);
     setAddressWarning('');
@@ -168,6 +169,15 @@ const StoreManagement = () => {
       return;
     }
 
+    const dailyFreq = parseInt(newStore.dailyFrequency) || 1;
+    const totalCnt = parseInt(newStore.totalCount) || 1;
+
+    // ✓ 검증: 총 발행 횟수는 일발행 횟수 이상이어야 함
+    if (totalCnt < dailyFreq) {
+      setError(`총 발행 횟수는 일발행 횟수(${dailyFreq}회) 이상이어야 합니다.`);
+      return;
+    }
+
     const addressValidation = validateAddress(newStore.address);
     if (!addressValidation.valid) {
       const confirmContinue = window.confirm(
@@ -186,8 +196,9 @@ const StoreManagement = () => {
           newStore.storeName.trim(),
           newStore.address.trim(),
           newStore.reviewMessage.trim(),
-          parseInt(newStore.dailyFrequency) || 1,
-          parseInt(newStore.totalCount) || 1,
+          newStore.imageUrl.trim(),
+          dailyFreq,
+          totalCnt,
           token
         );
         setSuccessMessage('매장이 수정되었습니다.');
@@ -196,8 +207,9 @@ const StoreManagement = () => {
           newStore.storeName.trim(),
           newStore.address.trim(),
           newStore.reviewMessage.trim(),
-          parseInt(newStore.dailyFrequency) || 1,
-          parseInt(newStore.totalCount) || 1,
+          newStore.imageUrl.trim(),
+          dailyFreq,
+          totalCnt,
           token
         );
         setSuccessMessage('매장이 등록되었습니다.');
@@ -244,6 +256,7 @@ const StoreManagement = () => {
             const storeName = row['매장명']?.toString().trim();
             const address = row['매장주소']?.toString().trim() || '';
             const reviewMessage = row['리뷰메세지']?.toString().trim() || '';
+            const imageUrl = row['이미지주소']?.toString().trim() || '';
             const dailyFrequency = parseInt(row['하루횟수']) || 1;
             const totalCount = parseInt(row['총횟수']) || 1;
 
@@ -261,7 +274,7 @@ const StoreManagement = () => {
             }
 
             try {
-              await storeApi.create(storeName, address, reviewMessage, dailyFrequency, totalCount, token);
+              await storeApi.create(storeName, address, reviewMessage, imageUrl, dailyFrequency, totalCount, token);
               successCount++;
             } catch (err) {
               failCount++;
@@ -284,7 +297,7 @@ const StoreManagement = () => {
           setTimeout(() => setSuccessMessage(''), 5000);
           await loadStores();
         } catch (error) {
-          setError('엑셀 파일 형식이 올바르지 않습니다. (매장명, 매장주소, 리뷰메세지 컬럼 필요)');
+          setError('엑셀 파일 형식이 올바르지 않습니다. (매장명, 매장주소, 리뷰메세지, 이미지주소 컬럼 필요)');
         }
       };
       reader.readAsBinaryString(file);
@@ -297,8 +310,7 @@ const StoreManagement = () => {
 
   const downloadTemplate = () => {
     const template = [
-      { 매장명: '장어맛집', 매장주소: 'https://maps.app.goo.gl/4C1ftLsCmzKvpw6Q7', 리뷰메세지: '맜있게 먹었어요.', 하루횟수: 2, 총횟수: 10 },
-      { 매장명: '부산 해운대점', 매장주소: '부산시 해운대구', 리뷰메세지: '만족합니다', 하루횟수: 1, 총횟수: 5 },
+      { 매장명: '장어맛집', 매장주소: 'https://maps.app.goo.gl/4C1ftLsCmzKvpw6Q7', 리뷰메세지: '맜있게 먹었어요.', 이미지주소: 'https://example.com/image.jpg', 하루횟수: 2, 총횟수: 10 },
     ];
 
     const worksheet = XLSX.utils.json_to_sheet(template);
@@ -404,6 +416,20 @@ const StoreManagement = () => {
             />
           </div>
 
+          <div style={styles.formGroup}>
+            <label style={styles.label}>이미지 주소</label>
+            <input
+              type="text"
+              placeholder="예: https://example.com/image.jpg (선택입력)"
+              value={newStore.imageUrl}
+              onChange={(e) => setNewStore({ ...newStore, imageUrl: e.target.value })}
+              style={styles.input}
+            />
+            <p style={styles.helperText}>
+              ℹ️ 이미지 URL은 https://로 시작하는 형식이어야 합니다. (선택입력)
+            </p>
+          </div>
+
           <div style={{ display: 'flex', gap: '15px' }}>
             <div style={styles.formGroup}>
               <label style={styles.label}>하루 발행 횟수</label>
@@ -426,6 +452,9 @@ const StoreManagement = () => {
                 onChange={(e) => setNewStore({ ...newStore, totalCount: e.target.value })}
                 style={styles.input}
               />
+              <p style={styles.helperText}>
+                ℹ️ 총 발행 횟수는 하루 발행 횟수({newStore.dailyFrequency || 1}) 이상이어야 합니다.
+              </p>
             </div>
           </div>
 
@@ -761,6 +790,17 @@ const styles = {
     backgroundColor: 'rgba(255, 183, 77, 0.1)',
     borderRadius: '4px',
     border: '1px solid rgba(255, 183, 77, 0.3)',
+  },
+
+  helperText: {
+    fontSize: '12px',
+    color: '#64b5f6',
+    marginTop: '6px',
+    padding: '4px 6px',
+    backgroundColor: 'rgba(100, 181, 246, 0.1)',
+    borderRadius: '4px',
+    border: '1px solid rgba(100, 181, 246, 0.2)',
+    margin: '6px 0 0 0',
   },
 
   submitButton: {
