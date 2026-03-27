@@ -551,35 +551,36 @@ const StoreManagement = () => {
         <table style={styles.table}>
           <thead>
             <tr style={styles.headerRow}>
-              <th style={{ ...styles.th, width: '12%', cursor: 'pointer' }} 
+              <th style={{ ...styles.th, width: '10%', cursor: 'pointer' }} 
                 onClick={() => handleSort('store_name')}
               >
                 매장명 {sortConfig.key === 'store_name' && (sortConfig.order === 'asc' ? '▲' : '▼')}
               </th>
-              <th style={{ ...styles.th, width: isAdmin ? '16%' : '20%' }}>주소</th>
-              <th style={{ ...styles.th, width: isAdmin ? '18%' : '22%' }}>리뷰 메세지</th>
-              <th style={{ ...styles.th, width: '8%' }}>하루발행</th>
-              <th style={{ ...styles.th, width: '8%' }}>총발행</th>
+              <th style={{ ...styles.th, width: isAdmin ? '12%' : '15%' }}>주소</th>
+              <th style={{ ...styles.th, width: isAdmin ? '12%' : '15%' }}>이미지 주소</th>
+              <th style={{ ...styles.th, width: isAdmin ? '14%' : '17%' }}>리뷰 메세지</th>
+              <th style={{ ...styles.th, width: '7%' }}>하루발행</th>
+              <th style={{ ...styles.th, width: '7%' }}>총발행</th>
               {isAdmin && (
                 <th 
-                  style={{ ...styles.th, width: '10%', cursor: 'pointer' }}
+                  style={{ ...styles.th, width: '9%', cursor: 'pointer' }}
                   onClick={() => handleSort('user_id')}
                 >
                   등록자 {sortConfig.key === 'user_id' && (sortConfig.order === 'asc' ? '▲' : '▼')}
                 </th>
               )}
-              <th style={{ ...styles.th, width: '10%' }}>등록일</th>
-              <th style={{ ...styles.th, width: '8%' }}>관리</th>
+              <th style={{ ...styles.th, width: '9%' }}>등록일</th>
+              <th style={{ ...styles.th, width: '7%' }}>관리</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={isAdmin ? 8 : 7} style={styles.loadingCell}>로딩 중...</td>
+                <td colSpan={isAdmin ? 9 : 8} style={styles.loadingCell}>로딩 중...</td>
               </tr>
             ) : stores.length === 0 ? (
               <tr>
-                <td colSpan={isAdmin ? 8 : 7} style={styles.emptyCellBG}>
+                <td colSpan={isAdmin ? 9 : 8} style={styles.emptyCellBG}>
                   등록된 매장이 없습니다. 새 매장을 등록해주세요.
                 </td>
               </tr>
@@ -592,12 +593,12 @@ const StoreManagement = () => {
                     backgroundColor: idx % 2 === 0 ? 'rgba(230, 190, 255, 0.08)' : 'rgba(255, 192, 203, 0.08)',
                   }}
                 >
-                  <td style={{ ...styles.td, width: '12%', fontWeight: '600' }}>{store.store_name}</td>
-                  <td style={{ ...styles.td, width: isAdmin ? '16%' : '20%', fontSize: '15px' }}>
+                  <td style={{ ...styles.td, width: '10%', fontWeight: '600' }}>{store.store_name}</td>
+                  <td style={{ ...styles.td, width: isAdmin ? '12%' : '15%', fontSize: '15px' }}>
                     {store.address ? (
                       store.address.startsWith('http') ? (
                         <a href={store.address} target="_blank" rel="noopener noreferrer" style={styles.link}>
-                          {store.address.substring(0, 25)}...
+                          {store.address.substring(0, 20)}...
                         </a>
                       ) : (
                         store.address
@@ -606,24 +607,37 @@ const StoreManagement = () => {
                       '-'
                     )}
                   </td>
-                  <td style={{ ...styles.td, width: isAdmin ? '18%' : '22%', fontSize: '15px' }}>
+                  <td style={{ ...styles.td, width: isAdmin ? '12%' : '15%', fontSize: '14px' }}>
+                    {store.image_urls && store.image_urls.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {store.image_urls.map((imageUrl, idx) => (
+                          <a key={idx} href={imageUrl} target="_blank" rel="noopener noreferrer" style={styles.link}>
+                            {imageUrl.substring(0, 20)}...
+                          </a>
+                        ))}
+                      </div>
+                    ) : (
+                      '-'
+                    )}
+                  </td>
+                  <td style={{ ...styles.td, width: isAdmin ? '14%' : '17%', fontSize: '15px' }}>
                     {store.review_message || '-'}
                   </td>
-                  <td style={{ ...styles.td, width: '8%', fontSize: '15px', textAlign: 'center', fontWeight: '500', color: '#f59e0b' }}>
+                  <td style={{ ...styles.td, width: '7%', fontSize: '15px', textAlign: 'center', fontWeight: '500', color: '#f59e0b' }}>
                     {store.daily_frequency || '-'}회
                   </td>
-                  <td style={{ ...styles.td, width: '8%', fontSize: '15px', textAlign: 'center', fontWeight: '500', color: '#06b6d4' }}>
+                  <td style={{ ...styles.td, width: '7%', fontSize: '15px', textAlign: 'center', fontWeight: '500', color: '#06b6d4' }}>
                     {store.total_count || '-'}회
                   </td>
                   {isAdmin && (
-                    <td style={{ ...styles.td, width: '10%', fontSize: '15px', fontWeight: '500', color: '#a78bfa' }}>
+                    <td style={{ ...styles.td, width: '9%', fontSize: '15px', fontWeight: '500', color: '#a78bfa' }}>
                       {store.user?.user_id || '-'}
                     </td>
                   )}
-                  <td style={{ ...styles.td, width: '10%', fontSize: '15px' }}>
+                  <td style={{ ...styles.td, width: '9%', fontSize: '15px' }}>
                     {new Date(store.created_at).toLocaleDateString('ko-KR')}
                   </td>
-                  <td style={{ ...styles.td, width: '8%' }}>
+                  <td style={{ ...styles.td, width: '7%' }}>
                     <div style={styles.actionButtons}>
                       <button
                         onClick={() => handleEditStore(store)}
