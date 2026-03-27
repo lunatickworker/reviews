@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { userApi, authApi } from '../utils/api';
 
 export default function UserManagement() {
-  const { token, isAdmin, isAgency, user } = useAuth();
+  const { token, isAdmin, isAgency } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);

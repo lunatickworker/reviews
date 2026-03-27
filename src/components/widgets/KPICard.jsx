@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiArrowUp, FiArrowDown, FiTrendingUp } from 'react-icons/fi';
+import { FiArrowUp, FiArrowDown } from 'react-icons/fi';
 
 /**
  * KPI 카드 위젯

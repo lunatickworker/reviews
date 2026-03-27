@@ -18,7 +18,6 @@ import { useAuth } from '../context/AuthContext';
  */
 const Navigation = ({ currentPage, onNavigate }) => {
   const { user, isAdmin, logout } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const menuItems = [

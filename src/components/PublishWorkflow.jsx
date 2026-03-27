@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { storeApi, taskApi, scheduleApi } from '../utils/api';
-import { FiPlus, FiEdit2, FiTrash2, FiPlay, FiPause, FiCheck, FiX } from 'react-icons/fi';
+import { FiPlus } from 'react-icons/fi';
 import * as XLSX from 'xlsx';
 
 /**
@@ -9,7 +9,7 @@ import * as XLSX from 'xlsx';
  * 매장 관리, 배포 예약, 작업 실행이 한 곳에서
  */
 const PublishWorkflow = () => {
-  const { token, isAdmin, isAgency, user } = useAuth();
+  const { token, isAdmin, isAgency } = useAuth();
   const [stores, setStores] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [activeTab, setActiveTab] = useState('overview'); // overview, store, task, schedule
@@ -21,7 +21,6 @@ const PublishWorkflow = () => {
   const [showAddStore, setShowAddStore] = useState(false);
   const [showSchedule, setShowSchedule] = useState(false);
   const [selectedStore, setSelectedStore] = useState(null);
-  const [selectedTask, setSelectedTask] = useState(null);
   const [editingStoreId, setEditingStoreId] = useState(null);
 
   // 폼 데이터
@@ -47,7 +46,7 @@ const PublishWorkflow = () => {
     loadData();
     const interval = setInterval(loadData, 10000); // 10초마다 새로고침
     return () => clearInterval(interval);
-  }, [token]);
+  }, [token, loadData]);
 
   const loadData = async () => {
     try {
