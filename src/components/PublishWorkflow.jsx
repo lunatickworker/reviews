@@ -2,7 +2,6 @@
 import { useAuth } from '../context/AuthContext';
 import { storeApi, taskApi, scheduleApi } from '../utils/api';
 import { PageLayout, Alert, Loading } from './common';
-import { spacing } from '../styles/theme';
 import { FiPlus } from 'react-icons/fi';
 import * as XLSX from 'xlsx';
 
@@ -45,7 +44,7 @@ const PublishWorkflow = () => {
   const [taskSearchTerm, setTaskSearchTerm] = useState('');
   const [taskStatusFilter, setTaskStatusFilter] = useState('all'); // all, pending, in_progress, completed
   // 마지막 배포 날짜
-  const [lastDeploymentDate, setLastDeploymentDate] = useState({});
+  const [lastDeploymentDate] = useState({});
   
 
 
@@ -193,19 +192,6 @@ const PublishWorkflow = () => {
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
       setError('매장 삭제 실패');
-    }
-  };
-
-  // 작업 삭제
-  const handleDeleteTask = async (taskId) => {
-    if (!window.confirm('이 작업을 삭제하시겠습니까?')) return;
-    try {
-      await taskApi.delete(taskId, token);
-      setSuccessMessage('✅ 작업이 삭제되었습니다.');
-      await loadData();
-      setTimeout(() => setSuccessMessage(''), 3000);
-    } catch (err) {
-      setError('작업 삭제 실패');
     }
   };
 
@@ -411,11 +397,8 @@ const PublishWorkflow = () => {
         <div style={styles.header}>
           <div>
             <h1 style={{ margin: '0 0 4px 0', fontSize: '28px', fontWeight: '700' }}>
-              🚀 배포 워크플로우
+              배포 워크플로우
             </h1>
-            <p style={{ margin: 0, color: '#b8c5d6', fontSize: '13px' }}>
-              매장 등록 → 배포 예약 → 자동 실행
-            </p>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
@@ -560,60 +543,66 @@ const PublishWorkflow = () => {
               >
                 {/* 등록된 매장 - 파란색 */}
                 <div style={{ 
-                  background: 'linear-gradient(135deg, rgba(70, 130, 180, 0.22) 0%, rgba(70, 130, 180, 0.15) 100%)',
-                  padding: '32px 28px',
+                  background: 'linear-gradient(135deg, rgba(70, 130, 180, 0.16) 0%, rgba(70, 130, 180, 0.08) 100%)',
+                  padding: '36px 32px',
                   borderRadius: '16px',
-                  border: '1px solid rgba(70, 130, 180, 0.4)',
-                  borderLeft: '6px solid #4682b4',
-                  boxShadow: '0 8px 24px rgba(70, 130, 180, 0.15)',
+                  border: '1px solid rgba(70, 130, 180, 0.3)',
+                  boxShadow: '0 12px 32px rgba(70, 130, 180, 0.12)',
                   transition: 'all 0.3s ease',
-                  minHeight: '140px',
+                  minHeight: '150px',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between'
                 }}>
-                  <p style={{ margin: '0 0 12px 0', color: '#6ca3d4', fontSize: '13px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px' }}>📍 등록된 매장</p>
-                  <h3 style={{ margin: 0, fontSize: '48px', fontWeight: '700', color: '#4682b4', lineHeight: '1' }}>{stores.length}</h3>
+                  <h3 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '600', color: '#6ca3d4', letterSpacing: '0.5px' }}>등록된 매장</h3>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px' }}>
+                    <span style={{ fontSize: '56px', fontWeight: '700', color: '#4682b4', lineHeight: '1' }}>{stores.length}</span>
+                    <span style={{ fontSize: '14px', color: '#5b99c9', fontWeight: '500', marginBottom: '6px' }}>곳</span>
+                  </div>
                 </div>
                 
                 {/* 진행 중인 작업 - 시안색 */}
                 <div style={{ 
-                  background: 'linear-gradient(135deg, rgba(64, 135, 145, 0.22) 0%, rgba(64, 135, 145, 0.15) 100%)',
-                  padding: '32px 28px',
+                  background: 'linear-gradient(135deg, rgba(64, 135, 145, 0.16) 0%, rgba(64, 135, 145, 0.08) 100%)',
+                  padding: '36px 32px',
                   borderRadius: '16px',
-                  border: '1px solid rgba(64, 135, 145, 0.4)',
-                  borderLeft: '6px solid #4a8fa8',
-                  boxShadow: '0 8px 24px rgba(64, 135, 145, 0.15)',
+                  border: '1px solid rgba(64, 135, 145, 0.3)',
+                  boxShadow: '0 12px 32px rgba(64, 135, 145, 0.12)',
                   transition: 'all 0.3s ease',
-                  minHeight: '140px',
+                  minHeight: '150px',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between'
                 }}>
-                  <p style={{ margin: '0 0 12px 0', color: '#5ba8c5', fontSize: '13px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px' }}>⏳ 진행 중</p>
-                  <h3 style={{ margin: 0, fontSize: '48px', fontWeight: '700', color: '#4a8fa8', lineHeight: '1' }}>
-                    {tasks.filter((t) => t.status === 'in_progress').length}
-                  </h3>
+                  <h3 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '600', color: '#5ba8c5', letterSpacing: '0.5px' }}>진행 중인 작업</h3>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px' }}>
+                    <span style={{ fontSize: '56px', fontWeight: '700', color: '#4a8fa8', lineHeight: '1' }}>
+                      {tasks.filter((t) => t.status === 'in_progress').length}
+                    </span>
+                    <span style={{ fontSize: '14px', color: '#5b99c9', fontWeight: '500', marginBottom: '6px' }}>건</span>
+                  </div>
                 </div>
                 
                 {/* 완료된 작업 - 라벤더색 */}
                 <div style={{ 
-                  background: 'linear-gradient(135deg, rgba(92, 84, 165, 0.22) 0%, rgba(92, 84, 165, 0.15) 100%)',
-                  padding: '32px 28px',
+                  background: 'linear-gradient(135deg, rgba(92, 84, 165, 0.16) 0%, rgba(92, 84, 165, 0.08) 100%)',
+                  padding: '36px 32px',
                   borderRadius: '16px',
-                  border: '1px solid rgba(92, 84, 165, 0.4)',
-                  borderLeft: '6px solid #5c54a5',
-                  boxShadow: '0 8px 24px rgba(92, 84, 165, 0.15)',
+                  border: '1px solid rgba(92, 84, 165, 0.3)',
+                  boxShadow: '0 12px 32px rgba(92, 84, 165, 0.12)',
                   transition: 'all 0.3s ease',
-                  minHeight: '140px',
+                  minHeight: '150px',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between'
                 }}>
-                  <p style={{ margin: '0 0 12px 0', color: '#8077c4', fontSize: '13px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px' }}>✅ 완료됨</p>
-                  <h3 style={{ margin: 0, fontSize: '48px', fontWeight: '700', color: '#5c54a5', lineHeight: '1' }}>
-                    {tasks.filter((t) => t.status === 'completed').length}
-                  </h3>
+                  <h3 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '600', color: '#8077c4', letterSpacing: '0.5px' }}>완료된 작업</h3>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px' }}>
+                    <span style={{ fontSize: '56px', fontWeight: '700', color: '#5c54a5', lineHeight: '1' }}>
+                      {tasks.filter((t) => t.status === 'completed').length}
+                    </span>
+                    <span style={{ fontSize: '14px', color: '#5b99c9', fontWeight: '500', marginBottom: '6px' }}>건</span>
+                  </div>
                 </div>
               </div>
             )}
@@ -747,7 +736,7 @@ const PublishWorkflow = () => {
               <div style={{ background: 'rgba(20, 40, 70, 0.35)', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(70, 130, 180, 0.2)' }}>
                 {/* 작업 탭 헤더 */}
                 <div style={{ padding: '20px 16px', borderBottom: '1px solid rgba(70, 130, 180, 0.2)', background: 'rgba(30, 50, 80, 0.4)' }}>
-                  <h3 style={{ margin: '0 0 12px 0', fontSize: '18px', fontWeight: '700', color: '#e8eef5' }}>📋 작업 관리</h3>
+                  <h3 style={{ margin: '0 0 12px 0', fontSize: '18px', fontWeight: '700', color: '#e8eef5' }}>작업 관리</h3>
                   <div style={{ display: 'flex', gap: '20px', fontSize: '13px' }}>
                     <div>
                       <span style={{ color: '#b8c5d6' }}>총 작업:</span>{' '}
@@ -774,7 +763,7 @@ const PublishWorkflow = () => {
                 }}>
                   <input
                     type="text"
-                    placeholder="🔍 장소명으로 검색..."
+                    placeholder="장소명으로 검색..."
                     value={taskSearchTerm}
                     onChange={(e) => setTaskSearchTerm(e.target.value)}
                     style={{

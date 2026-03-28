@@ -305,7 +305,7 @@ export const getPageStyles = () => ({
   },
 });
 
-export default {
+const themeConfig = {
   colors,
   spacing,
   typography,
@@ -314,3 +314,5 @@ export default {
   breakpoints,
   getPageStyles,
 };
+
+export default themeConfig;

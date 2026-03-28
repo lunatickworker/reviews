@@ -18,7 +18,6 @@ const PageCard = ({
   padding = 'md',
 }) => {
   const pageStyles = getPageStyles();
-  const baseStyles = pageStyles.card;
 
   const paddingMap = {
     sm: spacing.md,

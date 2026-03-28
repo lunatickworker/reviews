@@ -367,7 +367,7 @@ export default function SimpleDeploy() {
         {/* 우측: 매장 목록 */}
         <div style={styles.rightPanel}>
           <div style={styles.card}>
-            <h2 style={styles.cardTitle}>📍 등록된 매장</h2>
+            <h2 style={styles.cardTitle}>등록된 매장</h2>
 
             {/* 검색 및 정렬 */}
             <div style={styles.filterBar}>

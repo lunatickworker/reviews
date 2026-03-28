@@ -60,7 +60,7 @@ export default function DashboardStats() {
 
   if (loading) {
     return (
-      <PageLayout title="📊 오늘의 매장 작업 현황" description="실시간 수행 상태">
+      <PageLayout title="올날의 매장 작업 현황" description="실시간 수행 상태">
         <Loading message="데이터 로드 중..." />
       </PageLayout>
     );
@@ -127,7 +127,7 @@ export default function DashboardStats() {
 
         {/* 최근 작업 리스트 */}
         <div style={styles.recentTasksContainer}>
-          <h2 style={styles.recentTasksTitle}>📋 최근 작업</h2>
+          <h2 style={styles.recentTasksTitle}>최근 작업</h2>
           
           {todayTasks.length === 0 ? (
             <div style={styles.emptyState}>

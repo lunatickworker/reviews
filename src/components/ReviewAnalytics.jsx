@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { mapApi, logsApi } from '../utils/api';
 import { subscribeToTable } from '../utils/realtimeApi';
-import { PageLayout, Loading } from './common';
-import { spacing } from '../styles/theme';
+import { PageLayout } from './common';
 
 export default function ReviewAnalytics() {
   const { token } = useAuth();
@@ -141,7 +140,7 @@ export default function ReviewAnalytics() {
 
   return (
     <PageLayout 
-      title="📊 리뷰작성현황" 
+      title="리뷰작성현황" 
       description="리뷰 및 이미지 리뷰 작업 통계 및 분석"
     >
       {/* 필터 섹션 */}
@@ -295,7 +294,7 @@ export default function ReviewAnalytics() {
                   </td>
                   <td style={styles.td}>
                     <span style={styles.scheduleInfo}>
-                      🟡 {task.store?.daily_frequency || '-'}회 / 🔵 {task.store?.total_count || '-'}회
+                      {task.store?.daily_frequency || '-'}회 / {task.store?.total_count || '-'}회
                     </span>
                   </td>
                   <td style={styles.td}>
@@ -338,7 +337,7 @@ export default function ReviewAnalytics() {
                       onClick={() => handleViewLogs(task)}
                       style={styles.logButton}
                     >
-                      📋 보기
+                      보기
                     </button>
                   </td>
                 </tr>
@@ -353,7 +352,7 @@ export default function ReviewAnalytics() {
         <div style={styles.modalOverlay} onClick={() => setShowLogModal(false)}>
           <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div style={styles.modalHeader}>
-              <h2 style={styles.modalTitle}>📋 작업 로그</h2>
+              <h2 style={styles.modalTitle}>작업 로그</h2>
               <button
                 onClick={() => setShowLogModal(false)}
                 style={styles.closeButton}

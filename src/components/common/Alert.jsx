@@ -1,6 +1,6 @@
 // frontend/src/components/common/Alert.jsx
 import React from 'react';
-import { getPageStyles, colors, spacing } from '../../styles/theme';
+import { getPageStyles, spacing } from '../../styles/theme';
 import { FiAlertCircle, FiCheckCircle, FiInfo, FiX } from 'react-icons/fi';
 
 /**
@@ -13,7 +13,6 @@ const Alert = ({
   onClose,
   icon: Icon,
 }) => {
-  const styles = getPageStyles();
 
   const typeStyles = {
     success: {

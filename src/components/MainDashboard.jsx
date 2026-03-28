@@ -204,7 +204,7 @@ const MainDashboard = () => {
 
   return (
     <PageLayout
-      title="🎯 대시보드"
+      title="대시보드"
       description="실시간 리뷰 배포 현황 및 상세 분석"
     >
       {error && (
@@ -327,7 +327,7 @@ const MainDashboard = () => {
 
           {/* 빠른 통계 */}
           <PageCard
-            title="📊 빠른 통계"
+            title="빠른 통계"
             subtitle="주요 지표"
           >
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: spacing.md }}>

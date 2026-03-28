@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { userApi, authApi } from '../utils/api';
-import { PageLayout, Alert, Loading, PageCard } from './common';
+import { PageLayout, Alert, PageCard } from './common';
 import { spacing } from '../styles/theme';
 
 export default function UserManagement() {

@@ -21,28 +21,28 @@ const Navigation = ({ currentPage, onNavigate }) => {
   const menuItems = [
     {
       id: 'dashboard',
-      label: '📊 대시보드',
+      label: '대시보드',
       icon: FiHome,
       roles: ['admin', 'agency', 'user'],
       description: '실시간 분석 및 KPI',
     },
     {
       id: 'workflow',
-      label: '🚀 배포 워크플로우',
+      label: '배포 워크플로우',
       icon: FiTruck,
       roles: ['admin', 'agency', 'user'],
       description: '매장등록·작업관리',
     },
     {
       id: 'analytics',
-      label: '📈 분석',
+      label: '분석',
       icon: FiBarChart2,
       roles: ['admin', 'agency', 'user'],
       description: '리뷰·이미지 분석',
     },
     {
       id: 'admin',
-      label: '👨‍💼 계정관리',
+      label: '계정관리',
       icon: FiUsers,
       roles: ['admin', 'agency'],
       description: '팀원 관리',
@@ -83,8 +83,10 @@ const Navigation = ({ currentPage, onNavigate }) => {
       marginBottom: '8px',
     },
     userInfo: {
-      fontSize: '12px',
-      color: '#9ca3af',
+      fontSize: '13px',
+      fontWeight: '600',
+      color: '#e8eef5',
+      letterSpacing: '0.2px',
     },
     menuItems: {
       flex: 1,
@@ -175,7 +177,7 @@ const Navigation = ({ currentPage, onNavigate }) => {
         <div style={styles.sidebarHeader}>
           <div style={styles.logo}>🚀 Google Review</div>
           <div style={styles.userInfo}>
-            {user?.user_role === 'admin' ? '👑 Admin' : '👤 User'} · {user?.email?.split('@')[0]}
+            {user?.userId || 'User'}
           </div>
         </div>
 
@@ -263,7 +265,7 @@ const Navigation = ({ currentPage, onNavigate }) => {
           <div style={styles.mobileSidebar} className="mobile-sidebar">
             <div style={{ padding: '16px', borderBottom: '1px solid rgba(124, 58, 237, 0.2)' }}>
               <div style={styles.userInfo}>
-                {user?.user_role === 'admin' ? '👑 Admin' : '👤 User'} · {user?.email?.split('@')[0]}
+                {user?.userId || 'User'}
               </div>
             </div>
 
