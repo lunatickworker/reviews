@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { storeApi, taskApi, scheduleApi } from '../utils/api';
 import { FiPlus } from 'react-icons/fi';
