@@ -1,6 +1,6 @@
 // frontend/src/components/common/Alert.jsx
 import React from 'react';
-import { getPageStyles, spacing } from '../../styles/theme';
+import { spacing } from '../../styles/theme';
 import { FiAlertCircle, FiCheckCircle, FiInfo, FiX } from 'react-icons/fi';
 
 /**
