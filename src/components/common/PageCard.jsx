@@ -1,6 +1,6 @@
 // frontend/src/components/common/PageCard.jsx
 import React from 'react';
-import { getPageStyles, colors, borderRadius, spacing, shadows } from '../../styles/theme';
+import { colors, borderRadius, spacing, shadows } from '../../styles/theme';
 
 /**
  * 일관된 카드 컴포넌트
