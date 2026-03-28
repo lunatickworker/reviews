@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { mapApi, storeApi, scheduleApi } from '../utils/api';
+import { subscribeToTable } from '../utils/realtimeApi';
+import { PageLayout, Alert, PageCard, DataTable, Loading } from './common';
+import { spacing } from '../styles/theme';
 
 export default function TaskManagement() {
   const { token, isAdmin } = useAuth();
@@ -33,11 +36,39 @@ export default function TaskManagement() {
 
     if (token) {
       fetchData();
-      // 10초마다 새로고침
-      const interval = setInterval(fetchData, 10000);
-      return () => clearInterval(interval);
     }
   }, [token, isAdmin]);
+
+  // 실시간 구독
+  useEffect(() => {
+    const unsubscribers = [];
+
+    unsubscribers.push(
+      subscribeToTable('tasks', {
+        onInsert: (newTask) => setTasks(prev => [...prev, newTask]),
+        onUpdate: (updatedTask) => setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t)),
+        onDelete: (deletedTask) => setTasks(prev => prev.filter(t => t.id !== deletedTask.id)),
+      })
+    );
+
+    unsubscribers.push(
+      subscribeToTable('stores', {
+        onInsert: (newStore) => setStores(prev => [...prev, newStore]),
+        onUpdate: (updatedStore) => setStores(prev => prev.map(s => s.id === updatedStore.id ? updatedStore : s)),
+        onDelete: (deletedStore) => setStores(prev => prev.filter(s => s.id !== deletedStore.id)),
+      })
+    );
+
+    unsubscribers.push(
+      subscribeToTable('schedules', {
+        onInsert: (newSchedule) => setSchedules(prev => [...prev, newSchedule]),
+        onUpdate: (updatedSchedule) => setSchedules(prev => prev.map(s => s.id === updatedSchedule.id ? updatedSchedule : s)),
+        onDelete: (deletedSchedule) => setSchedules(prev => prev.filter(s => s.id !== deletedSchedule.id)),
+      })
+    );
+
+    return () => unsubscribers.forEach(u => u());
+  }, []);
 
   // 필터링: Backend에서 role별로 이미 필터링됨 (Admin은 모든 작업, Agency는 자신의 작업)
   // store_id column 추가 후 Admin이 선택한 매장별 필터링 가능
@@ -149,23 +180,20 @@ export default function TaskManagement() {
 
   if (loading) {
     return (
-      <div style={styles.container}>
-        <div style={styles.header}>
-          <h1 style={styles.title}>📋 작업 관리</h1>
-        </div>
-        <p style={{ textAlign: 'center', color: '#d1d5db' }}>로딩 중...</p>
-      </div>
+      <PageLayout
+        title="📋 작업 관리"
+        description="진행 중인 작업 관리"
+      >
+        <Loading message="데이터 로드 중..." />
+      </PageLayout>
     );
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h1 style={styles.title}>📋 작업 관리</h1>
-        <p style={styles.subtitle}>
-          완료 및 실패된 작업 ({sortedTasks.length}개)
-        </p>
-      </div>
+    <PageLayout
+      title="📋 작업 관리"
+      description={`완료 및 실패된 작업 (${sortedTasks.length}개)`}
+    >
 
       <div style={styles.searchContainer}>
         <input
@@ -194,7 +222,7 @@ export default function TaskManagement() {
         <div style={styles.tableWrapper}>
           <table style={styles.table}>
             <thead>
-              <tr style={styles.tableHeader}>
+              <tr style={{ ...styles.tableHeader, background: 'rgba(30, 50, 80, 0.6)' }}>
                 <th style={{ ...styles.th, cursor: 'pointer' }} onClick={() => handleSort('place_name')}>
                   매장명 {sortConfig.key === 'place_name' && (sortConfig.order === 'asc' ? '↑' : '↓')}
                 </th>
@@ -315,7 +343,7 @@ export default function TaskManagement() {
           </table>
         </div>
       )}
-    </div>
+    </PageLayout>
   );
 }
 
@@ -356,8 +384,8 @@ const styles = {
 
   tableWrapper: {
     overflowX: 'auto',
-    background: 'linear-gradient(135deg, rgba(30, 40, 60, 0.8) 0%, rgba(40, 50, 70, 0.6) 100%)',
-    border: '1px solid rgba(124, 58, 237, 0.2)',
+    background: 'rgba(20, 40, 70, 0.35)',
+    border: '1px solid rgba(70, 130, 180, 0.2)',
     borderRadius: '12px',
     padding: '12px',
   },

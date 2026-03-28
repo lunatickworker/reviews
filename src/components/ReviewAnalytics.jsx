@@ -1,9 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { mapApi, logsApi } from '../utils/api';
+import { subscribeToTable } from '../utils/realtimeApi';
+import { PageLayout, Loading } from './common';
+import { spacing } from '../styles/theme';
 
 export default function ReviewAnalytics() {
   const { token } = useAuth();
+  const isInitialLoad = useRef(true);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState('');
@@ -22,16 +26,26 @@ export default function ReviewAnalytics() {
       } catch (error) {
         console.error('작업 조회 실패:', error);
       } finally {
-        setLoading(false);
+        if (isInitialLoad.current) {
+          isInitialLoad.current = false;
+          setLoading(false);
+        }
       }
     };
 
     if (token) {
       fetchTasks();
-      const interval = setInterval(fetchTasks, 10000);
-      return () => clearInterval(interval);
     }
   }, [token]);
+
+  // 실시간 구독
+  useEffect(() => {
+    return subscribeToTable('tasks', {
+      onInsert: (newTask) => setTasks(prev => [...prev, newTask]),
+      onUpdate: (updatedTask) => setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t)),
+      onDelete: (deletedTask) => setTasks(prev => prev.filter(t => t.id !== deletedTask.id)),
+    });
+  }, []);
 
   // 날짜 범위에 따라 필터링
   const getFilteredTasks = () => {
@@ -126,12 +140,10 @@ export default function ReviewAnalytics() {
     : 0;
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h1 style={styles.title}>📊 리뷰작성현황</h1>
-        <p style={styles.subtitle}>리뷰 및 이미지 리뷰 작업 통계 및 분석</p>
-      </div>
-
+    <PageLayout 
+      title="📊 리뷰작성현황" 
+      description="리뷰 및 이미지 리뷰 작업 통계 및 분석"
+    >
       {/* 필터 섹션 */}
       <div style={styles.filterSection}>
         <div style={styles.filterRow}>
@@ -201,23 +213,47 @@ export default function ReviewAnalytics() {
 
       {/* 통계 카드 */}
       <div style={styles.statsGrid}>
-        <div style={{ ...styles.statCard, borderLeft: '4px solid #3b82f6' }}>
+        {/* 총 작업 - 파란색 */}
+        <div style={{ 
+          ...styles.statCard, 
+          borderLeft: '4px solid #4682b4',
+          background: 'linear-gradient(135deg, rgba(70, 130, 180, 0.12) 0%, rgba(70, 130, 180, 0.08) 100%)',
+          border: '1px solid rgba(70, 130, 180, 0.2)'
+        }}>
           <div style={styles.statLabel}>총 작업</div>
-          <div style={{ ...styles.statValue, color: '#3b82f6' }}>{statistics.total}</div>
+          <div style={{ ...styles.statValue, color: '#4682b4' }}>{statistics.total}</div>
         </div>
 
-        <div style={{ ...styles.statCard, borderLeft: '4px solid #059669' }}>
+        {/* 리뷰 완료 - 초록색 */}
+        <div style={{ 
+          ...styles.statCard, 
+          borderLeft: '4px solid #059669',
+          background: 'linear-gradient(135deg, rgba(5, 150, 105, 0.12) 0%, rgba(5, 150, 105, 0.08) 100%)',
+          border: '1px solid rgba(5, 150, 105, 0.2)'
+        }}>
           <div style={styles.statLabel}>리뷰 완료</div>
           <div style={{ ...styles.statValue, color: '#059669' }}>{statistics.completedReview}</div>
           <div style={styles.statDescription}>{reviewSuccessRate}% 성공</div>
         </div>
 
-        <div style={{ ...styles.statCard, borderLeft: '4px solid #ef4444' }}>
+        {/* 리뷰 실패 - 빨간색 */}
+        <div style={{ 
+          ...styles.statCard, 
+          borderLeft: '4px solid #ef4444',
+          background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(239, 68, 68, 0.08) 100%)',
+          border: '1px solid rgba(239, 68, 68, 0.2)'
+        }}>
           <div style={styles.statLabel}>리뷰 실패</div>
           <div style={{ ...styles.statValue, color: '#ef4444' }}>{statistics.failedReview}</div>
         </div>
 
-        <div style={{ ...styles.statCard, borderLeft: '4px solid #f59e0b' }}>
+        {/* 이미지 완료 - 주황색 */}
+        <div style={{ 
+          ...styles.statCard, 
+          borderLeft: '4px solid #f59e0b',
+          background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(245, 158, 11, 0.08) 100%)',
+          border: '1px solid rgba(245, 158, 11, 0.2)'
+        }}>
           <div style={styles.statLabel}>이미지 완료</div>
           <div style={{ ...styles.statValue, color: '#f59e0b' }}>{statistics.completedImage}</div>
           <div style={styles.statDescription}>{imageSuccessRate}% 성공</div>
@@ -237,7 +273,7 @@ export default function ReviewAnalytics() {
         <div style={styles.tableWrapper}>
           <table style={styles.table}>
             <thead>
-              <tr style={styles.tableHeader}>
+              <tr style={{ ...styles.tableHeader, background: 'rgba(55, 65, 81, 0.9)' }}>
                 <th style={styles.th}>매장명</th>
                 <th style={styles.th}>작업계정</th>
                 <th style={styles.th}>일발행/총발행</th>
@@ -360,7 +396,7 @@ export default function ReviewAnalytics() {
           </div>
         </div>
       )}
-    </div>
+    </PageLayout>
   );
 }
 
@@ -374,7 +410,7 @@ const styles = {
   header: {
     marginBottom: '32px',
     paddingBottom: '16px',
-    borderBottom: '1px solid rgba(124, 58, 237, 0.2)',
+    borderBottom: '1px solid rgba(70, 130, 180, 0.2)',
   },
 
   title: {
@@ -394,8 +430,8 @@ const styles = {
   },
 
   filterSection: {
-    background: 'linear-gradient(135deg, rgba(30, 40, 60, 0.8) 0%, rgba(40, 50, 70, 0.6) 100%)',
-    border: '1px solid rgba(124, 58, 237, 0.2)',
+    background: 'linear-gradient(135deg, rgba(20, 35, 55, 0.7) 0%, rgba(30, 50, 80, 0.6) 100%)',
+    border: '1px solid rgba(70, 130, 180, 0.2)',
     borderRadius: '12px',
     padding: '20px',
     marginBottom: '24px',
@@ -424,10 +460,10 @@ const styles = {
 
   select: {
     padding: '8px 12px',
-    background: 'rgba(40, 50, 70, 0.9)',
-    border: '1px solid rgba(124, 58, 237, 0.4)',
+    background: 'rgba(30, 50, 80, 0.6)',
+    border: '1px solid rgba(70, 130, 180, 0.2)',
     borderRadius: '6px',
-    color: '#e5e7eb',
+    color: '#e8eef5',
     fontSize: '16px',
     cursor: 'pointer',
     transition: 'all 0.2s ease',
@@ -435,10 +471,10 @@ const styles = {
 
   searchInput: {
     padding: '8px 12px',
-    background: 'rgba(40, 50, 70, 0.9)',
-    border: '1px solid rgba(124, 58, 237, 0.4)',
+    background: 'rgba(30, 50, 80, 0.6)',
+    border: '1px solid rgba(70, 130, 180, 0.2)',
     borderRadius: '6px',
-    color: '#e5e7eb',
+    color: '#e8eef5',
     fontSize: '16px',
     minWidth: '200px',
     transition: 'all 0.2s ease',
@@ -446,18 +482,18 @@ const styles = {
 
   dateInput: {
     padding: '8px 12px',
-    background: 'rgba(40, 50, 70, 0.9)',
-    border: '1px solid rgba(124, 58, 237, 0.4)',
+    background: 'rgba(30, 50, 80, 0.6)',
+    border: '1px solid rgba(70, 130, 180, 0.2)',
     borderRadius: '6px',
-    color: '#e5e7eb',
+    color: '#e8eef5',
     fontSize: '16px',
     transition: 'all 0.2s ease',
   },
 
   resetButton: {
     padding: '8px 16px',
-    background: 'rgba(107, 114, 128, 0.2)',
-    border: '1px solid rgba(107, 114, 128, 0.3)',
+    background: 'rgba(70, 130, 180, 0.15)',
+    border: '1px solid rgba(70, 130, 180, 0.2)',
     borderRadius: '6px',
     color: '#d1d5db',
     cursor: 'pointer',
@@ -474,8 +510,8 @@ const styles = {
   },
 
   statCard: {
-    background: 'linear-gradient(135deg, rgba(30, 40, 60, 0.8) 0%, rgba(40, 50, 70, 0.6) 100%)',
-    border: '1px solid rgba(124, 58, 237, 0.2)',
+    background: 'linear-gradient(135deg, rgba(20, 35, 55, 0.7) 0%, rgba(30, 50, 80, 0.6) 100%)',
+    border: '1px solid rgba(70, 130, 180, 0.2)',
     borderRadius: '12px',
     padding: '20px',
   },
@@ -500,8 +536,8 @@ const styles = {
 
   tableWrapper: {
     overflowX: 'auto',
-    background: 'linear-gradient(135deg, rgba(30, 40, 60, 0.8) 0%, rgba(40, 50, 70, 0.6) 100%)',
-    border: '1px solid rgba(124, 58, 237, 0.2)',
+    background: 'rgba(20, 40, 70, 0.35)',
+    border: '1px solid rgba(70, 130, 180, 0.2)',
     borderRadius: '12px',
     padding: '12px',
   },
@@ -513,8 +549,8 @@ const styles = {
   },
 
   tableHeader: {
-    backgroundColor: 'rgba(124, 58, 237, 0.1)',
-    borderBottom: '2px solid rgba(124, 58, 237, 0.3)',
+    backgroundColor: 'rgba(30, 50, 80, 0.6)',
+    borderBottom: '2px solid rgba(70, 130, 180, 0.2)',
   },
 
   th: {
@@ -527,7 +563,7 @@ const styles = {
   },
 
   tableRow: {
-    borderBottom: '1px solid rgba(124, 58, 237, 0.1)',
+    borderBottom: '1px solid rgba(70, 130, 180, 0.1)',
     transition: 'background-color 0.2s ease',
   },
 
@@ -596,8 +632,8 @@ const styles = {
 
   logButton: {
     padding: '6px 12px',
-    background: 'rgba(124, 58, 237, 0.2)',
-    border: '1px solid rgba(124, 58, 237, 0.3)',
+    background: 'rgba(70, 130, 180, 0.15)',
+    border: '1px solid rgba(70, 130, 180, 0.2)',
     borderRadius: '6px',
     color: '#a78bfa',
     cursor: 'pointer',
@@ -632,8 +668,8 @@ const styles = {
   },
 
   modal: {
-    background: 'linear-gradient(135deg, rgba(26, 31, 46, 0.95) 0%, rgba(26, 31, 46, 0.8) 100%)',
-    border: '1px solid rgba(124, 58, 237, 0.3)',
+    background: 'linear-gradient(135deg, rgba(20, 35, 55, 0.99) 0%, rgba(30, 50, 80, 0.95) 100%)',
+    border: '1px solid rgba(70, 130, 180, 0.2)',
     borderRadius: '12px',
     maxWidth: '600px',
     width: '90%',
@@ -648,7 +684,7 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '20px',
-    borderBottom: '1px solid rgba(124, 58, 237, 0.2)',
+    borderBottom: '1px solid rgba(70, 130, 180, 0.2)',
   },
 
   modalTitle: {
@@ -687,7 +723,7 @@ const styles = {
 
   logItem: {
     background: 'rgba(0, 0, 0, 0.2)',
-    border: '1px solid rgba(124, 58, 237, 0.1)',
+    border: '1px solid rgba(70, 130, 180, 0.1)',
     borderRadius: '6px',
     padding: '12px',
   },

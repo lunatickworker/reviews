@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { storeApi, taskApi, scheduleApi } from '../utils/api';
+import { PageLayout, Alert, Loading } from './common';
+import { spacing } from '../styles/theme';
 import { FiPlus } from 'react-icons/fi';
 import * as XLSX from 'xlsx';
 
@@ -10,10 +12,11 @@ import * as XLSX from 'xlsx';
  */
 const PublishWorkflow = () => {
   const { token, isAdmin, isAgency } = useAuth();
+  const isInitialLoad = useRef(true);
   const [stores, setStores] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [activeTab, setActiveTab] = useState('overview'); // overview, store, task, schedule
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
@@ -41,20 +44,34 @@ const PublishWorkflow = () => {
   // 작업 탭 필터
   const [taskSearchTerm, setTaskSearchTerm] = useState('');
   const [taskStatusFilter, setTaskStatusFilter] = useState('all'); // all, pending, in_progress, completed
+  // 마지막 배포 날짜
+  const [lastDeploymentDate, setLastDeploymentDate] = useState({});
+  
+
 
   const loadData = useCallback(async () => {
     try {
-      setLoading(true);
+      // 초기 로드일 때만 로딩 표시 (깜박임 제거)
+      if (isInitialLoad.current) {
+        setLoading(true);
+      }
       const [storesData, tasksData] = await Promise.all([
         storeApi.getAll(token),
         taskApi.getAll(token),
       ]);
       setStores(storesData || []);
       setTasks(tasksData || []);
+      
+      // 초기 로드 완료 표시
+      if (isInitialLoad.current) {
+        isInitialLoad.current = false;
+        setLoading(false);
+      }
     } catch (err) {
       console.error('데이터 로드 실패:', err);
-    } finally {
-      setLoading(false);
+      if (isInitialLoad.current) {
+        setLoading(false);
+      }
     }
   }, [token]);
 
@@ -329,10 +346,10 @@ const PublishWorkflow = () => {
 
   const styles = {
     container: {
-      background: 'linear-gradient(135deg, rgba(17,24,39,0.8) 0%, rgba(31,41,55,0.8) 100%)',
+      background: 'linear-gradient(135deg, rgba(12, 20, 35, 0.99) 0%, rgba(20, 35, 55, 0.99) 100%)',
       minHeight: '100vh',
       padding: '24px',
-      color: '#fff',
+      color: '#e8eef5',
     },
     header: {
       display: 'flex',
@@ -340,20 +357,20 @@ const PublishWorkflow = () => {
       alignItems: 'center',
       marginBottom: '24px',
       paddingBottom: '16px',
-      borderBottom: '1px solid rgba(124, 58, 237, 0.2)',
+      borderBottom: '1px solid rgba(70, 130, 180, 0.2)',
     },
     tabBar: {
       display: 'flex',
       gap: '8px',
       marginBottom: '24px',
-      borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+      borderBottom: '1px solid rgba(70, 130, 180, 0.1)',
       overflow: 'auto',
     },
     tab: {
       padding: '12px 20px',
       background: 'transparent',
       border: 'none',
-      color: '#9ca3af',
+      color: '#b8c5d6',
       cursor: 'pointer',
       fontWeight: '500',
       fontSize: '14px',
@@ -361,8 +378,8 @@ const PublishWorkflow = () => {
       transition: 'all 0.3s ease',
     },
     activeTab: {
-      color: '#a855f7',
-      borderBottomColor: '#a855f7',
+      color: '#4682b4',
+      borderBottomColor: '#4682b4',
     },
     table: {
       width: '100%',
@@ -372,17 +389,18 @@ const PublishWorkflow = () => {
     th: {
       padding: '12px',
       textAlign: 'left',
-      borderBottom: '1px solid rgba(124, 58, 237, 0.2)',
+      borderBottom: '1px solid rgba(70, 130, 180, 0.2)',
       fontSize: '12px',
       fontWeight: '600',
-      color: '#9ca3af',
+      color: '#b8c5d6',
       textTransform: 'uppercase',
       letterSpacing: '0.5px',
     },
     td: {
       padding: '12px',
-      borderBottom: '1px solid rgba(124, 58, 237, 0.1)',
+      borderBottom: '1px solid rgba(70, 130, 180, 0.1)',
       fontSize: '14px',
+      color: '#e8eef5',
     },
   };
 
@@ -395,7 +413,7 @@ const PublishWorkflow = () => {
             <h1 style={{ margin: '0 0 4px 0', fontSize: '28px', fontWeight: '700' }}>
               🚀 배포 워크플로우
             </h1>
-            <p style={{ margin: 0, color: '#9ca3af', fontSize: '13px' }}>
+            <p style={{ margin: 0, color: '#b8c5d6', fontSize: '13px' }}>
               매장 등록 → 배포 예약 → 자동 실행
             </p>
           </div>
@@ -526,7 +544,7 @@ const PublishWorkflow = () => {
 
         {/* 탭 컨텐츠 */}
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}>
+          <div style={{ textAlign: 'center', padding: '40px', color: '#b8c5d6' }}>
             로드 중...
           </div>
         ) : (
@@ -536,23 +554,64 @@ const PublishWorkflow = () => {
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-                  gap: '16px',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                  gap: '20px',
                 }}
               >
-                <div style={{ background: 'rgba(37, 45, 66, 0.7)', padding: '20px', borderRadius: '12px' }}>
-                  <p style={{ margin: '0 0 8px 0', color: '#9ca3af', fontSize: '12px' }}>등록된 매장</p>
-                  <h3 style={{ margin: 0, fontSize: '32px', fontWeight: '700' }}>{stores.length}</h3>
+                {/* 등록된 매장 - 파란색 */}
+                <div style={{ 
+                  background: 'linear-gradient(135deg, rgba(70, 130, 180, 0.22) 0%, rgba(70, 130, 180, 0.15) 100%)',
+                  padding: '32px 28px',
+                  borderRadius: '16px',
+                  border: '1px solid rgba(70, 130, 180, 0.4)',
+                  borderLeft: '6px solid #4682b4',
+                  boxShadow: '0 8px 24px rgba(70, 130, 180, 0.15)',
+                  transition: 'all 0.3s ease',
+                  minHeight: '140px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between'
+                }}>
+                  <p style={{ margin: '0 0 12px 0', color: '#6ca3d4', fontSize: '13px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px' }}>📍 등록된 매장</p>
+                  <h3 style={{ margin: 0, fontSize: '48px', fontWeight: '700', color: '#4682b4', lineHeight: '1' }}>{stores.length}</h3>
                 </div>
-                <div style={{ background: 'rgba(37, 45, 66, 0.7)', padding: '20px', borderRadius: '12px' }}>
-                  <p style={{ margin: '0 0 8px 0', color: '#9ca3af', fontSize: '12px' }}>진행 중인 작업</p>
-                  <h3 style={{ margin: 0, fontSize: '32px', fontWeight: '700' }}>
+                
+                {/* 진행 중인 작업 - 시안색 */}
+                <div style={{ 
+                  background: 'linear-gradient(135deg, rgba(64, 135, 145, 0.22) 0%, rgba(64, 135, 145, 0.15) 100%)',
+                  padding: '32px 28px',
+                  borderRadius: '16px',
+                  border: '1px solid rgba(64, 135, 145, 0.4)',
+                  borderLeft: '6px solid #4a8fa8',
+                  boxShadow: '0 8px 24px rgba(64, 135, 145, 0.15)',
+                  transition: 'all 0.3s ease',
+                  minHeight: '140px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between'
+                }}>
+                  <p style={{ margin: '0 0 12px 0', color: '#5ba8c5', fontSize: '13px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px' }}>⏳ 진행 중</p>
+                  <h3 style={{ margin: 0, fontSize: '48px', fontWeight: '700', color: '#4a8fa8', lineHeight: '1' }}>
                     {tasks.filter((t) => t.status === 'in_progress').length}
                   </h3>
                 </div>
-                <div style={{ background: 'rgba(37, 45, 66, 0.7)', padding: '20px', borderRadius: '12px' }}>
-                  <p style={{ margin: '0 0 8px 0', color: '#9ca3af', fontSize: '12px' }}>완료된 작업</p>
-                  <h3 style={{ margin: 0, fontSize: '32px', fontWeight: '700' }}>
+                
+                {/* 완료된 작업 - 라벤더색 */}
+                <div style={{ 
+                  background: 'linear-gradient(135deg, rgba(92, 84, 165, 0.22) 0%, rgba(92, 84, 165, 0.15) 100%)',
+                  padding: '32px 28px',
+                  borderRadius: '16px',
+                  border: '1px solid rgba(92, 84, 165, 0.4)',
+                  borderLeft: '6px solid #5c54a5',
+                  boxShadow: '0 8px 24px rgba(92, 84, 165, 0.15)',
+                  transition: 'all 0.3s ease',
+                  minHeight: '140px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between'
+                }}>
+                  <p style={{ margin: '0 0 12px 0', color: '#8077c4', fontSize: '13px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px' }}>✅ 완료됨</p>
+                  <h3 style={{ margin: 0, fontSize: '48px', fontWeight: '700', color: '#5c54a5', lineHeight: '1' }}>
                     {tasks.filter((t) => t.status === 'completed').length}
                   </h3>
                 </div>
@@ -561,10 +620,10 @@ const PublishWorkflow = () => {
 
             {/* 매장 탭 */}
             {activeTab === 'store' && (
-              <div style={{ background: 'rgba(37, 45, 66, 0.7)', borderRadius: '12px', overflow: 'hidden' }}>
+              <div style={{ background: 'rgba(20, 40, 70, 0.35)', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(70, 130, 180, 0.2)' }}>
                 <table style={styles.table}>
                   <thead>
-                    <tr style={{ background: 'rgba(0, 0, 0, 0.2)' }}>
+                    <tr style={{ background: 'rgba(30, 50, 80, 0.6)' }}>
                       <th style={styles.th}>매장명</th>
                       <th style={styles.th}>주소</th>
                       <th style={styles.th}>리뷰</th>
@@ -576,7 +635,7 @@ const PublishWorkflow = () => {
                   <tbody>
                     {stores.length === 0 ? (
                       <tr>
-                        <td colSpan="6" style={{ ...styles.td, textAlign: 'center', color: '#9ca3af' }}>
+                        <td colSpan="6" style={{ ...styles.td, textAlign: 'center', color: '#b8c5d6' }}>
                           등록된 매장이 없습니다.
                         </td>
                       </tr>
@@ -685,13 +744,32 @@ const PublishWorkflow = () => {
 
             {/* 작업 탭 */}
             {activeTab === 'task' && (
-              <div style={{ background: 'rgba(37, 45, 66, 0.7)', borderRadius: '12px', overflow: 'hidden' }}>
+              <div style={{ background: 'rgba(20, 40, 70, 0.35)', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(70, 130, 180, 0.2)' }}>
+                {/* 작업 탭 헤더 */}
+                <div style={{ padding: '20px 16px', borderBottom: '1px solid rgba(70, 130, 180, 0.2)', background: 'rgba(30, 50, 80, 0.4)' }}>
+                  <h3 style={{ margin: '0 0 12px 0', fontSize: '18px', fontWeight: '700', color: '#e8eef5' }}>📋 작업 관리</h3>
+                  <div style={{ display: 'flex', gap: '20px', fontSize: '13px' }}>
+                    <div>
+                      <span style={{ color: '#b8c5d6' }}>총 작업:</span>{' '}
+                      <span style={{ color: '#e8eef5', fontWeight: '600' }}>{tasks.length}개</span>
+                    </div>
+                    <div>
+                      <span style={{ color: '#b8c5d6' }}>진행 중:</span>{' '}
+                      <span style={{ color: '#93c5fd', fontWeight: '600' }}>{tasks.filter(t => t.status === 'in_progress').length}개</span>
+                    </div>
+                    <div>
+                      <span style={{ color: '#b8c5d6' }}>완료:</span>{' '}
+                      <span style={{ color: '#86efac', fontWeight: '600' }}>{tasks.filter(t => t.status === 'completed').length}개</span>
+                    </div>
+                  </div>
+                </div>
+
                 {/* 검색 및 필터 */}
                 <div style={{
                   display: 'flex',
                   gap: '12px',
                   padding: '16px',
-                  borderBottom: '1px solid rgba(124, 58, 237, 0.2)',
+                  borderBottom: '1px solid rgba(70, 130, 180, 0.2)',
                   flexWrap: 'wrap',
                 }}>
                   <input
@@ -703,10 +781,10 @@ const PublishWorkflow = () => {
                       flex: 1,
                       minWidth: '200px',
                       padding: '8px 12px',
-                      background: 'rgba(0, 0, 0, 0.2)',
-                      border: '1px solid rgba(124, 58, 237, 0.3)',
+                      background: 'rgba(30, 50, 80, 0.6)',
+                      border: '1px solid rgba(70, 130, 180, 0.2)',
                       borderRadius: '6px',
-                      color: '#fff',
+                      color: '#e8eef5',
                       fontSize: '13px',
                     }}
                   />
@@ -715,10 +793,10 @@ const PublishWorkflow = () => {
                     onChange={(e) => setTaskStatusFilter(e.target.value)}
                     style={{
                       padding: '8px 12px',
-                      background: 'rgba(0, 0, 0, 0.2)',
-                      border: '1px solid rgba(124, 58, 237, 0.3)',
+                      background: 'rgba(30, 50, 80, 0.6)',
+                      border: '1px solid rgba(70, 130, 180, 0.2)',
                       borderRadius: '6px',
-                      color: '#fff',
+                      color: '#e8eef5',
                       fontSize: '13px',
                       cursor: 'pointer',
                     }}
@@ -736,8 +814,8 @@ const PublishWorkflow = () => {
                       }}
                       style={{
                         padding: '8px 16px',
-                        background: 'rgba(239, 68, 68, 0.2)',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        background: 'rgba(239, 68, 68, 0.15)',
+                        border: '1px solid rgba(239, 68, 68, 0.2)',
                         borderRadius: '6px',
                         color: '#fca5a5',
                         cursor: 'pointer',
@@ -752,12 +830,15 @@ const PublishWorkflow = () => {
 
                 <table style={styles.table}>
                   <thead>
-                    <tr style={{ background: 'rgba(0, 0, 0, 0.2)' }}>
+                    <tr style={{ background: 'rgba(30, 50, 80, 0.6)' }}>
                       <th style={styles.th}>장소</th>
                       <th style={styles.th}>상태</th>
+                      <th style={styles.th}>진행</th>
+                      <th style={styles.th}>이미지</th>
+                      <th style={styles.th}>일발행/총발행</th>
                       <th style={styles.th}>리뷰</th>
                       <th style={styles.th}>등록일</th>
-                      <th style={styles.th}>관리</th>
+                      <th style={styles.th}>마지막 배포</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -775,7 +856,7 @@ const PublishWorkflow = () => {
                       })
                       .length === 0 ? (
                       <tr>
-                        <td colSpan="5" style={{ ...styles.td, textAlign: 'center', color: '#9ca3af' }}>
+                        <td colSpan="8" style={{ ...styles.td, textAlign: 'center', color: '#b8c5d6' }}>
                           {tasks.length === 0 ? '작업이 없습니다.' : '검색 결과가 없습니다.'}
                         </td>
                       </tr>
@@ -823,25 +904,48 @@ const PublishWorkflow = () => {
                                 : '대기'}
                             </span>
                           </td>
+                          <td style={styles.td}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
+                              <span style={{ fontWeight: '600', color: '#4682b4', fontSize: '14px' }}>
+                                {task.status === 'completed' 
+                                  ? `${task.total_count || task.store?.total_count || 0} / ${task.total_count || task.store?.total_count || 0}`
+                                  : task.status === 'pending'
+                                  ? `0 / ${task.total_count || task.store?.total_count || '-'}`
+                                  : `${task.completed_count || 0} / ${task.total_count || task.store?.total_count || '-'}`
+                                }
+                              </span>
+                              <span style={{ fontSize: '11px', color: '#b8c5d6' }}>
+                                {task.status === 'completed' ? '완료' : task.status === 'in_progress' ? '진행중' : '대기중'}
+                              </span>
+                            </div>
+                          </td>
+                          <td style={styles.td}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
+                              <span style={{ fontSize: '14px' }}>
+                                {task.image_status === 'completed' || task.image_status === 'ready' ? '🖼️ ✅' : task.image_status === 'in_progress' ? '🖼️ ⏳' : '🖼️ ❌'}
+                              </span>
+                              <span style={{ fontSize: '11px', color: '#b8c5d6' }}>
+                                {task.image_status === 'completed' || task.image_status === 'ready' ? '준비됨' : task.image_status === 'in_progress' ? '진행중' : '대기중'}
+                              </span>
+                            </div>
+                          </td>
+                          <td style={styles.td}>
+                            <span style={{ fontWeight: '600', color: '#4682b4' }}>
+                              🟡 {task.daily_frequency || task.store?.daily_frequency || '-'} / 🔵 {task.total_count || task.store?.total_count || '-'}
+                            </span>
+                          </td>
                           <td style={styles.td}>{task.review_status === 'completed' ? '✅' : '⏳'}</td>
                           <td style={styles.td}>
                             {new Date(task.created_at).toLocaleDateString('ko-KR')}
                           </td>
                           <td style={styles.td}>
-                            <button
-                              onClick={() => handleDeleteTask(task.id)}
-                              style={{
-                                background: 'rgba(239, 68, 68, 0.2)',
-                                border: '1px solid rgba(239, 68, 68, 0.5)',
-                                color: '#fca5a5',
-                                padding: '6px 12px',
-                                borderRadius: '6px',
-                                cursor: 'pointer',
-                                fontSize: '12px',
-                              }}
-                            >
-                              삭제
-                            </button>
+                            {lastDeploymentDate[task.id] ? (
+                              <span style={{ color: '#93c5fd', fontWeight: '600' }}>
+                                {new Date(lastDeploymentDate[task.id]).toLocaleDateString('ko-KR')}
+                              </span>
+                            ) : (
+                              <span style={{ color: '#7a8a9e' }}>-</span>
+                            )}
                           </td>
                         </tr>
                       ))
@@ -885,7 +989,7 @@ const PublishWorkflow = () => {
 
               {/* 매장명 */}
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#9ca3af' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#b8c5d6' }}>
                   매장명 *
                 </label>
                 <input
@@ -907,7 +1011,7 @@ const PublishWorkflow = () => {
 
               {/* 주소 */}
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#9ca3af' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#b8c5d6' }}>
                   주소 (Google Maps URL) *
                 </label>
                 <input
@@ -929,7 +1033,7 @@ const PublishWorkflow = () => {
 
               {/* 리뷰 메시지 */}
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#9ca3af' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#b8c5d6' }}>
                   리뷰 메시지
                 </label>
                 <textarea
@@ -952,7 +1056,7 @@ const PublishWorkflow = () => {
 
               {/* 이미지 URL */}
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#9ca3af' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#b8c5d6' }}>
                   이미지 URL (한 줄에 하나씩)
                 </label>
                 <textarea
@@ -980,7 +1084,7 @@ const PublishWorkflow = () => {
               {/* 일발행/총발행 */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#9ca3af' }}>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#b8c5d6' }}>
                     하루 발행 횟수
                   </label>
                   <input
@@ -1003,7 +1107,7 @@ const PublishWorkflow = () => {
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#9ca3af' }}>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#b8c5d6' }}>
                     총 발행 횟수
                   </label>
                   <input
@@ -1049,7 +1153,7 @@ const PublishWorkflow = () => {
                     flex: 1,
                     background: 'rgba(107, 114, 128, 0.3)',
                     border: '1px solid rgba(107, 114, 128, 0.5)',
-                    color: '#9ca3af',
+                    color: '#b8c5d6',
                     padding: '10px',
                     borderRadius: '6px',
                     cursor: 'pointer',
@@ -1090,11 +1194,11 @@ const PublishWorkflow = () => {
               <h2 style={{ margin: '0 0 8px 0', fontSize: '20px', fontWeight: '700' }}>
                 배포 예약
               </h2>
-              <p style={{ margin: '0 0 16px 0', color: '#9ca3af', fontSize: '13px' }}>
+              <p style={{ margin: '0 0 16px 0', color: '#b8c5d6', fontSize: '13px' }}>
                 {selectedStore.store_name}
               </p>
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#9ca3af' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#b8c5d6' }}>
                   하루 발행 횟수
                 </label>
                 <input
@@ -1117,7 +1221,7 @@ const PublishWorkflow = () => {
                 />
               </div>
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#9ca3af' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#b8c5d6' }}>
                   총 발행 횟수
                 </label>
                 <input
@@ -1161,7 +1265,7 @@ const PublishWorkflow = () => {
                     flex: 1,
                     background: 'rgba(107, 114, 128, 0.3)',
                     border: '1px solid rgba(107, 114, 128, 0.5)',
-                    color: '#9ca3af',
+                    color: '#b8c5d6',
                     padding: '10px',
                     borderRadius: '6px',
                     cursor: 'pointer',

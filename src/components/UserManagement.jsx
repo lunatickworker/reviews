@@ -1,12 +1,15 @@
 // frontend/src/components/UserManagement.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { userApi, authApi } from '../utils/api';
+import { PageLayout, Alert, Loading, PageCard } from './common';
+import { spacing } from '../styles/theme';
 
 export default function UserManagement() {
   const { token, isAdmin, isAgency } = useAuth();
+  const isInitialLoad = useRef(true);
   const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [newUserId, setNewUserId] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -18,14 +21,19 @@ export default function UserManagement() {
   const [passwordInput, setPasswordInput] = useState('');
 
   const loadUsers = useCallback(async () => {
-    setLoading(true);
     try {
+      if (isInitialLoad.current) {
+        setLoading(true);
+      }
       const data = await userApi.getAll(token);
       setUsers(data);
     } catch (err) {
       setError('사용자 조회 실패');
     } finally {
-      setLoading(false);
+      if (isInitialLoad.current) {
+        isInitialLoad.current = false;
+        setLoading(false);
+      }
     }
   }, [token]);
 
@@ -98,24 +106,40 @@ export default function UserManagement() {
 
   if (!isAdmin && !isAgency) {
     return (
-      <div style={styles.container}>
-        <h2 style={styles.title}>👥 계정 관리</h2>
-        <p style={styles.error}>계정 관리 권한이 없습니다.</p>
-      </div>
+      <PageLayout
+        title="👥 계정 관리"
+        description="계정 및 팀원 관리"
+      >
+        <Alert
+          type="error"
+          message="계정 관리 권한이 없습니다."
+        />
+      </PageLayout>
     );
   }
 
   return (
-    <div style={styles.container}>
-      <h2 style={styles.title}>👥 {isAdmin ? '전체 계정 관리' : '팀원 관리'}</h2>
-      {error && <p style={styles.error}>{error}</p>}
+    <PageLayout
+      title={`👥 ${isAdmin ? '전체 계정 관리' : '팀원 관리'}`}
+      description="사용자 계정 및 권한 관리"
+    >
+      {error && (
+        <Alert
+          type="error"
+          message={error}
+          onClose={() => setError('')}
+        />
+      )}
 
-      <button onClick={() => setShowForm(!showForm)} style={styles.createButton}>
-        {showForm ? '✕ 취소' : '➕ ' + (isAdmin ? '새 계정 생성' : '새 팀원 추가')}
-      </button>
+      <div style={{ marginBottom: spacing.lg }}>
+        <button onClick={() => setShowForm(!showForm)} style={styles.createButton}>
+          {showForm ? '✕ 취소' : '➕ ' + (isAdmin ? '새 계정 생성' : '새 팀원 추가')}
+        </button>
+      </div>
 
       {showForm && (
-        <form onSubmit={handleCreateUser} style={styles.form}>
+        <PageCard title="새 계정 생성" style={{ marginBottom: spacing.xl }}>
+          <form onSubmit={handleCreateUser} style={styles.form}>
           <div style={styles.formGroup}>
             <label style={styles.label}>아이디</label>
             <input
@@ -147,12 +171,17 @@ export default function UserManagement() {
             {isAdmin ? '생성' : '추가'}
           </button>
         </form>
+      </PageCard>
       )}
 
-      <div style={styles.tableWrapper}>
+      <PageCard 
+        title={`${isAdmin ? '등록된 계정' : '팀원 목록'}`}
+        subtitle={`총 ${users.length}명`}
+      >
+        <div style={styles.tableWrapper}>
         <table style={styles.table}>
           <thead>
-            <tr style={styles.headerRow}>
+            <tr style={{ ...styles.thead, background: 'rgba(30, 50, 80, 0.6)' }}>
               <th style={{ ...styles.th, width: '22%' }}>아이디</th>
               <th style={{ ...styles.th, width: '18%' }}>권한</th>
               <th style={{ ...styles.th, width: '17%' }}>상위명</th>
@@ -202,7 +231,8 @@ export default function UserManagement() {
             )}
           </tbody>
         </table>
-      </div>
+        </div>
+      </PageCard>
 
       {showPasswordModal && (
         <div style={styles.modalOverlay}>
@@ -244,23 +274,23 @@ export default function UserManagement() {
           </div>
         </div>
       )}
-    </div>
+    </PageLayout>
   );
 }
 
 const styles = {
   container: {
-    background: 'rgba(37, 45, 66, 0.7)',
+    background: 'rgba(20, 40, 70, 0.35)',
     backdropFilter: 'blur(10px)',
     borderRadius: '12px',
     padding: '30px',
-    border: '1px solid rgba(124, 58, 237, 0.2)',
+    border: '1px solid rgba(70, 130, 180, 0.2)',
     boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
   },
 
   title: {
     margin: '0 0 20px 0',
-    color: '#ffffff',
+    color: '#e8eef5',
     fontSize: '24px',
     fontWeight: '600',
   },
@@ -294,9 +324,9 @@ const styles = {
     gap: '15px',
     marginBottom: '25px',
     padding: '20px',
-    background: 'rgba(124, 58, 237, 0.1)',
+    background: 'rgba(70, 130, 180, 0.1)',
     borderRadius: '8px',
-    border: '1px solid rgba(124, 58, 237, 0.2)',
+    border: '1px solid rgba(70, 130, 180, 0.2)',
     backdropFilter: 'blur(5px)',
     flexWrap: 'wrap',
     alignItems: 'flex-end',
@@ -341,11 +371,11 @@ const styles = {
   },
 
   tableWrapper: {
-    borderRadius: '8px',
-    border: '1px solid rgba(124, 58, 237, 0.2)',
+    borderRadius: '12px',
+    border: '1px solid rgba(70, 130, 180, 0.2)',
     overflow: 'hidden',
-    background: 'rgba(37, 45, 66, 0.5)',
-    backdropFilter: 'blur(5px)',
+    background: 'rgba(20, 40, 70, 0.35)',
+    backdropFilter: 'blur(10px)',
   },
 
   table: {

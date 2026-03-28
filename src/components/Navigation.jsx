@@ -120,7 +120,6 @@ const Navigation = ({ currentPage, onNavigate }) => {
     sidebarFooter: {
       padding: '16px',
       borderTop: '1px solid rgba(124, 58, 237, 0.2)',
-      background: 'rgba(0, 0, 0, 0.2)',
     },
     logoutBtn: {
       width: '100%',

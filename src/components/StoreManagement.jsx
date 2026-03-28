@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { storeApi } from '../utils/api';
+import { PageLayout, Alert, PageCard } from './common';
+import { spacing } from '../styles/theme';
 import * as XLSX from 'xlsx';
 
 const StoreManagement = () => {
@@ -371,7 +373,10 @@ const StoreManagement = () => {
   };
 
   return (
-    <div style={styles.container}>
+    <PageLayout 
+      title="🏪 매장 등록" 
+      description={`등록된 매장: ${stores.length}개`}
+    >
       <div style={styles.header}>
         <div style={styles.titleSection}>
           <h2 style={styles.title}>🏪 매장 등록</h2>
@@ -661,7 +666,7 @@ const StoreManagement = () => {
           </tbody>
         </table>
       </div>
-    </div>
+    </PageLayout>
   );
 };
 
@@ -915,11 +920,11 @@ const styles = {
   },
 
   tableWrapper: {
-    borderRadius: '8px',
-    border: '1px solid rgba(124, 58, 237, 0.2)',
+    borderRadius: '12px',
+    border: '1px solid rgba(70, 130, 180, 0.2)',
     overflow: 'auto',
-    background: 'rgba(37, 45, 66, 0.5)',
-    backdropFilter: 'blur(5px)',
+    background: 'rgba(20, 40, 70, 0.35)',
+    backdropFilter: 'blur(10px)',
     maxHeight: '70vh',
     padding: '12px',
   },
@@ -932,8 +937,8 @@ const styles = {
   },
 
   headerRow: {
-    backgroundColor: 'rgba(124, 58, 237, 0.2)',
-    borderBottom: '2px solid rgba(124, 58, 237, 0.3)',
+    backgroundColor: 'rgba(55, 65, 81, 0.9)',
+    borderBottom: '2px solid rgba(124, 58, 237, 0.2)',
     position: 'sticky',
     top: 0,
     zIndex: 10,

@@ -1,7 +1,8 @@
 // frontend/src/components/SimpleDeploy.jsx
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { scheduleApi, storeApi } from '../utils/api';
+import { scheduleApi, storeApi, logsApi } from '../utils/api';
+import { subscribeToTable } from '../utils/realtimeApi';
 
 export default function SimpleDeploy() {
   const { token, isAdmin } = useAuth();
@@ -27,25 +28,40 @@ export default function SimpleDeploy() {
         const taskId = `task_${currentDeployment.id}`;
         const logsData = await logsApi.getByTaskId(taskId, 50, token);
         setLogs(logsData || []);
-
-        // 배포 상태 확인
-        if (currentDeployment.review_status === 'completed' || currentDeployment.review_status === 'failed') {
-          // 완료/실패 상태면 10초 후 초기화
-          const timer = setTimeout(() => {
-            setCurrentDeployment(null);
-            setLogs([]);
-          }, 10000);
-          return () => clearTimeout(timer);
-        }
       } catch (error) {
         console.error('로그 조회 실패:', error);
       }
     };
 
-    fetchLogs();
-    const interval = setInterval(fetchLogs, 3000);
-    return () => clearInterval(interval);
+    if (currentDeployment) {
+      fetchLogs();
+    }
   }, [currentDeployment, token]);
+
+  // 실시간 로그 구독
+  useEffect(() => {
+    if (!currentDeployment) return;
+
+    const unsubscribe = subscribeToTable('logs', {
+      onInsert: (newLog) => {
+        if (newLog.task_id === `task_${currentDeployment.id}`) {
+          setLogs(prev => [...prev, newLog]);
+        }
+      },
+      onUpdate: (updatedLog) => {
+        if (updatedLog.task_id === `task_${currentDeployment.id}`) {
+          setLogs(prev => prev.map(l => l.id === updatedLog.id ? updatedLog : l));
+        }
+      },
+      onDelete: (deletedLog) => {
+        if (deletedLog.task_id === `task_${currentDeployment.id}`) {
+          setLogs(prev => prev.filter(l => l.id !== deletedLog.id));
+        }
+      },
+    });
+
+    return () => unsubscribe();
+  }, [currentDeployment]);
 
   // 로그 자동 스크롤 (사용자가 맨 아래에 있을 때만)
   useEffect(() => {

@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { mapApi } from '../utils/api';
+import { subscribeToTable } from '../utils/realtimeApi';
+import { PageLayout, Loading } from './common';
 
 export default function DashboardStats() {
   const { token } = useAuth();
@@ -22,11 +24,17 @@ export default function DashboardStats() {
 
     if (token) {
       fetchTasks();
-      // 10초마다 새로고침
-      const interval = setInterval(fetchTasks, 10000);
-      return () => clearInterval(interval);
     }
   }, [token]);
+
+  // 실시간 구독
+  useEffect(() => {
+    return subscribeToTable('tasks', {
+      onInsert: (newTask) => setTasks(prev => [...prev, newTask]),
+      onUpdate: (updatedTask) => setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t)),
+      onDelete: (deletedTask) => setTasks(prev => prev.filter(t => t.id !== deletedTask.id)),
+    });
+  }, []);
 
   // 오늘 추가된 작업만 필터링
   const today = new Date();
@@ -51,15 +59,18 @@ export default function DashboardStats() {
     : 0;
 
   if (loading) {
-    return <div style={styles.container}><p>로딩 중...</p></div>;
+    return (
+      <PageLayout title="📊 오늘의 매장 작업 현황" description="실시간 수행 상태">
+        <Loading message="데이터 로드 중..." />
+      </PageLayout>
+    );
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h1 style={styles.title}>📊 오늘의 매장 작업 현황</h1>
-        <p style={styles.date}>{new Date().toLocaleDateString('ko-KR')}</p>
-      </div>
+    <PageLayout
+      title="📊 오늘의 매장 작업 현황"
+      description={new Date().toLocaleDateString('ko-KR')}
+    >
 
       <div style={styles.statsGrid}>
         {/* 총 매장 수 */}
@@ -145,7 +156,7 @@ export default function DashboardStats() {
             </div>
           )}
         </div>
-    </div>
+    </PageLayout>
   );
 }
 

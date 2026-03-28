@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { scheduleApi, storeApi } from '../utils/api';
+import { subscribeToTable } from '../utils/realtimeApi';
+import { PageLayout, Alert, Loading } from './common';
+import { spacing } from '../styles/theme';
 
 export default function SimpleDeploy() {
   const { token, isAdmin } = useAuth();
@@ -35,7 +38,7 @@ export default function SimpleDeploy() {
     }
   }, [token]);
 
-  // 배포 예약 조회 (주기적 갱신 - 5초마다)
+  // 배포 예약 조회 (실시간 갱신)
   useEffect(() => {
     const fetchSchedules = async () => {
       try {
@@ -51,11 +54,31 @@ export default function SimpleDeploy() {
 
     if (token) {
       fetchSchedules();
-      // 5초마다 갱신 (진행 상황 실시간 표시)
-      const interval = setInterval(fetchSchedules, 5000);
-      return () => clearInterval(interval);
     }
   }, [token]);
+
+  // 실시간 구독
+  useEffect(() => {
+    const unsubscribers = [];
+
+    unsubscribers.push(
+      subscribeToTable('schedules', {
+        onInsert: (newSchedule) => setSchedules(prev => [...prev, newSchedule]),
+        onUpdate: (updatedSchedule) => setSchedules(prev => prev.map(s => s.id === updatedSchedule.id ? updatedSchedule : s)),
+        onDelete: (deletedSchedule) => setSchedules(prev => prev.filter(s => s.id !== deletedSchedule.id)),
+      })
+    );
+
+    unsubscribers.push(
+      subscribeToTable('stores', {
+        onInsert: (newStore) => setStores(prev => [...prev, newStore]),
+        onUpdate: (updatedStore) => setStores(prev => prev.map(s => s.id === updatedStore.id ? updatedStore : s)),
+        onDelete: (deletedStore) => setStores(prev => prev.filter(s => s.id !== deletedStore.id)),
+      })
+    );
+
+    return () => unsubscribers.forEach(u => u());
+  }, []);
 
   if (!isAdmin) {
     return (
@@ -197,9 +220,10 @@ export default function SimpleDeploy() {
   const visibleStoresCount = Object.values(filteredStores).reduce((sum, arr) => sum + arr.length, 0);
 
   return (
-    <div style={styles.container}>
-      <h1 style={styles.title}>🚀 배포 예약</h1>
-
+    <PageLayout 
+      title="🚀 배포 예약" 
+      description="배포 일정을 관리하고 예약하세요"
+    >
       <div style={styles.mainContent}>
         {/* 좌측: 배포 예약 설정 */}
         <div style={styles.leftPanel}>
@@ -378,7 +402,7 @@ export default function SimpleDeploy() {
               <div style={styles.tableWrapper}>
                 <table style={styles.storesTable}>
                   <thead>
-                    <tr style={styles.tableHeader}>
+                    <tr style={{ ...styles.storesTableHeader, background: 'rgba(30, 50, 80, 0.6)' }}>
                       <th style={{ ...styles.th, width: '18%' }}>매장명</th>
                       <th style={{ ...styles.th, width: '14%' }}>에이전시</th>
                       <th style={{ ...styles.th, width: '14%' }}>등록자</th>
@@ -398,13 +422,13 @@ export default function SimpleDeploy() {
                             ...styles.tableRow,
                             backgroundColor:
                               selectedStoreId === store.id
-                                ? 'rgba(124, 58, 237, 0.3)'
+                                ? 'rgba(124, 58, 237, 0.2)'
                                 : idx % 2 === 0
-                                ? 'rgba(230, 190, 255, 0.08)'
-                                : 'rgba(255, 192, 203, 0.08)',
+                                ? 'transparent'
+                                : 'rgba(124, 58, 237, 0.06)',
                             border:
                               selectedStoreId === store.id
-                                ? '2px solid #7c3aed'
+                                ? '2px solid rgba(124, 58, 237, 0.4)'
                                 : 'none',
                             cursor: 'pointer',
                           }}
@@ -456,7 +480,7 @@ export default function SimpleDeploy() {
           </div>
         </div>
       </div>
-    </div>
+    </PageLayout>
   );
 }
 
@@ -494,7 +518,8 @@ const styles = {
   },
 
   card: {
-    background: 'linear-gradient(135deg, rgba(30, 40, 60, 0.8) 0%, rgba(40, 50, 70, 0.6) 100%)',
+    background: 'rgba(20, 40, 70, 0.35)',
+    border: '1px solid rgba(70, 130, 180, 0.2)',
     border: '1px solid rgba(124, 58, 237, 0.2)',
     borderRadius: '12px',
     padding: '16px',
