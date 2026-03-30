@@ -859,8 +859,8 @@ const PublishWorkflow = () => {
                       <th style={styles.th}>장소</th>
                       <th style={styles.thCenter}>리뷰</th>
                       <th style={styles.thCenter}>이미지</th>
-                      <th style={styles.thCenter}>하루발행</th>
-                      <th style={styles.thCenter}>총발행</th>
+                      <th style={styles.thCenter}>하루발행량</th>
+                      <th style={styles.thCenter}>총발행량</th>
                       <th style={styles.thCenter}>현재발행수</th>
                       <th style={styles.thCenter}>상태</th>
                       <th style={styles.thCenter}>등록일</th>
