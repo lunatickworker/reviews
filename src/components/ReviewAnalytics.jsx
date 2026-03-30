@@ -17,6 +17,18 @@ export default function ReviewAnalytics() {
   const [filterType, setFilterType] = useState('all'); // all, review, image
   const [dateRange, setDateRange] = useState('today'); // today, week, month
 
+  // Helper 함수: 작업의 진행 상태를 동적으로 판단
+  const isTaskInProgress = (task) => {
+    const totalCount = task.total_count || task.store?.total_count || 0;
+    const completedCount = task.completed_count || 0;
+    return totalCount !== completedCount;
+  };
+
+  // Helper 함수: 표시할 상태 결정
+  const getTaskDisplayStatus = (task) => {
+    return isTaskInProgress(task) ? 'in_progress' : 'completed';
+  };
+
   useEffect(() => {
     const fetchTasks = async () => {
       try {

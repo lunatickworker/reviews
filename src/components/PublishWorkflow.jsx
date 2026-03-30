@@ -46,6 +46,27 @@ const PublishWorkflow = () => {
   const [lastDeploymentDate] = useState({});
   
 
+  // Helper 함수: 작업의 진행 상태를 동적으로 판단
+  const isTaskInProgress = (task) => {
+    const totalCount = task.total_count || task.store?.total_count || 0;
+    const completedCount = task.completed_count || 0;
+    return totalCount !== completedCount;
+  };
+
+  // Helper 함수: 표시할 상태 결정
+  const getTaskDisplayStatus = (task) => {
+    return isTaskInProgress(task) ? 'in_progress' : 'completed';
+  };
+
+  // 작업 리스트에 표시할 task 필터링
+  const getDisplayTasks = () => {
+    return tasks.filter((task) => {
+      // 진행 중인 task만 표시
+      return isTaskInProgress(task);
+    });
+  };
+
+  const displayTasks = getDisplayTasks();
 
   const loadData = useCallback(async () => {
     try {
@@ -387,6 +408,23 @@ const PublishWorkflow = () => {
       fontSize: '14px',
       color: '#e8eef5',
     },
+    thCenter: {
+      padding: '12px',
+      textAlign: 'center',
+      borderBottom: '1px solid rgba(70, 130, 180, 0.2)',
+      fontSize: '12px',
+      fontWeight: '600',
+      color: '#b8c5d6',
+      textTransform: 'uppercase',
+      letterSpacing: '0.5px',
+    },
+    tdCenter: {
+      padding: '12px',
+      borderBottom: '1px solid rgba(70, 130, 180, 0.1)',
+      fontSize: '14px',
+      color: '#e8eef5',
+      textAlign: 'center',
+    },
   };
 
   return (
@@ -576,7 +614,7 @@ const PublishWorkflow = () => {
                   <h3 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '600', color: '#5ba8c5', letterSpacing: '0.5px' }}>진행 중인 작업</h3>
                   <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px' }}>
                     <span style={{ fontSize: '56px', fontWeight: '700', color: '#4a8fa8', lineHeight: '1' }}>
-                      {tasks.filter((t) => t.status === 'in_progress').length}
+                      {displayTasks.length}
                     </span>
                     <span style={{ fontSize: '14px', color: '#5b99c9', fontWeight: '500', marginBottom: '6px' }}>건</span>
                   </div>
@@ -598,7 +636,7 @@ const PublishWorkflow = () => {
                   <h3 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '600', color: '#8077c4', letterSpacing: '0.5px' }}>완료된 작업</h3>
                   <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px' }}>
                     <span style={{ fontSize: '56px', fontWeight: '700', color: '#5c54a5', lineHeight: '1' }}>
-                      {tasks.filter((t) => t.status === 'completed').length}
+                      {tasks.length - displayTasks.length}
                     </span>
                     <span style={{ fontSize: '14px', color: '#5b99c9', fontWeight: '500', marginBottom: '6px' }}>건</span>
                   </div>
@@ -613,11 +651,11 @@ const PublishWorkflow = () => {
                   <thead>
                     <tr style={{ background: 'rgba(30, 50, 80, 0.6)' }}>
                       <th style={styles.th}>매장명</th>
-                      <th style={styles.th}>주소</th>
-                      <th style={styles.th}>리뷰</th>
-                      <th style={styles.th}>이미지</th>
-                      <th style={styles.th}>하루/총</th>
-                      <th style={styles.th}>관리</th>
+                      <th style={styles.thCenter}>주소</th>
+                      <th style={styles.thCenter}>리뷰</th>
+                      <th style={styles.thCenter}>이미지</th>
+                      <th style={styles.thCenter}>하루/총</th>
+                      <th style={styles.thCenter}>관리</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -633,7 +671,7 @@ const PublishWorkflow = () => {
                           <td style={styles.td}>
                             <strong>{store.store_name}</strong>
                           </td>
-                          <td style={styles.td}>
+                          <td style={styles.tdCenter}>
                             {store.address ? (
                               <a
                                 href={store.address}
@@ -647,8 +685,8 @@ const PublishWorkflow = () => {
                               '-'
                             )}
                           </td>
-                          <td style={styles.td}>{store.review_message?.substring(0, 15) || '-'}</td>
-                          <td style={styles.td}>
+                          <td style={styles.tdCenter}>{store.review_message?.substring(0, 15) || '-'}</td>
+                          <td style={styles.tdCenter}>
                             {store.image_urls?.length ? (
                               <div style={{ fontSize: '12px' }}>
                                 {store.image_urls.length}개
@@ -664,10 +702,10 @@ const PublishWorkflow = () => {
                               '-'
                             )}
                           </td>
-                          <td style={{...styles.td, textAlign: 'center'}}>
+                          <td style={styles.tdCenter}>
                             <strong>{store.daily_frequency || 1}</strong> / <strong>{store.total_count || 1}</strong>
                           </td>
-                          <td style={styles.td}>
+                          <td style={styles.tdCenter}>
                             {(isAdmin || isAgency) && (
                               <>
                                 <button
@@ -743,11 +781,11 @@ const PublishWorkflow = () => {
                     </div>
                     <div>
                       <span style={{ color: '#b8c5d6' }}>진행 중:</span>{' '}
-                      <span style={{ color: '#93c5fd', fontWeight: '600' }}>{tasks.filter(t => t.status === 'in_progress').length}개</span>
+                      <span style={{ color: '#93c5fd', fontWeight: '600' }}>{displayTasks.length}개</span>
                     </div>
                     <div>
                       <span style={{ color: '#b8c5d6' }}>완료:</span>{' '}
-                      <span style={{ color: '#86efac', fontWeight: '600' }}>{tasks.filter(t => t.status === 'completed').length}개</span>
+                      <span style={{ color: '#86efac', fontWeight: '600' }}>{tasks.length - displayTasks.length}개</span>
                     </div>
                   </div>
                 </div>
@@ -790,7 +828,6 @@ const PublishWorkflow = () => {
                     }}
                   >
                     <option value="all">모든 상태</option>
-                    <option value="pending">대기</option>
                     <option value="in_progress">진행 중</option>
                     <option value="completed">완료</option>
                   </select>
@@ -820,20 +857,22 @@ const PublishWorkflow = () => {
                   <thead>
                     <tr style={{ background: 'rgba(30, 50, 80, 0.6)' }}>
                       <th style={styles.th}>장소</th>
-                      <th style={styles.th}>상태</th>
-                      <th style={styles.th}>진행</th>
-                      <th style={styles.th}>이미지</th>
-                      <th style={styles.th}>일발행/총발행</th>
-                      <th style={styles.th}>리뷰</th>
-                      <th style={styles.th}>등록일</th>
-                      <th style={styles.th}>마지막 배포</th>
+                      <th style={styles.thCenter}>리뷰</th>
+                      <th style={styles.thCenter}>이미지</th>
+                      <th style={styles.thCenter}>하루발행</th>
+                      <th style={styles.thCenter}>총발행</th>
+                      <th style={styles.thCenter}>현재발행수</th>
+                      <th style={styles.thCenter}>상태</th>
+                      <th style={styles.thCenter}>등록일</th>
+                      <th style={styles.thCenter}>마지막 배포</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {tasks
+                    {displayTasks
                       .filter((task) => {
                         // 상태 필터링
-                        if (taskStatusFilter !== 'all' && task.status !== taskStatusFilter) {
+                        const displayStatus = getTaskDisplayStatus(task);
+                        if (taskStatusFilter !== 'all' && displayStatus !== taskStatusFilter) {
                           return false;
                         }
                         // 검색어 필터링
@@ -844,15 +883,16 @@ const PublishWorkflow = () => {
                       })
                       .length === 0 ? (
                       <tr>
-                        <td colSpan="8" style={{ ...styles.td, textAlign: 'center', color: '#b8c5d6' }}>
-                          {tasks.length === 0 ? '작업이 없습니다.' : '검색 결과가 없습니다.'}
+                        <td colSpan="9" style={{ ...styles.td, textAlign: 'center', color: '#b8c5d6' }}>
+                          {displayTasks.length === 0 ? '진행 중인 작업이 없습니다.' : '검색 결과가 없습니다.'}
                         </td>
                       </tr>
                     ) : (
-                      tasks
+                      displayTasks
                         .filter((task) => {
                           // 상태 필터링
-                          if (taskStatusFilter !== 'all' && task.status !== taskStatusFilter) {
+                          const displayStatus = getTaskDisplayStatus(task);
+                          if (taskStatusFilter !== 'all' && displayStatus !== taskStatusFilter) {
                             return false;
                           }
                           // 검색어 필터링
@@ -861,82 +901,105 @@ const PublishWorkflow = () => {
                           }
                           return true;
                         })
-                        .map((task) => (
-                        <tr key={task.id}>
-                          <td style={styles.td}>{task.place_name}</td>
-                          <td style={styles.td}>
-                            <span
-                              style={{
-                                background:
-                                  task.status === 'completed'
-                                    ? 'rgba(34, 197, 94, 0.2)'
-                                    : task.status === 'in_progress'
-                                    ? 'rgba(59, 130, 246, 0.2)'
-                                    : 'rgba(107, 114, 128, 0.2)',
-                                color:
-                                  task.status === 'completed'
-                                    ? '#86efac'
-                                    : task.status === 'in_progress'
-                                    ? '#93c5fd'
-                                    : '#d1d5db',
-                                padding: '4px 12px',
-                                borderRadius: '4px',
-                                fontSize: '12px',
-                                fontWeight: '600',
-                              }}
-                            >
-                              {task.status === 'completed'
-                                ? '완료'
-                                : task.status === 'in_progress'
-                                ? '진행 중'
-                                : '대기'}
-                            </span>
-                          </td>
-                          <td style={styles.td}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
-                              <span style={{ fontWeight: '600', color: '#4682b4', fontSize: '14px' }}>
-                                {task.status === 'completed' 
-                                  ? `${task.total_count || task.store?.total_count || 0} / ${task.total_count || task.store?.total_count || 0}`
-                                  : task.status === 'pending'
-                                  ? `0 / ${task.total_count || task.store?.total_count || '-'}`
-                                  : `${task.completed_count || 0} / ${task.total_count || task.store?.total_count || '-'}`
-                                }
-                              </span>
-                              <span style={{ fontSize: '11px', color: '#b8c5d6' }}>
-                                {task.status === 'completed' ? '완료' : task.status === 'in_progress' ? '진행중' : '대기중'}
-                              </span>
-                            </div>
-                          </td>
-                          <td style={styles.td}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
-                              <span style={{ fontSize: '14px' }}>
-                                {task.image_status === 'completed' || task.image_status === 'ready' ? '🖼️ ✅' : task.image_status === 'in_progress' ? '🖼️ ⏳' : '🖼️ ❌'}
-                              </span>
-                              <span style={{ fontSize: '11px', color: '#b8c5d6' }}>
-                                {task.image_status === 'completed' || task.image_status === 'ready' ? '준비됨' : task.image_status === 'in_progress' ? '진행중' : '대기중'}
-                              </span>
-                            </div>
-                          </td>
-                          <td style={styles.td}>
-                            <span style={{ fontWeight: '600', color: '#4682b4' }}>
-                              🟡 {task.daily_frequency || task.store?.daily_frequency || '-'} / 🔵 {task.total_count || task.store?.total_count || '-'}
-                            </span>
-                          </td>
-                          <td style={styles.td}>{task.review_status === 'completed' ? '✅' : '⏳'}</td>
-                          <td style={styles.td}>
-                            {new Date(task.created_at).toLocaleDateString('ko-KR')}
-                          </td>
-                          <td style={styles.td}>
-                            {lastDeploymentDate[task.id] ? (
-                              <span style={{ color: '#93c5fd', fontWeight: '600' }}>
-                                {new Date(lastDeploymentDate[task.id]).toLocaleDateString('ko-KR')}
-                              </span>
-                            ) : (
-                              <span style={{ color: '#7a8a9e' }}>-</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))
+                        .map((task) => {
+                          const displayStatus = getTaskDisplayStatus(task);
+                          return (
+                            <tr key={task.id}>
+                              <td style={styles.td}>{task.place_name}</td>
+                              <td style={styles.tdCenter}>
+                                <span
+                                  style={{
+                                    background:
+                                      task.review_status === 'completed'
+                                        ? 'rgba(34, 197, 94, 0.2)'
+                                        : 'rgba(59, 130, 246, 0.2)',
+                                    color:
+                                      task.review_status === 'completed'
+                                        ? '#86efac'
+                                        : '#93c5fd',
+                                    padding: '4px 12px',
+                                    borderRadius: '4px',
+                                    fontSize: '12px',
+                                    fontWeight: '600',
+                                  }}
+                                >
+                                  {task.review_status === 'completed' ? '✓ 완료' : '◯ 진행'}
+                                </span>
+                              </td>
+                              <td style={styles.tdCenter}>
+                                <span
+                                  style={{
+                                    background:
+                                      task.image_status === 'completed' || task.image_status === 'ready'
+                                        ? 'rgba(34, 197, 94, 0.2)'
+                                        : task.image_status === 'in_progress'
+                                        ? 'rgba(59, 130, 246, 0.2)'
+                                        : 'rgba(107, 114, 128, 0.2)',
+                                    color:
+                                      task.image_status === 'completed' || task.image_status === 'ready'
+                                        ? '#86efac'
+                                        : task.image_status === 'in_progress'
+                                        ? '#93c5fd'
+                                        : '#d1d5db',
+                                    padding: '4px 12px',
+                                    borderRadius: '4px',
+                                    fontSize: '12px',
+                                    fontWeight: '600',
+                                  }}
+                                >
+                                  {task.image_status === 'completed' || task.image_status === 'ready' ? '✓ 완료' : task.image_status === 'in_progress' ? '→ 진행중' : '✗ 대기중'}
+                                </span>
+                              </td>
+                              <td style={styles.tdCenter}>
+                                <span style={{ fontWeight: '600', color: '#4682b4' }}>
+                                  {task.daily_frequency || task.store?.daily_frequency || '-'}
+                                </span>
+                              </td>
+                              <td style={styles.tdCenter}>
+                                <span style={{ fontWeight: '600', color: '#4682b4' }}>
+                                  {task.total_count || task.store?.total_count || '-'}
+                                </span>
+                              </td>
+                              <td style={styles.tdCenter}>
+                                <span style={{ fontWeight: '600', color: '#4682b4', fontSize: '16px' }}>
+                                  {task.completed_count || 0}
+                                </span>
+                              </td>
+                              <td style={styles.tdCenter}>
+                                <span
+                                  style={{
+                                    background:
+                                      displayStatus === 'completed'
+                                        ? 'rgba(34, 197, 94, 0.2)'
+                                        : 'rgba(59, 130, 246, 0.2)',
+                                    color:
+                                      displayStatus === 'completed'
+                                        ? '#86efac'
+                                        : '#93c5fd',
+                                    padding: '4px 12px',
+                                    borderRadius: '4px',
+                                    fontSize: '12px',
+                                    fontWeight: '600',
+                                  }}
+                                >
+                                  {displayStatus === 'completed' ? '완료' : '진행 중'}
+                                </span>
+                              </td>
+                              <td style={styles.tdCenter}>
+                                {new Date(task.created_at).toLocaleDateString('ko-KR')}
+                              </td>
+                              <td style={styles.tdCenter}>
+                                {lastDeploymentDate[task.id] ? (
+                                  <span style={{ color: '#93c5fd', fontWeight: '600' }}>
+                                    {new Date(lastDeploymentDate[task.id]).toLocaleDateString('ko-KR')}
+                                  </span>
+                                ) : (
+                                  <span style={{ color: '#7a8a9e' }}>-</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
                     )}
                   </tbody>
                 </table>
