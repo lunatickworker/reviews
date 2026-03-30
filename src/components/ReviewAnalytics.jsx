@@ -273,7 +273,7 @@ export default function ReviewAnalytics() {
           <table style={styles.table}>
             <thead>
               <tr style={{ ...styles.tableHeader, background: 'rgba(55, 65, 81, 0.9)' }}>
-                <th style={styles.th}>매장명</th>
+                <th style={styles.thLeft}>매장명</th>
                 <th style={styles.th}>작업계정</th>
                 <th style={styles.th}>일발행/총발행</th>
                 <th style={styles.th}>리뷰</th>
@@ -285,7 +285,7 @@ export default function ReviewAnalytics() {
             <tbody>
               {filteredTasks.map((task) => (
                 <tr key={task.id} style={styles.tableRow}>
-                  <td style={styles.td}>
+                  <td style={styles.tdLeft}>
                     <div style={styles.taskName}>{task.place_name || '미지정'}</div>
                     {task.notes && <div style={styles.notes}>{task.notes}</div>}
                   </td>
@@ -554,6 +554,15 @@ const styles = {
 
   th: {
     padding: '16px 12px',
+    textAlign: 'center',
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#e5e7eb',
+    whiteSpace: 'nowrap',
+  },
+
+  thLeft: {
+    padding: '16px 12px',
     textAlign: 'left',
     fontSize: '16px',
     fontWeight: '600',
@@ -571,6 +580,15 @@ const styles = {
     fontSize: '16px',
     color: '#e5e7eb',
     verticalAlign: 'middle',
+    textAlign: 'center',
+  },
+
+  tdLeft: {
+    padding: '14px 12px',
+    fontSize: '16px',
+    color: '#e5e7eb',
+    verticalAlign: 'middle',
+    textAlign: 'left',
   },
 
   taskName: {
