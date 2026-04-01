@@ -1469,11 +1469,41 @@ const PublishWorkflow = () => {
 
               {/* 원고 작성 */}
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#b8c5d6' }}>
-                  원고 작성 (직접 입력 또는 배포 시 자동 생성)
-                </label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '13px', color: '#b8c5d6' }}>
+                    원고 작성 (직접 입력 또는 AI로 생성)
+                  </label>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const guidance = storeForm.reviewMessage || '좋은 매장입니다';
+                        const response = await storeApi.generateReviews(guidance, 5, token);
+                        if (response && response.reviews) {
+                          const reviewText = response.reviews.map(r => r.content || r).join('\n');
+                          setStoreForm({ ...storeForm, draftReviews: reviewText });
+                          setSuccessMessage('✅ AI 리뷰가 생성되었습니다.');
+                          setTimeout(() => setSuccessMessage(''), 2000);
+                        }
+                      } catch (err) {
+                        setError('AI 리뷰 생성 실패: ' + err.message);
+                      }
+                    }}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontWeight: '600',
+                    }}
+                  >
+                    🤖 AI 리뷰 생성
+                  </button>
+                </div>
                 <textarea
-                  placeholder="각 줄에 리뷰 입력 또는 배포 시 자동으로 AI가 생성합니다&#10;&#10;&#10;"
+                  placeholder="각 줄에 리뷰 입력 또는 AI가 생성합니다&#10;&#10;&#10;"
                   value={storeForm.draftReviews || ''}
                   onChange={(e) => setStoreForm({ ...storeForm, draftReviews: e.target.value })}
                   style={{
@@ -1490,32 +1520,7 @@ const PublishWorkflow = () => {
                   }}
                 />
                 <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px' }}>
-                  💡 배포 시 비어있는 줄은 AI가 자동으로 채웁니다
-                </div>
-              </div>
-
-              {/* 적용 배포 번째 */}
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#b8c5d6' }}>
-                  적용할 배포 번째 (몇 번째 배포부터 이 원고를 사용할지)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="999"
-
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    background: 'rgba(0, 0, 0, 0.3)',
-                    border: '1px solid rgba(70, 130, 180, 0.3)',
-                    borderRadius: '6px',
-                    color: '#fff',
-                    boxSizing: 'border-box',
-                  }}
-                />
-                <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px' }}>
-                  예: 3 입력 시 3번째 배포부터 이 원고가 적용됩니다
+                  💡 버튼을 클릭하면 리뷰 가이드를 기반으로 AI가 리뷰를 자동 생성합니다
                 </div>
               </div>
 
