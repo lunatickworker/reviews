@@ -134,6 +134,10 @@ const PublishWorkflow = () => {
         setError('매장 주소(Google Maps URL)를 입력하세요.');
         return;
       }
+      if (!storeForm.draftReviews.trim()) {
+        setError('원고를 작성해주세요.');
+        return;
+      }
 
       const imageUrls = storeForm.imageUrls
         .split('\n')
@@ -217,6 +221,11 @@ const PublishWorkflow = () => {
 
   // 매장 배포
   const handleDeployStore = async (store) => {
+    if (!store.draft_reviews?.trim()) {
+      setError('원고가 없어서 배포할 수 없습니다. 원고를 작성해주세요.');
+      return;
+    }
+
     if (!window.confirm(`${store.store_name}을(를) 배포하시겠습니까?`)) {
       return;
     }
@@ -227,7 +236,7 @@ const PublishWorkflow = () => {
     try {
       await mapApi.automateMap(
         store.address,
-        store.review_message || '',
+        store.draft_reviews,
         store.id,
         store.total_count || 1,
         token
@@ -250,6 +259,7 @@ const PublishWorkflow = () => {
         매장명: '매장 이름',
         매장주소: 'https://maps.app.goo.gl/...',
         리뷰메세지: '리뷰 내용',
+        원고: '리뷰 원고\n원고2',
         이미지주소: 'https://example.com/image1.jpg|https://example.com/image2.jpg',
         하루횟수: 1,
         총횟수: 10,
@@ -295,6 +305,7 @@ const PublishWorkflow = () => {
           const storeName = row.매장명?.trim();
           const address = row.매장주소?.trim();
           const reviewMessage = row.리뷰메세지?.trim() || '';
+          const draftReviews = row.원고?.trim() || '';
           const imageUrlsStr = row.이미지주소?.trim() || '';
           const dailyFrequency = parseInt(row.하루횟수) || 1;
           const totalCount = parseInt(row.총횟수) || 1;
@@ -326,7 +337,8 @@ const PublishWorkflow = () => {
             imageUrls,
             dailyFrequency,
             totalCount,
-            token
+            token,
+            draftReviews
           );
 
           successCount++;
@@ -688,7 +700,7 @@ const PublishWorkflow = () => {
                               '-'
                             )}
                           </td>
-                          <td style={styles.tdCenter}>{store.review_message?.substring(0, 15) || '-'}</td>
+                          <td style={styles.tdCenter}>{store.draft_reviews?.substring(0, 15) || '-'}</td>
                           <td style={styles.tdCenter}>
                             {store.image_urls?.length ? (
                               <div style={{ fontSize: '12px' }}>
