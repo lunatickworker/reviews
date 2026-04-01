@@ -88,11 +88,16 @@ export const userApi = {
 // 매장 API
 export const storeApi = {
   getAll: (token) => apiCall('GET', '/stores', null, token),
-  create: (storeName, address, reviewMessage, imageUrls, dailyFrequency, totalCount, token) =>
-    apiCall('POST', '/stores', { storeName, address, reviewMessage, imageUrls, dailyFrequency, totalCount }, token),
-  update: (id, storeName, address, reviewMessage, imageUrls, dailyFrequency, totalCount, token) =>
-    apiCall('PUT', `/stores/${id}`, { storeName, address, reviewMessage, imageUrls, dailyFrequency, totalCount }, token),
+  create: (storeName, address, reviewMessage, imageUrls, dailyFrequency, totalCount, token, draftReviews = '') =>
+    apiCall('POST', '/stores', { storeName, address, reviewMessage, imageUrls, dailyFrequency, totalCount, draftReviews }, token),
+  update: (id, storeName, address, reviewMessage, imageUrls, dailyFrequency, totalCount, token, draftReviews = '') =>
+    apiCall('PUT', `/stores/${id}`, { storeName, address, reviewMessage, imageUrls, dailyFrequency, totalCount, draftReviews }, token),
   delete: (id, token) => apiCall('DELETE', `/stores/${id}`, null, token),
+  deploy: (id, token) => apiCall('PATCH', `/stores/${id}/deploy`, null, token),
+  generateReview: (guidance, token) =>
+    apiCall('POST', '/stores/generate-review', { guidance }, token),
+  generateReviews: (guidance, count, token) =>
+    apiCall('POST', '/stores/generate-reviews', { guidance, count }, token),
 };
 
 // 작업 API
@@ -104,6 +109,7 @@ export const taskApi = {
   update: (id, task, token) =>
     apiCall('PUT', `/tasks/${id}`, task, token),
   delete: (id, token) => apiCall('DELETE', `/tasks/${id}`, null, token),
+  reset: (id, token) => apiCall('POST', `/tasks/${id}/reset`, null, token),
 };
 
 // 로그 API
@@ -114,14 +120,6 @@ export const logsApi = {
     apiCall('GET', `/logs?limit=${limit}`, null, token),
   delete: (taskId, token) =>
     apiCall('DELETE', `/logs/${taskId}`, null, token),
-};
-
-// 배포 스케줄 API
-export const scheduleApi = {
-  getAll: (token) => apiCall('GET', '/schedules', null, token),
-  create: (storeId, dailyFrequency, totalCount, token) =>
-    apiCall('POST', '/schedules', { storeId, dailyFrequency, totalCount }, token),
-  cancel: (id, token) => apiCall('PUT', `/schedules/${id}/cancel`, null, token),
 };
 
 // 리뷰 배포 API

@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { mapApi, storeApi, scheduleApi } from '../utils/api';
+import { mapApi, storeApi } from '../utils/api';
 import { subscribeToTable } from '../utils/realtimeApi';
-import { PageLayout, Alert, PageCard, DataTable, Loading } from './common';
+import { PageLayout, PageCard, DataTable, Loading } from './common';
 import { spacing } from '../styles/theme';
 
 export default function TaskManagement() {
   const { token, isAdmin } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [stores, setStores] = useState([]);
-  const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', order: 'desc' });
   const [searchText, setSearchText] = useState('');
@@ -23,10 +22,6 @@ export default function TaskManagement() {
 
         const taskData = await mapApi.getTasks(token);
         setTasks(taskData || []);
-
-        // 스케줄 정보도 함께 조회
-        const scheduleData = await scheduleApi.getAll(token);
-        setSchedules(scheduleData || []);
       } catch (error) {
         console.error('데이터 조회 실패:', error);
       } finally {
@@ -56,14 +51,6 @@ export default function TaskManagement() {
         onInsert: (newStore) => setStores(prev => [...prev, newStore]),
         onUpdate: (updatedStore) => setStores(prev => prev.map(s => s.id === updatedStore.id ? updatedStore : s)),
         onDelete: (deletedStore) => setStores(prev => prev.filter(s => s.id !== deletedStore.id)),
-      })
-    );
-
-    unsubscribers.push(
-      subscribeToTable('schedules', {
-        onInsert: (newSchedule) => setSchedules(prev => [...prev, newSchedule]),
-        onUpdate: (updatedSchedule) => setSchedules(prev => prev.map(s => s.id === updatedSchedule.id ? updatedSchedule : s)),
-        onDelete: (deletedSchedule) => setSchedules(prev => prev.filter(s => s.id !== deletedSchedule.id)),
       })
     );
 
@@ -241,9 +228,6 @@ export default function TaskManagement() {
             </thead>
             <tbody>
               {sortedTasks.map((task) => {
-                // 현재 task와 관련된 schedule 찾기
-                const relatedSchedule = schedules.find(s => s.store_id === task.store_id && s.status === 'active');
-                
                 return (
                 <tr key={task.id} style={styles.tableRow}>
                   <td style={styles.td}>
@@ -274,23 +258,24 @@ export default function TaskManagement() {
                     <span style={styles.accountBadge}>{getWorkAccount(task)}</span>
                   </td>
                   <td style={styles.td}>
-                    {relatedSchedule ? (
-                      <div style={styles.scheduleInfo}>
-                        <small style={{ color: '#a78bfa', fontWeight: '600' }}>
-                          {relatedSchedule.completed_count || 0}/{relatedSchedule.total_count}
-                        </small>
-                      </div>
-                    ) : (
-                      <span style={{ color: '#6b7280', fontSize: '12px' }}>-</span>
-                    )}
+                    <span style={{ color: '#6b7280', fontSize: '12px' }}>-</span>
                   </td>
                   <td style={styles.td}>
-                    {relatedSchedule && relatedSchedule.last_deploy_date ? (
-                      <small style={{ color: '#9ca3af' }}>
-                        {new Date(relatedSchedule.last_deploy_date).toLocaleDateString('ko-KR')}
-                      </small>
+                    {task.updated_at || task.created_at ? (
+                      <div style={{ fontSize: '12px' }}>
+                        <div style={{ color: '#93c5fd', fontWeight: '600' }}>
+                          {new Date(task.updated_at || task.created_at).toLocaleDateString('ko-KR')}
+                        </div>
+                        <div style={{ fontSize: '10px', color: '#6b7280', marginTop: '2px' }}>
+                          {new Date(task.updated_at || task.created_at).toLocaleTimeString('ko-KR', { 
+                            hour: '2-digit', 
+                            minute: '2-digit',
+                            second: '2-digit'
+                          })}
+                        </div>
+                      </div>
                     ) : (
-                      <span style={{ color: '#6b7280', fontSize: '12px' }}>-</span>
+                      <span style={{ color: '#7a8a9e' }}>-</span>
                     )}
                   </td>
                   <td style={styles.td}>

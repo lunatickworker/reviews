@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { storeApi, taskApi, scheduleApi } from '../utils/api';
+import { storeApi, taskApi, mapApi } from '../utils/api';
 import { FiPlus } from 'react-icons/fi';
 import * as XLSX from 'xlsx';
+import { PageLayout, Alert } from './common';
 
 /**
  * 통합 워크플로우 모듈
@@ -13,15 +14,14 @@ const PublishWorkflow = () => {
   const isInitialLoad = useRef(true);
   const [stores, setStores] = useState([]);
   const [tasks, setTasks] = useState([]);
-  const [activeTab, setActiveTab] = useState('overview'); // overview, store, task, schedule
+  const [activeTab, setActiveTab] = useState('overview'); // overview, store, task
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [deployingStoreId, setDeployingStoreId] = useState(null);
 
   // 모달 상태
   const [showAddStore, setShowAddStore] = useState(false);
-  const [showSchedule, setShowSchedule] = useState(false);
-  const [selectedStore, setSelectedStore] = useState(null);
   const [editingStoreId, setEditingStoreId] = useState(null);
 
   // 폼 데이터
@@ -29,12 +29,8 @@ const PublishWorkflow = () => {
     storeName: '',
     address: '',
     reviewMessage: '',
+    draftReviews: '',
     imageUrls: '',
-    dailyFrequency: 1,
-    totalCount: 1,
-  });
-
-  const [scheduleForm, setScheduleForm] = useState({
     dailyFrequency: 1,
     totalCount: 1,
   });
@@ -42,8 +38,15 @@ const PublishWorkflow = () => {
   // 작업 탭 필터
   const [taskSearchTerm, setTaskSearchTerm] = useState('');
   const [taskStatusFilter, setTaskStatusFilter] = useState('all'); // all, pending, in_progress, completed
-  // 마지막 배포 날짜
-  const [lastDeploymentDate] = useState({});
+  
+  // 페이지네이션
+  const [storeCurrentPage, setStoreCurrentPage] = useState(1);
+  const [taskCurrentPage, setTaskCurrentPage] = useState(1);
+  const [storeItemsPerPage, setStoreItemsPerPage] = useState(10);
+  const [taskItemsPerPage, setTaskItemsPerPage] = useState(10);
+  
+  // AI 리뷰 생성 상태
+  const [draftReviews, setDraftReviews] = useState('[{"content":"","applyAt":1}]'); // 원고 작성
   
 
   // Helper 함수: 작업의 진행 상태를 동적으로 판단
@@ -60,13 +63,37 @@ const PublishWorkflow = () => {
 
   // 작업 리스트에 표시할 task 필터링
   const getDisplayTasks = () => {
-    return tasks.filter((task) => {
-      // 진행 중인 task만 표시
-      return isTaskInProgress(task);
-    });
+    return tasks
+      .filter((task) => {
+        // 진행 중인 task만 표시
+        return isTaskInProgress(task);
+      })
+      .map((task) => {
+        // 각 task에 store 정보 추가
+        const store = stores.find(s => s.id === task.store_id);
+        return {
+          ...task,
+          store: store || { store_name: task.place_name }
+        };
+      });
   };
 
   const displayTasks = getDisplayTasks();
+
+  // 매장별 마지막 발행일시 구하기
+  const getLastDeploymentDate = (storeId) => {
+    const storeTasks = tasks.filter(t => t.store_id === storeId);
+    if (storeTasks.length === 0) return null;
+    
+    // 가장 최근 updated_at 찾기
+    const lastTask = storeTasks.reduce((latest, current) => {
+      const latestTime = new Date(latest.updated_at || latest.created_at).getTime();
+      const currentTime = new Date(current.updated_at || current.created_at).getTime();
+      return currentTime > latestTime ? current : latest;
+    });
+    
+    return lastTask.updated_at || lastTask.created_at;
+  };
 
   const loadData = useCallback(async () => {
     try {
@@ -100,7 +127,7 @@ const PublishWorkflow = () => {
     return () => clearInterval(interval);
   }, [loadData]);
 
-  // 매장 추가/편집
+
   const handleAddStore = async () => {
     try {
       if (!storeForm.storeName.trim()) {
@@ -127,7 +154,8 @@ const PublishWorkflow = () => {
           imageUrls,
           parseInt(storeForm.dailyFrequency) || 1,
           parseInt(storeForm.totalCount) || 1,
-          token
+          token,
+          storeForm.draftReviews.trim()
         );
         setSuccessMessage('✅ 매장이 수정되었습니다.');
         setEditingStoreId(null);
@@ -140,7 +168,8 @@ const PublishWorkflow = () => {
           imageUrls,
           parseInt(storeForm.dailyFrequency) || 1,
           parseInt(storeForm.totalCount) || 1,
-          token
+          token,
+          storeForm.draftReviews.trim()
         );
         setSuccessMessage('✅ 매장이 등록되었습니다.');
       }
@@ -149,6 +178,7 @@ const PublishWorkflow = () => {
         storeName: '',
         address: '',
         reviewMessage: '',
+        draftReviews: '',
         imageUrls: '',
         dailyFrequency: 1,
         totalCount: 1,
@@ -168,38 +198,12 @@ const PublishWorkflow = () => {
       storeName: store.store_name,
       address: store.address || '',
       reviewMessage: store.review_message || '',
+      draftReviews: store.draft_reviews || '',
       imageUrls: (store.image_urls || []).join('\n'),
       dailyFrequency: store.daily_frequency || 1,
       totalCount: store.total_count || 1,
     });
     setShowAddStore(true);
-  };
-
-  // 배포 스케줄 생성
-  const handleSchedulePublish = async () => {
-    try {
-      if (!selectedStore) return;
-      if (scheduleForm.totalCount < scheduleForm.dailyFrequency) {
-        setError('총 발행 횟수는 일발행 횟수 이상이어야 합니다.');
-        return;
-      }
-
-      await scheduleApi.create(
-        selectedStore.id,
-        scheduleForm.dailyFrequency,
-        scheduleForm.totalCount,
-        token
-      );
-
-      setSuccessMessage(`✅ 매장 "${selectedStore.store_name}"에 대한 배포가 예약되었습니다.`);
-      setShowSchedule(false);
-      setSelectedStore(null);
-      setScheduleForm({ dailyFrequency: 1, totalCount: 1 });
-      await loadData();
-      setTimeout(() => setSuccessMessage(''), 3000);
-    } catch (err) {
-      setError(err.message || '배포 예약 실패');
-    }
   };
 
   // 매장 삭제
@@ -212,6 +216,34 @@ const PublishWorkflow = () => {
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
       setError('매장 삭제 실패');
+    }
+  };
+
+  // 매장 배포
+  const handleDeployStore = async (store) => {
+    if (!window.confirm(`${store.store_name}을(를) 배포하시겠습니까?`)) {
+      return;
+    }
+
+    setDeployingStoreId(store.id);
+    setError('');
+    
+    try {
+      await mapApi.automateMap(
+        store.address,
+        store.review_message || '',
+        store.id,
+        store.total_count || 1,
+        token
+      );
+
+      setSuccessMessage(`✅ ${store.store_name} 배포가 시작되었습니다.`);
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (err) {
+      setError(`배포 실패: ${err.message}`);
+      console.error(err);
+    } finally {
+      setDeployingStoreId(null);
     }
   };
 
@@ -344,6 +376,7 @@ const PublishWorkflow = () => {
       storeName: '',
       address: '',
       reviewMessage: '',
+      draftReviews: '',
       imageUrls: '',
       dailyFrequency: 1,
       totalCount: 1,
@@ -373,7 +406,7 @@ const PublishWorkflow = () => {
       overflow: 'auto',
     },
     tab: {
-      padding: '12px 20px',
+      padding: '10px 16px',
       background: 'transparent',
       border: 'none',
       color: '#b8c5d6',
@@ -385,7 +418,7 @@ const PublishWorkflow = () => {
     },
     activeTab: {
       color: '#4682b4',
-      borderBottomColor: '#4682b4',
+      borderBottom: '2px solid #4682b4',
     },
     table: {
       width: '100%',
@@ -428,124 +461,84 @@ const PublishWorkflow = () => {
   };
 
   return (
-    <div style={styles.container}>
-      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-        {/* 헤더 */}
-        <div style={styles.header}>
-          <div>
-            <h1 style={{ margin: '0 0 4px 0', fontSize: '28px', fontWeight: '700' }}>
-              배포 워크플로우
-            </h1>
-          </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              onClick={() => {
-                setEditingStoreId(null);
-                setStoreForm({
-                  storeName: '',
-                  address: '',
-                  reviewMessage: '',
-                  imageUrls: '',
-                  dailyFrequency: 1,
-                  totalCount: 1,
-                });
-                setShowAddStore(true);
-              }}
-              style={{
-                background: 'rgba(168, 85, 247, 0.9)',
-                border: 'none',
-                color: '#fff',
-                padding: '10px 20px',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: '600',
-                fontSize: '13px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-            >
-              <FiPlus size={16} /> 매장 추가
-            </button>
-            <button
-              onClick={downloadExcel}
-              style={{
-                background: 'rgba(59, 130, 246, 0.9)',
-                border: 'none',
-                color: '#fff',
-                padding: '10px 20px',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: '600',
-                fontSize: '13px',
-              }}
-            >
-              📥 템플릿
-            </button>
-            <label
-              style={{
-                background: 'rgba(34, 197, 94, 0.9)',
-                border: 'none',
-                color: '#fff',
-                padding: '10px 20px',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: '600',
-                fontSize: '13px',
-                display: 'inline-block',
-              }}
-            >
-              📤 업로드
-              <input
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                onChange={handleExcelUpload}
-                style={{ display: 'none' }}
-                disabled={loading}
-              />
-            </label>
-          </div>
+    <PageLayout 
+      title="배포 워크플로우" 
+      description={`등록된 매장: ${stores.length}개 | 진행 중인 작업: ${displayTasks.length}개`}
+      actions={
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            onClick={() => {
+              setEditingStoreId(null);
+              setStoreForm({
+                storeName: '',
+                address: '',
+                reviewMessage: '',
+                imageUrls: '',
+                dailyFrequency: 1,
+                totalCount: 1,
+              });
+              setShowAddStore(true);
+            }}
+            style={{
+              background: 'rgba(168, 85, 247, 0.9)',
+              border: 'none',
+              color: '#fff',
+              padding: '8px 14px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: '600',
+              fontSize: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            <FiPlus size={16} /> 매장 추가
+          </button>
+          <button
+            onClick={downloadExcel}
+            style={{
+              background: 'rgba(59, 130, 246, 0.9)',
+              border: 'none',
+              color: '#fff',
+              padding: '8px 14px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: '600',
+              fontSize: '12px',
+            }}
+          >
+            📥 템플릿
+          </button>
+          <label
+            style={{
+              background: 'rgba(34, 197, 94, 0.9)',
+              border: 'none',
+              color: '#fff',
+              padding: '8px 14px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: '600',
+              fontSize: '12px',
+              display: 'inline-block',
+            }}
+          >
+            📤 업로드
+            <input
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              onChange={handleExcelUpload}
+              style={{ display: 'none' }}
+              disabled={loading}
+            />
+          </label>
         </div>
-
-        {/* 메시지 */}
-        {error && (
-          <div
-            style={{
-              background: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              borderRadius: '8px',
-              padding: '12px 16px',
-              marginBottom: '16px',
-              color: '#fca5a5',
-              fontSize: '13px',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-            }}
-          >
-            {error}
-          </div>
-        )}
-        {successMessage && (
-          <div
-            style={{
-              background: 'rgba(34, 197, 94, 0.1)',
-              border: '1px solid rgba(34, 197, 94, 0.3)',
-              borderRadius: '8px',
-              padding: '12px 16px',
-              marginBottom: '16px',
-              color: '#86efac',
-              fontSize: '13px',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-            }}
-          >
-            {successMessage}
-          </div>
-        )}
+      }
+    >
 
         {/* 탭 */}
-        <div style={styles.tabBar}>
-          {['overview', 'store', 'task', ...(isAdmin ? ['schedule'] : [])].map((tab) => (
+        <div style={{ ...styles.tabBar, marginBottom: '16px' }}>
+          {['overview', 'store', 'task'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -557,7 +550,6 @@ const PublishWorkflow = () => {
               {tab === 'overview' && '📊 개요'}
               {tab === 'store' && '🏪 매장'}
               {tab === 'task' && '📋 작업'}
-              {tab === 'schedule' && '📅 스케줄'}
             </button>
           ))}
         </div>
@@ -575,18 +567,18 @@ const PublishWorkflow = () => {
                 style={{
                   display: 'grid',
                   gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-                  gap: '20px',
+                  gap: '16px',
                 }}
               >
                 {/* 등록된 매장 - 파란색 */}
                 <div style={{ 
                   background: 'linear-gradient(135deg, rgba(70, 130, 180, 0.16) 0%, rgba(70, 130, 180, 0.08) 100%)',
-                  padding: '36px 32px',
+                  padding: '28px 24px',
                   borderRadius: '16px',
                   border: '1px solid rgba(70, 130, 180, 0.3)',
                   boxShadow: '0 12px 32px rgba(70, 130, 180, 0.12)',
                   transition: 'all 0.3s ease',
-                  minHeight: '150px',
+                  minHeight: '120px',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between'
@@ -601,12 +593,12 @@ const PublishWorkflow = () => {
                 {/* 진행 중인 작업 - 시안색 */}
                 <div style={{ 
                   background: 'linear-gradient(135deg, rgba(64, 135, 145, 0.16) 0%, rgba(64, 135, 145, 0.08) 100%)',
-                  padding: '36px 32px',
+                  padding: '28px 24px',
                   borderRadius: '16px',
                   border: '1px solid rgba(64, 135, 145, 0.3)',
                   boxShadow: '0 12px 32px rgba(64, 135, 145, 0.12)',
                   transition: 'all 0.3s ease',
-                  minHeight: '150px',
+                  minHeight: '120px',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between'
@@ -623,12 +615,12 @@ const PublishWorkflow = () => {
                 {/* 완료된 작업 - 라벤더색 */}
                 <div style={{ 
                   background: 'linear-gradient(135deg, rgba(92, 84, 165, 0.16) 0%, rgba(92, 84, 165, 0.08) 100%)',
-                  padding: '36px 32px',
+                  padding: '28px 24px',
                   borderRadius: '16px',
                   border: '1px solid rgba(92, 84, 165, 0.3)',
                   boxShadow: '0 12px 32px rgba(92, 84, 165, 0.12)',
                   transition: 'all 0.3s ease',
-                  minHeight: '150px',
+                  minHeight: '120px',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between'
@@ -650,27 +642,42 @@ const PublishWorkflow = () => {
                 <table style={styles.table}>
                   <thead>
                     <tr style={{ background: 'rgba(30, 50, 80, 0.6)' }}>
+                      {isAdmin && <th style={styles.th}>소속</th>}
                       <th style={styles.th}>매장명</th>
                       <th style={styles.thCenter}>주소</th>
                       <th style={styles.thCenter}>리뷰</th>
                       <th style={styles.thCenter}>이미지</th>
-                      <th style={styles.thCenter}>하루/총</th>
+                      <th style={styles.thCenter}>발행 (일/총/현재)</th>
+                      <th style={styles.thCenter}>등록일</th>
+                      <th style={styles.thCenter}>마지막 발행일시</th>
                       <th style={styles.thCenter}>관리</th>
                     </tr>
                   </thead>
                   <tbody>
                     {stores.length === 0 ? (
                       <tr>
-                        <td colSpan="6" style={{ ...styles.td, textAlign: 'center', color: '#b8c5d6' }}>
+                        <td colSpan={isAdmin ? "9" : "8"} style={{ ...styles.td, textAlign: 'center', color: '#b8c5d6' }}>
                           등록된 매장이 없습니다.
                         </td>
                       </tr>
                     ) : (
-                      stores.map((store) => (
-                        <tr key={store.id}>
-                          <td style={styles.td}>
-                            <strong>{store.store_name}</strong>
-                          </td>
+                      (() => {
+                        const startIndex = (storeCurrentPage - 1) * storeItemsPerPage;
+                        const endIndex = startIndex + storeItemsPerPage;
+                        const paginatedStores = stores.slice(startIndex, endIndex);
+                        
+                        return paginatedStores.map((store) => (
+                          <tr key={store.id}>
+                            {isAdmin && (
+                              <td style={styles.td}>
+                                <span style={{ fontSize: '12px', color: '#a0aec0' }}>
+                                  {store.user?.user_id || '-'}
+                                </span>
+                              </td>
+                            )}
+                            <td style={styles.td}>
+                              <strong>{store.store_name}</strong>
+                            </td>
                           <td style={styles.tdCenter}>
                             {store.address ? (
                               <a
@@ -703,7 +710,30 @@ const PublishWorkflow = () => {
                             )}
                           </td>
                           <td style={styles.tdCenter}>
-                            <strong>{store.daily_frequency || 1}</strong> / <strong>{store.total_count || 1}</strong>
+                            <span style={{ color: '#4682b4', fontWeight: '600' }}>{store.daily_frequency || 1}</span>
+                            <span style={{ color: '#9ca3af' }}> / </span>
+                            <span style={{ color: '#48bb78', fontWeight: '600' }}>{store.total_count || 1}</span>
+                            <span style={{ color: '#9ca3af' }}> / </span>
+                            <span style={{ color: '#f56565', fontWeight: '600' }}>{store.deployed_count || 0}</span>
+                          </td>
+                          <td style={styles.tdCenter}>
+                            {store.created_at ? new Date(store.created_at).toLocaleDateString('ko-KR') : '-'}
+                          </td>
+                          <td style={styles.tdCenter}>
+                            {getLastDeploymentDate(store.id) ? (
+                              <div style={{ fontSize: '12px' }}>
+                                {new Date(getLastDeploymentDate(store.id)).toLocaleDateString('ko-KR')}
+                                <div style={{ fontSize: '10px', color: '#6b7280', marginTop: '2px' }}>
+                                  {new Date(getLastDeploymentDate(store.id)).toLocaleTimeString('ko-KR', { 
+                                    hour: '2-digit', 
+                                    minute: '2-digit',
+                                    second: '2-digit'
+                                  })}
+                                </div>
+                              </div>
+                            ) : (
+                              '-'
+                            )}
                           </td>
                           <td style={styles.tdCenter}>
                             {(isAdmin || isAgency) && (
@@ -723,6 +753,28 @@ const PublishWorkflow = () => {
                                 >
                                   편집
                                 </button>
+                                {isAdmin && (
+                                  <button
+                                    onClick={() => handleDeployStore(store)}
+                                    disabled={deployingStoreId === store.id}
+                                    style={{
+                                      background: deployingStoreId === store.id 
+                                        ? 'rgba(107, 114, 128, 0.4)' 
+                                        : 'rgba(34, 197, 94, 0.2)',
+                                      border: '1px solid rgba(34, 197, 94, 0.5)',
+                                      color: deployingStoreId === store.id ? '#9ca3af' : '#86efac',
+                                      padding: '6px 10px',
+                                      borderRadius: '6px',
+                                      cursor: deployingStoreId === store.id ? 'not-allowed' : 'pointer',
+                                      fontSize: '12px',
+                                      marginRight: '4px',
+                                      opacity: deployingStoreId === store.id ? 0.6 : 1,
+                                      transition: 'all 0.3s ease',
+                                    }}
+                                  >
+                                    {deployingStoreId === store.id ? '배포 중...' : '🚀 배포'}
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => handleDeleteStore(store.id)}
                                   style={{
@@ -739,106 +791,251 @@ const PublishWorkflow = () => {
                                 </button>
                               </>
                             )}
-                            {isAdmin && (
-                              <button
-                                onClick={() => {
-                                  setSelectedStore(store);
-                                  setShowSchedule(true);
-                                }}
-                                style={{
-                                  background: 'rgba(34, 197, 94, 0.2)',
-                                  border: '1px solid rgba(34, 197, 94, 0.5)',
-                                  color: '#86efac',
-                                  padding: '6px 10px',
-                                  borderRadius: '6px',
-                                  cursor: 'pointer',
-                                  fontSize: '12px',
-                                  marginLeft: '4px',
-                                }}
-                              >
-                                배포
-                              </button>
-                            )}
                           </td>
                         </tr>
-                      ))
+                      ));
+                      })()
                     )}
                   </tbody>
                 </table>
+
+                {/* 매장 탭 페이지네이션 */}
+                {stores.length > 0 && (
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '16px',
+                    background: 'rgba(20, 40, 70, 0.2)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <label style={{ fontSize: '12px', color: '#b8c5d6' }}>페이지당: </label>
+                      <select
+                        value={storeItemsPerPage}
+                        onChange={(e) => {
+                          setStoreItemsPerPage(Number(e.target.value));
+                          setStoreCurrentPage(1);
+                        }}
+                        style={{
+                          padding: '6px 10px',
+                          background: 'rgba(30, 50, 80, 0.6)',
+                          border: '1px solid rgba(70, 130, 180, 0.2)',
+                          borderRadius: '4px',
+                          color: '#93c5fd',
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <option value={10}>10개</option>
+                        <option value={20}>20개</option>
+                        <option value={50}>50개</option>
+                        <option value={100}>100개</option>
+                      </select>
+                    </div>
+
+                    {stores.length > storeItemsPerPage && (
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'center', 
+                        alignItems: 'center', 
+                        gap: '8px'
+                      }}>
+                        <button
+                          onClick={() => setStoreCurrentPage(1)}
+                          disabled={storeCurrentPage === 1}
+                          style={{
+                            padding: '6px 10px',
+                            background: storeCurrentPage === 1 ? 'rgba(107, 114, 128, 0.2)' : 'rgba(59, 130, 246, 0.3)',
+                            border: '1px solid rgba(59, 130, 246, 0.3)',
+                            borderRadius: '4px',
+                            color: storeCurrentPage === 1 ? '#6b7280' : '#93c5fd',
+                            cursor: storeCurrentPage === 1 ? 'default' : 'pointer',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                          }}
+                        >
+                          ◀◀
+                        </button>
+                        
+                        <button
+                          onClick={() => setStoreCurrentPage(prev => Math.max(1, prev - 1))}
+                          disabled={storeCurrentPage === 1}
+                          style={{
+                            padding: '6px 10px',
+                            background: storeCurrentPage === 1 ? 'rgba(107, 114, 128, 0.2)' : 'rgba(59, 130, 246, 0.3)',
+                            border: '1px solid rgba(59, 130, 246, 0.3)',
+                            borderRadius: '4px',
+                            color: storeCurrentPage === 1 ? '#6b7280' : '#93c5fd',
+                            cursor: storeCurrentPage === 1 ? 'default' : 'pointer',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                          }}
+                        >
+                          ◀
+                        </button>
+
+                        {(() => {
+                          const totalPages = Math.ceil(stores.length / storeItemsPerPage);
+                          const pageButtons = [];
+                          const maxVisiblePages = 5;
+                          let startPage = Math.max(1, storeCurrentPage - Math.floor(maxVisiblePages / 2));
+                          let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+                          
+                          if (endPage - startPage + 1 < maxVisiblePages) {
+                            startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                          }
+                          
+                          for (let i = startPage; i <= endPage; i++) {
+                            pageButtons.push(
+                              <button
+                                key={i}
+                                onClick={() => setStoreCurrentPage(i)}
+                                style={{
+                                  padding: '6px 10px',
+                                  background: storeCurrentPage === i ? 'rgba(99, 102, 241, 0.6)' : 'rgba(30, 50, 80, 0.6)',
+                                  border: storeCurrentPage === i ? '1px solid rgba(99, 102, 241, 0.8)' : '1px solid rgba(70, 130, 180, 0.2)',
+                                  borderRadius: '4px',
+                                  color: storeCurrentPage === i ? '#e8eef5' : '#93c5fd',
+                                  cursor: 'pointer',
+                                  fontSize: '12px',
+                                  fontWeight: storeCurrentPage === i ? '700' : '600',
+                                }}
+                              >
+                                {i}
+                              </button>
+                            );
+                          }
+                          return pageButtons;
+                        })()}
+
+                        <button
+                          onClick={() => setStoreCurrentPage(prev => Math.min(Math.ceil(stores.length / storeItemsPerPage), prev + 1))}
+                          disabled={storeCurrentPage === Math.ceil(stores.length / storeItemsPerPage)}
+                          style={{
+                            padding: '6px 10px',
+                            background: storeCurrentPage === Math.ceil(stores.length / storeItemsPerPage) ? 'rgba(107, 114, 128, 0.2)' : 'rgba(59, 130, 246, 0.3)',
+                            border: '1px solid rgba(59, 130, 246, 0.3)',
+                            borderRadius: '4px',
+                            color: storeCurrentPage === Math.ceil(stores.length / storeItemsPerPage) ? '#6b7280' : '#93c5fd',
+                            cursor: storeCurrentPage === Math.ceil(stores.length / storeItemsPerPage) ? 'default' : 'pointer',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                          }}
+                        >
+                          ▶
+                        </button>
+                        
+                        <button
+                          onClick={() => setStoreCurrentPage(Math.ceil(stores.length / storeItemsPerPage))}
+                          disabled={storeCurrentPage === Math.ceil(stores.length / storeItemsPerPage)}
+                          style={{
+                            padding: '6px 10px',
+                            background: storeCurrentPage === Math.ceil(stores.length / storeItemsPerPage) ? 'rgba(107, 114, 128, 0.2)' : 'rgba(59, 130, 246, 0.3)',
+                            border: '1px solid rgba(59, 130, 246, 0.3)',
+                            borderRadius: '4px',
+                            color: storeCurrentPage === Math.ceil(stores.length / storeItemsPerPage) ? '#6b7280' : '#93c5fd',
+                            cursor: storeCurrentPage === Math.ceil(stores.length / storeItemsPerPage) ? 'default' : 'pointer',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                          }}
+                        >
+                          ▶▶
+                        </button>
+
+                        <span style={{ fontSize: '12px', color: '#b8c5d6', marginLeft: '12px' }}>
+                          {storeCurrentPage} / {Math.ceil(stores.length / storeItemsPerPage)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
             {/* 작업 탭 */}
             {activeTab === 'task' && (
               <div style={{ background: 'rgba(20, 40, 70, 0.35)', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(70, 130, 180, 0.2)' }}>
-                {/* 작업 탭 헤더 */}
-                <div style={{ padding: '20px 16px', borderBottom: '1px solid rgba(70, 130, 180, 0.2)', background: 'rgba(30, 50, 80, 0.4)' }}>
-                  <h3 style={{ margin: '0 0 12px 0', fontSize: '18px', fontWeight: '700', color: '#e8eef5' }}>작업 관리</h3>
-                  <div style={{ display: 'flex', gap: '20px', fontSize: '13px' }}>
-                    <div>
-                      <span style={{ color: '#b8c5d6' }}>총 작업:</span>{' '}
-                      <span style={{ color: '#e8eef5', fontWeight: '600' }}>{tasks.length}개</span>
-                    </div>
-                    <div>
-                      <span style={{ color: '#b8c5d6' }}>진행 중:</span>{' '}
-                      <span style={{ color: '#93c5fd', fontWeight: '600' }}>{displayTasks.length}개</span>
-                    </div>
-                    <div>
-                      <span style={{ color: '#b8c5d6' }}>완료:</span>{' '}
-                      <span style={{ color: '#86efac', fontWeight: '600' }}>{tasks.length - displayTasks.length}개</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 검색 및 필터 */}
+                {/* 작업 탭 헤더 + 통계 + 검색/필터 (한줄) */}
                 <div style={{
                   display: 'flex',
-                  gap: '12px',
-                  padding: '16px',
+                  gap: '16px',
+                  padding: '12px 16px',
                   borderBottom: '1px solid rgba(70, 130, 180, 0.2)',
-                  flexWrap: 'wrap',
+                  background: 'rgba(30, 50, 80, 0.4)',
+                  alignItems: 'center',
+                  flexWrap: 'nowrap',
+                  overflow: 'auto',
                 }}>
+                  {/* 제목 */}
+                  <h3 style={{ margin: '0', fontSize: '14px', fontWeight: '700', color: '#e8eef5', whiteSpace: 'nowrap', minWidth: 'fit-content' }}>작업 관리</h3>
+                  
+                  {/* 통계 */}
+                  <div style={{ display: 'flex', gap: '16px', fontSize: '12px', whiteSpace: 'nowrap', minWidth: 'fit-content' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ color: '#b8c5d6' }}>총:</span>
+                      <span style={{ color: '#e8eef5', fontWeight: '600' }}>{tasks.length}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ color: '#b8c5d6' }}>진행:</span>
+                      <span style={{ color: '#93c5fd', fontWeight: '600' }}>{displayTasks.length}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ color: '#b8c5d6' }}>완료:</span>
+                      <span style={{ color: '#86efac', fontWeight: '600' }}>{tasks.length - displayTasks.length}</span>
+                    </div>
+                  </div>
+
+                  {/* 구분선 */}
+                  <div style={{ width: '1px', height: '20px', background: 'rgba(70, 130, 180, 0.2)', minWidth: '1px' }}></div>
+
+                  {/* 검색 */}
                   <input
                     type="text"
-                    placeholder="장소명으로 검색..."
+                    placeholder="매장명으로 검색..."
                     value={taskSearchTerm}
                     onChange={(e) => setTaskSearchTerm(e.target.value)}
                     style={{
-                      flex: 1,
-                      minWidth: '200px',
-                      padding: '8px 12px',
+                      flex: '0 1 auto',
+                      minWidth: '150px',
+                      padding: '6px 10px',
                       background: 'rgba(30, 50, 80, 0.6)',
                       border: '1px solid rgba(70, 130, 180, 0.2)',
                       borderRadius: '6px',
                       color: '#e8eef5',
-                      fontSize: '13px',
+                      fontSize: '12px',
                     }}
                   />
+                  
+                  {/* 상태 필터 */}
                   <select
                     value={taskStatusFilter}
                     onChange={(e) => setTaskStatusFilter(e.target.value)}
                     style={{
-                      padding: '8px 12px',
+                      padding: '6px 10px',
                       background: 'rgba(30, 50, 80, 0.6)',
                       border: '1px solid rgba(70, 130, 180, 0.2)',
                       borderRadius: '6px',
                       color: '#e8eef5',
-                      fontSize: '13px',
+                      fontSize: '12px',
                       cursor: 'pointer',
+                      whiteSpace: 'nowrap',
                     }}
                   >
                     <option value="all">모든 상태</option>
                     <option value="in_progress">진행 중</option>
                     <option value="completed">완료</option>
                   </select>
+                  
+                  {/* 초기화 버튼 */}
                   {(taskSearchTerm || taskStatusFilter !== 'all') && (
                     <button
                       onClick={() => {
                         setTaskSearchTerm('');
                         setTaskStatusFilter('all');
+                        setTaskCurrentPage(1);
                       }}
                       style={{
-                        padding: '8px 16px',
+                        padding: '6px 10px',
                         background: 'rgba(239, 68, 68, 0.15)',
                         border: '1px solid rgba(239, 68, 68, 0.2)',
                         borderRadius: '6px',
@@ -846,9 +1043,10 @@ const PublishWorkflow = () => {
                         cursor: 'pointer',
                         fontSize: '12px',
                         fontWeight: '600',
+                        whiteSpace: 'nowrap',
                       }}
                     >
-                      필터 초기화
+                      초기화
                     </button>
                   )}
                 </div>
@@ -856,56 +1054,57 @@ const PublishWorkflow = () => {
                 <table style={styles.table}>
                   <thead>
                     <tr style={{ background: 'rgba(30, 50, 80, 0.6)' }}>
-                      <th style={styles.th}>장소</th>
+                      {isAdmin && <th style={styles.th}>소속</th>}
+                      <th style={styles.th}>매장명</th>
                       <th style={styles.thCenter}>리뷰</th>
                       <th style={styles.thCenter}>이미지</th>
-                      <th style={styles.thCenter}>하루발행량</th>
-                      <th style={styles.thCenter}>총발행량</th>
-                      <th style={styles.thCenter}>현재발행수</th>
+                      <th style={styles.thCenter}>발행 (일/총/현재)</th>
                       <th style={styles.thCenter}>상태</th>
                       <th style={styles.thCenter}>등록일</th>
-                      <th style={styles.thCenter}>마지막 배포</th>
+                      <th style={styles.thCenter}>마지막 발행일시</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {displayTasks
-                      .filter((task) => {
-                        // 상태 필터링
+                    {(() => {
+                      const filteredTasks = displayTasks.filter((task) => {
                         const displayStatus = getTaskDisplayStatus(task);
                         if (taskStatusFilter !== 'all' && displayStatus !== taskStatusFilter) {
                           return false;
                         }
-                        // 검색어 필터링
-                        if (taskSearchTerm && !task.place_name.toLowerCase().includes(taskSearchTerm.toLowerCase())) {
+                        if (taskSearchTerm && !(task.store?.store_name || task.place_name).toLowerCase().includes(taskSearchTerm.toLowerCase())) {
                           return false;
                         }
                         return true;
-                      })
-                      .length === 0 ? (
-                      <tr>
-                        <td colSpan="9" style={{ ...styles.td, textAlign: 'center', color: '#b8c5d6' }}>
-                          {displayTasks.length === 0 ? '진행 중인 작업이 없습니다.' : '검색 결과가 없습니다.'}
-                        </td>
-                      </tr>
-                    ) : (
-                      displayTasks
-                        .filter((task) => {
-                          // 상태 필터링
-                          const displayStatus = getTaskDisplayStatus(task);
-                          if (taskStatusFilter !== 'all' && displayStatus !== taskStatusFilter) {
-                            return false;
-                          }
-                          // 검색어 필터링
-                          if (taskSearchTerm && !task.place_name.toLowerCase().includes(taskSearchTerm.toLowerCase())) {
-                            return false;
-                          }
-                          return true;
-                        })
-                        .map((task) => {
-                          const displayStatus = getTaskDisplayStatus(task);
-                          return (
-                            <tr key={task.id}>
-                              <td style={styles.td}>{task.place_name}</td>
+                      });
+
+                      if (filteredTasks.length === 0) {
+                        return (
+                          <tr>
+                            <td colSpan={isAdmin ? "8" : "7"} style={{ ...styles.td, textAlign: 'center', color: '#b8c5d6' }}>
+                              {displayTasks.length === 0 ? '진행 중인 작업이 없습니다.' : '검색 결과가 없습니다.'}
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      const startIndex = (taskCurrentPage - 1) * taskItemsPerPage;
+                      const endIndex = startIndex + taskItemsPerPage;
+                      const paginatedTasks = filteredTasks.slice(startIndex, endIndex);
+
+                      return paginatedTasks.map((task) => {
+                        const displayStatus = getTaskDisplayStatus(task);
+                        return (
+                          <tr key={task.id}>
+                            {isAdmin && (
+                              <td style={styles.td}>
+                                <span style={{ fontSize: '12px', color: '#a0aec0' }}>
+                                  {task.store?.user?.user_id || '-'}
+                                </span>
+                              </td>
+                            )}
+                            <td style={styles.td}>
+                              <strong>{task.store?.store_name || task.place_name}</strong>
+                            </td>
                               <td style={styles.tdCenter}>
                                 <span
                                   style={{
@@ -951,19 +1150,11 @@ const PublishWorkflow = () => {
                                 </span>
                               </td>
                               <td style={styles.tdCenter}>
-                                <span style={{ fontWeight: '600', color: '#4682b4' }}>
-                                  {task.daily_frequency || task.store?.daily_frequency || '-'}
-                                </span>
-                              </td>
-                              <td style={styles.tdCenter}>
-                                <span style={{ fontWeight: '600', color: '#4682b4' }}>
-                                  {task.total_count || task.store?.total_count || '-'}
-                                </span>
-                              </td>
-                              <td style={styles.tdCenter}>
-                                <span style={{ fontWeight: '600', color: '#4682b4', fontSize: '16px' }}>
-                                  {task.completed_count || 0}
-                                </span>
+                                <span style={{ color: '#4682b4', fontWeight: '600' }}>{task.daily_frequency || task.store?.daily_frequency || 1}</span>
+                                <span style={{ color: '#9ca3af' }}> / </span>
+                                <span style={{ color: '#48bb78', fontWeight: '600' }}>{task.total_count || task.store?.total_count || 1}</span>
+                                <span style={{ color: '#9ca3af' }}> / </span>
+                                <span style={{ color: '#f56565', fontWeight: '600' }}>{task.completed_count || 0}</span>
                               </td>
                               <td style={styles.tdCenter}>
                                 <span
@@ -989,20 +1180,195 @@ const PublishWorkflow = () => {
                                 {new Date(task.created_at).toLocaleDateString('ko-KR')}
                               </td>
                               <td style={styles.tdCenter}>
-                                {lastDeploymentDate[task.id] ? (
-                                  <span style={{ color: '#93c5fd', fontWeight: '600' }}>
-                                    {new Date(lastDeploymentDate[task.id]).toLocaleDateString('ko-KR')}
-                                  </span>
+                                {task.updated_at || task.created_at ? (
+                                  <div style={{ fontSize: '12px' }}>
+                                    <div style={{ color: '#93c5fd', fontWeight: '600' }}>
+                                      {new Date(task.updated_at || task.created_at).toLocaleDateString('ko-KR')}
+                                    </div>
+                                    <div style={{ fontSize: '10px', color: '#6b7280', marginTop: '2px' }}>
+                                      {new Date(task.updated_at || task.created_at).toLocaleTimeString('ko-KR', { 
+                                        hour: '2-digit', 
+                                        minute: '2-digit',
+                                        second: '2-digit'
+                                      })}
+                                    </div>
+                                  </div>
                                 ) : (
                                   <span style={{ color: '#7a8a9e' }}>-</span>
                                 )}
                               </td>
                             </tr>
                           );
-                        })
-                    )}
+                        });
+                    })()}
                   </tbody>
                 </table>
+
+                {/* 작업 탭 페이지네이션 */}
+                {(() => {
+                  const filteredTasks = displayTasks.filter((task) => {
+                    const displayStatus = getTaskDisplayStatus(task);
+                    if (taskStatusFilter !== 'all' && displayStatus !== taskStatusFilter) {
+                      return false;
+                    }
+                    if (taskSearchTerm && !(task.store?.store_name || task.place_name).toLowerCase().includes(taskSearchTerm.toLowerCase())) {
+                      return false;
+                    }
+                    return true;
+                  });
+
+                  if (filteredTasks.length === 0) return null;
+
+                  const totalPages = Math.ceil(filteredTasks.length / taskItemsPerPage);
+                  return (
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '16px',
+                      background: 'rgba(20, 40, 70, 0.2)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <label style={{ fontSize: '12px', color: '#b8c5d6' }}>페이지당: </label>
+                        <select
+                          value={taskItemsPerPage}
+                          onChange={(e) => {
+                            setTaskItemsPerPage(Number(e.target.value));
+                            setTaskCurrentPage(1);
+                          }}
+                          style={{
+                            padding: '6px 10px',
+                            background: 'rgba(30, 50, 80, 0.6)',
+                            border: '1px solid rgba(70, 130, 180, 0.2)',
+                            borderRadius: '4px',
+                            color: '#93c5fd',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <option value={10}>10개</option>
+                          <option value={20}>20개</option>
+                          <option value={50}>50개</option>
+                          <option value={100}>100개</option>
+                        </select>
+                      </div>
+
+                      {filteredTasks.length > taskItemsPerPage && (
+                        <div style={{ 
+                          display: 'flex', 
+                          justifyContent: 'center', 
+                          alignItems: 'center', 
+                          gap: '8px'
+                        }}>
+                          <button
+                        onClick={() => setTaskCurrentPage(1)}
+                        disabled={taskCurrentPage === 1}
+                        style={{
+                          padding: '6px 10px',
+                          background: taskCurrentPage === 1 ? 'rgba(107, 114, 128, 0.2)' : 'rgba(59, 130, 246, 0.3)',
+                          border: '1px solid rgba(59, 130, 246, 0.3)',
+                          borderRadius: '4px',
+                          color: taskCurrentPage === 1 ? '#6b7280' : '#93c5fd',
+                          cursor: taskCurrentPage === 1 ? 'default' : 'pointer',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                        }}
+                      >
+                        ◀◀
+                      </button>
+                      
+                      <button
+                        onClick={() => setTaskCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={taskCurrentPage === 1}
+                        style={{
+                          padding: '6px 10px',
+                          background: taskCurrentPage === 1 ? 'rgba(107, 114, 128, 0.2)' : 'rgba(59, 130, 246, 0.3)',
+                          border: '1px solid rgba(59, 130, 246, 0.3)',
+                          borderRadius: '4px',
+                          color: taskCurrentPage === 1 ? '#6b7280' : '#93c5fd',
+                          cursor: taskCurrentPage === 1 ? 'default' : 'pointer',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                        }}
+                      >
+                        ◀
+                      </button>
+
+                      {(() => {
+                        const pageButtons = [];
+                        const maxVisiblePages = 5;
+                        let startPage = Math.max(1, taskCurrentPage - Math.floor(maxVisiblePages / 2));
+                        let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+                        
+                        if (endPage - startPage + 1 < maxVisiblePages) {
+                          startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                        }
+                        
+                        for (let i = startPage; i <= endPage; i++) {
+                          pageButtons.push(
+                            <button
+                              key={i}
+                              onClick={() => setTaskCurrentPage(i)}
+                              style={{
+                                padding: '6px 10px',
+                                background: taskCurrentPage === i ? 'rgba(99, 102, 241, 0.6)' : 'rgba(30, 50, 80, 0.6)',
+                                border: taskCurrentPage === i ? '1px solid rgba(99, 102, 241, 0.8)' : '1px solid rgba(70, 130, 180, 0.2)',
+                                borderRadius: '4px',
+                                color: taskCurrentPage === i ? '#e8eef5' : '#93c5fd',
+                                cursor: 'pointer',
+                                fontSize: '12px',
+                                fontWeight: taskCurrentPage === i ? '700' : '600',
+                              }}
+                            >
+                              {i}
+                            </button>
+                          );
+                        }
+                        return pageButtons;
+                      })()}
+
+                      <button
+                        onClick={() => setTaskCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                        disabled={taskCurrentPage === totalPages}
+                        style={{
+                          padding: '6px 10px',
+                          background: taskCurrentPage === totalPages ? 'rgba(107, 114, 128, 0.2)' : 'rgba(59, 130, 246, 0.3)',
+                          border: '1px solid rgba(59, 130, 246, 0.3)',
+                          borderRadius: '4px',
+                          color: taskCurrentPage === totalPages ? '#6b7280' : '#93c5fd',
+                          cursor: taskCurrentPage === totalPages ? 'default' : 'pointer',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                        }}
+                      >
+                        ▶
+                      </button>
+                      
+                      <button
+                        onClick={() => setTaskCurrentPage(totalPages)}
+                        disabled={taskCurrentPage === totalPages}
+                        style={{
+                          padding: '6px 10px',
+                          background: taskCurrentPage === totalPages ? 'rgba(107, 114, 128, 0.2)' : 'rgba(59, 130, 246, 0.3)',
+                          border: '1px solid rgba(59, 130, 246, 0.3)',
+                          borderRadius: '4px',
+                          color: taskCurrentPage === totalPages ? '#6b7280' : '#93c5fd',
+                          cursor: taskCurrentPage === totalPages ? 'default' : 'pointer',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                        }}
+                      >
+                        ▶▶
+                      </button>
+
+                      <span style={{ fontSize: '12px', color: '#b8c5d6', marginLeft: '12px' }}>
+                        {taskCurrentPage} / {totalPages}
+                      </span>
+                    </div>
+                    )}
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </>
@@ -1082,13 +1448,13 @@ const PublishWorkflow = () => {
                 />
               </div>
 
-              {/* 리뷰 메시지 */}
+              {/* 리뷰 가이드 */}
               <div style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#b8c5d6' }}>
-                  리뷰 메시지
+                  리뷰 가이드 (배포 시 AI가 참고)
                 </label>
                 <textarea
-                  placeholder="리뷰 메시지 입력"
+                  placeholder="예: 깔끔한 인테리어, 친절한 직원, 맛있는 음식"
                   value={storeForm.reviewMessage}
                   onChange={(e) => setStoreForm({ ...storeForm, reviewMessage: e.target.value })}
                   style={{
@@ -1098,11 +1464,63 @@ const PublishWorkflow = () => {
                     border: '1px solid rgba(124, 58, 237, 0.3)',
                     borderRadius: '6px',
                     color: '#fff',
-                    minHeight: '70px',
+                    minHeight: '60px',
                     boxSizing: 'border-box',
                     fontFamily: 'inherit',
                   }}
                 />
+              </div>
+
+              {/* 원고 작성 */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#b8c5d6' }}>
+                  원고 작성 (직접 입력 또는 배포 시 자동 생성)
+                </label>
+                <textarea
+                  placeholder="각 줄에 리뷰 입력 또는 배포 시 자동으로 AI가 생성합니다&#10;&#10;&#10;"
+                  value={storeForm.draftReviews || ''}
+                  onChange={(e) => setStoreForm({ ...storeForm, draftReviews: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    background: 'rgba(0, 0, 0, 0.3)',
+                    border: '1px solid rgba(70, 130, 180, 0.3)',
+                    borderRadius: '6px',
+                    color: '#fff',
+                    minHeight: '120px',
+                    boxSizing: 'border-box',
+                    fontFamily: 'inherit',
+                    fontSize: '12px',
+                  }}
+                />
+                <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px' }}>
+                  💡 배포 시 비어있는 줄은 AI가 자동으로 채웁니다
+                </div>
+              </div>
+
+              {/* 적용 배포 번째 */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#b8c5d6' }}>
+                  적용할 배포 번째 (몇 번째 배포부터 이 원고를 사용할지)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="999"
+
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    background: 'rgba(0, 0, 0, 0.3)',
+                    border: '1px solid rgba(70, 130, 180, 0.3)',
+                    borderRadius: '6px',
+                    color: '#fff',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px' }}>
+                  예: 3 입력 시 3번째 배포부터 이 원고가 적용됩니다
+                </div>
               </div>
 
               {/* 이미지 URL */}
@@ -1218,120 +1636,25 @@ const PublishWorkflow = () => {
           </div>
         )}
 
-        {/* 배포 예약 모달 - Admin만 */}
-        {showSchedule && selectedStore && isAdmin && (
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(0, 0, 0, 0.7)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 1000,
-            }}
-            onClick={() => setShowSchedule(false)}
-          >
-            <div
-              style={{
-                background: 'rgba(37, 45, 66, 0.95)',
-                borderRadius: '12px',
-                padding: '24px',
-                maxWidth: '500px',
-                width: '90%',
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h2 style={{ margin: '0 0 8px 0', fontSize: '20px', fontWeight: '700' }}>
-                배포 예약
-              </h2>
-              <p style={{ margin: '0 0 16px 0', color: '#b8c5d6', fontSize: '13px' }}>
-                {selectedStore.store_name}
-              </p>
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#b8c5d6' }}>
-                  하루 발행 횟수
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="10"
-                  value={scheduleForm.dailyFrequency}
-                  onChange={(e) =>
-                    setScheduleForm({ ...scheduleForm, dailyFrequency: parseInt(e.target.value) || 1 })
-                  }
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    background: 'rgba(0, 0, 0, 0.3)',
-                    border: '1px solid rgba(124, 58, 237, 0.3)',
-                    borderRadius: '6px',
-                    color: '#fff',
-                    boxSizing: 'border-box',
-                  }}
-                />
-              </div>
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#b8c5d6' }}>
-                  총 발행 횟수
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="100"
-                  value={scheduleForm.totalCount}
-                  onChange={(e) =>
-                    setScheduleForm({ ...scheduleForm, totalCount: parseInt(e.target.value) || 1 })
-                  }
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    background: 'rgba(0, 0, 0, 0.3)',
-                    border: '1px solid rgba(124, 58, 237, 0.3)',
-                    borderRadius: '6px',
-                    color: '#fff',
-                    boxSizing: 'border-box',
-                  }}
-                />
-              </div>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  onClick={handleSchedulePublish}
-                  style={{
-                    flex: 1,
-                    background: 'rgba(34, 197, 94, 0.9)',
-                    border: 'none',
-                    color: '#fff',
-                    padding: '10px',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontWeight: '600',
-                  }}
-                >
-                  배포 예약
-                </button>
-                <button
-                  onClick={() => setShowSchedule(false)}
-                  style={{
-                    flex: 1,
-                    background: 'rgba(107, 114, 128, 0.3)',
-                    border: '1px solid rgba(107, 114, 128, 0.5)',
-                    color: '#b8c5d6',
-                    padding: '10px',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontWeight: '600',
-                  }}
-                >
-                  취소
-                </button>
-              </div>
-            </div>
-          </div>
+        {successMessage && (
+          <Alert
+            type="success"
+            message={successMessage}
+            onClose={() => setSuccessMessage('')}
+            duration={3000}
+          />
         )}
-      </div>
-    </div>
-  );
-};
+
+        {error && (
+          <Alert
+            type="error"
+            message={error}
+            onClose={() => setError('')}
+            duration={3000}
+          />
+        )}
+      </PageLayout>
+    );
+  };
 
 export default PublishWorkflow;

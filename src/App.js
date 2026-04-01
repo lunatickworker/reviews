@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ToastProvider, useToast } from './context/ToastContext';
+import ToastContainer from './components/common/ToastContainer';
 import LoginPage from './pages/LoginPage';
 import Navigation from './components/Navigation';
 import MainDashboard from './components/MainDashboard';
@@ -13,6 +15,7 @@ import UserManagement from './components/UserManagement';
  */
 function AppContent() {
   const { token, isAdmin, isAgency, loading } = useAuth();
+  const { toasts, removeToast } = useToast();
   const [currentPage, setCurrentPage] = useState('dashboard');
 
   if (loading) {
@@ -70,6 +73,9 @@ function AppContent() {
         {renderPage()}
       </div>
 
+      {/* 토스트 컨테이너 */}
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
+
       <style>
         {`
           @media (min-width: 768px) {
@@ -99,9 +105,11 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <div style={{ fontFamily: "'AsiaHead', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
-        <AppContent />
-      </div>
+      <ToastProvider>
+        <div style={{ fontFamily: "'AsiaHead', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+          <AppContent />
+        </div>
+      </ToastProvider>
     </AuthProvider>
   );
 }

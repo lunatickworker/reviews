@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { taskApi, storeApi, scheduleApi } from '../utils/api';
+import { taskApi, storeApi } from '../utils/api';
 import { subscribeToTable } from '../utils/realtimeApi';
 import { PageLayout, PageCard, Alert, Loading } from './common';
 import KPICard from './widgets/KPICard';
@@ -17,12 +17,10 @@ const MainDashboard = () => {
   const { token, isAdmin } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [stores, setStores] = useState([]);
-  const [schedules, setSchedules] = useState([]);
   const [stats, setStats] = useState({
     totalTasks: 0,
     completedTasks: 0,
     totalStores: 0,
-    activeSchedules: 0,
     reviewsCompleted: 0,
     successRate: 0,
   });
@@ -49,11 +47,6 @@ const MainDashboard = () => {
       const storesData = storesResponse || [];
       setStores(storesData);
 
-      // 3. 스케줄 데이터
-      const schedulesResponse = await scheduleApi.getAll(token);
-      const schedulesData = schedulesResponse || [];
-      setSchedules(schedulesData);
-
       setError('');
     } catch (err) {
       setError('데이터 로드 실패');
@@ -64,21 +57,19 @@ const MainDashboard = () => {
   }, [token]);
 
   // 통계 계산
-  const calculateStats = useCallback((tasksData, storesData, schedulesData) => {
+  const calculateStats = useCallback((tasksData, storesData) => {
     const completed = tasksData.filter((t) => t.status === 'completed').length;
     const successRate = tasksData.length > 0 ? Math.round((completed / tasksData.length) * 100) : 0;
-    const active = schedulesData.filter((s) => s.status === 'active').length;
 
     setStats({
       totalTasks: tasksData.length,
       completedTasks: completed,
       totalStores: storesData.length,
-      activeSchedules: active,
       reviewsCompleted: completed,
       successRate,
     });
 
-    generateChartData(tasksData, storesData, schedulesData);
+    generateChartData(tasksData, storesData);
   }, []);
 
   // 초기 로드 및 실시간 구독
@@ -88,8 +79,8 @@ const MainDashboard = () => {
 
   // 상태 데이터가 변경되면 통계 계산
   useEffect(() => {
-    calculateStats(tasks, stores, schedules);
-  }, [tasks, stores, schedules, calculateStats]);
+    calculateStats(tasks, stores);
+  }, [tasks, stores, calculateStats]);
 
   // 실시간 구독
   useEffect(() => {
@@ -131,31 +122,13 @@ const MainDashboard = () => {
       })
     );
 
-    // Schedules 테이블 구독
-    unsubscribers.push(
-      subscribeToTable('schedules', {
-        onInsert: (newSchedule) => {
-          console.log('📍 New schedule:', newSchedule);
-          setSchedules(prev => [...prev, newSchedule]);
-        },
-        onUpdate: (updatedSchedule) => {
-          console.log('✏️ Schedule updated:', updatedSchedule);
-          setSchedules(prev => prev.map(s => s.id === updatedSchedule.id ? updatedSchedule : s));
-        },
-        onDelete: (deletedSchedule) => {
-          console.log('🗑️ Schedule deleted:', deletedSchedule);
-          setSchedules(prev => prev.filter(s => s.id !== deletedSchedule.id));
-        },
-      })
-    );
-
     // Cleanup: 언마운트될 때 모든 구독 해제
     return () => {
       unsubscribers.forEach(unsubscribe => unsubscribe());
     };
   }, []);
 
-  const generateChartData = (tasks, stores, schedules) => {
+  const generateChartData = (tasks, stores) => {
     // 일일 작업량
     const dailyData = {};
     tasks.forEach((task) => {

@@ -34,7 +34,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('user');
   };
 
-  // 새로운 권한 체계: admin(관리자), agency(에이전시)
+  // 권한 체계: admin(관리자), agency(에이전시)
   const isAdmin = user?.role === 'admin';
   const isAgency = user?.role === 'agency' || isAdmin;
 

@@ -16,6 +16,8 @@ export default function ReviewAnalytics() {
   const [logLoading, setLogLoading] = useState(false);
   const [filterType, setFilterType] = useState('all'); // all, review, image
   const [dateRange, setDateRange] = useState('today'); // today, week, month
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     const fetchTasks = async () => {
@@ -269,82 +271,247 @@ export default function ReviewAnalytics() {
           <p>해당하는 작업이 없습니다.</p>
         </div>
       ) : (
-        <div style={styles.tableWrapper}>
-          <table style={styles.table}>
-            <thead>
-              <tr style={{ ...styles.tableHeader, background: 'rgba(55, 65, 81, 0.9)' }}>
-                <th style={styles.thLeft}>매장명</th>
-                <th style={styles.th}>작업계정</th>
-                <th style={styles.th}>일발행/총발행</th>
-                <th style={styles.th}>리뷰</th>
-                <th style={styles.th}>이미지</th>
-                <th style={styles.th}>작업일</th>
-                <th style={styles.th}>로그</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredTasks.map((task) => (
-                <tr key={task.id} style={styles.tableRow}>
-                  <td style={styles.tdLeft}>
-                    <div style={styles.taskName}>{task.place_name || '미지정'}</div>
-                    {task.notes && <div style={styles.notes}>{task.notes}</div>}
-                  </td>
-                  <td style={styles.td}>
-                    <span style={styles.accountBadge}>{getWorkAccount(task)}</span>
-                  </td>
-                  <td style={styles.td}>
-                    <span style={styles.scheduleInfo}>
-                      {task.store?.daily_frequency || '-'}회 / {task.store?.total_count || '-'}회
-                    </span>
-                  </td>
-                  <td style={styles.td}>
-                    <span
+        <>
+          {/* 페이지네이션 */}
+          {(() => {
+            const totalPages = Math.ceil(filteredTasks.length / itemsPerPage);
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const paginatedTasks = filteredTasks.slice(startIndex, endIndex);
+
+            return (
+              <>
+                {/* 페이지네이션 컨트롤 */}
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '16px',
+                  background: 'rgba(20, 40, 70, 0.2)',
+                  borderRadius: '12px',
+                  marginBottom: '16px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <label style={{ fontSize: '12px', color: '#b8c5d6' }}>페이지당: </label>
+                    <select
+                      value={itemsPerPage}
+                      onChange={(e) => {
+                        setItemsPerPage(Number(e.target.value));
+                        setCurrentPage(1);
+                      }}
                       style={{
-                        ...styles.statusBadge,
-                        backgroundColor: task.review_status === 'completed' ? '#059669' :
-                          task.review_status === 'failed' ? '#ef4444' : '#8b5cf6',
+                        padding: '6px 10px',
+                        background: 'rgba(30, 50, 80, 0.6)',
+                        border: '1px solid rgba(70, 130, 180, 0.2)',
+                        borderRadius: '4px',
+                        color: '#93c5fd',
+                        fontSize: '12px',
+                        cursor: 'pointer',
                       }}
                     >
-                      {task.review_status === 'completed' ? '✅ 완료' :
-                        task.review_status === 'failed' ? '❌ 실패' : '⏹️ 대기'}
-                    </span>
-                  </td>
-                  <td style={styles.td}>
-                    <span
-                      style={{
-                        ...styles.statusBadge,
-                        backgroundColor: task.image_status === 'completed' ? '#059669' :
-                          task.image_status === 'failed' ? '#ef4444' : '#8b5cf6',
-                      }}
-                    >
-                      {task.image_status === 'completed' ? '✅ 완료' :
-                        task.image_status === 'failed' ? '❌ 실패' : '⏹️ 대기'}
-                    </span>
-                  </td>
-                  <td style={styles.td}>
-                    <span style={styles.dateText}>
-                      {new Date(task.created_at).toLocaleString('ko-KR', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
-                  </td>
-                  <td style={styles.td}>
-                    <button
-                      onClick={() => handleViewLogs(task)}
-                      style={styles.logButton}
-                    >
-                      보기
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                      <option value={10}>10개</option>
+                      <option value={20}>20개</option>
+                      <option value={50}>50개</option>
+                      <option value={100}>100개</option>
+                    </select>
+                  </div>
+
+                  {filteredTasks.length > itemsPerPage && (
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'center', 
+                      alignItems: 'center', 
+                      gap: '8px'
+                    }}>
+                      <button
+                        onClick={() => setCurrentPage(1)}
+                        disabled={currentPage === 1}
+                        style={{
+                          padding: '6px 10px',
+                          background: currentPage === 1 ? 'rgba(107, 114, 128, 0.2)' : 'rgba(59, 130, 246, 0.3)',
+                          border: '1px solid rgba(59, 130, 246, 0.3)',
+                          borderRadius: '4px',
+                          color: currentPage === 1 ? '#6b7280' : '#93c5fd',
+                          cursor: currentPage === 1 ? 'default' : 'pointer',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                        }}
+                      >
+                        ◀◀
+                      </button>
+                      
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={currentPage === 1}
+                        style={{
+                          padding: '6px 10px',
+                          background: currentPage === 1 ? 'rgba(107, 114, 128, 0.2)' : 'rgba(59, 130, 246, 0.3)',
+                          border: '1px solid rgba(59, 130, 246, 0.3)',
+                          borderRadius: '4px',
+                          color: currentPage === 1 ? '#6b7280' : '#93c5fd',
+                          cursor: currentPage === 1 ? 'default' : 'pointer',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                        }}
+                      >
+                        ◀
+                      </button>
+
+                      {(() => {
+                        const pageButtons = [];
+                        const maxVisiblePages = 5;
+                        let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+                        let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+                        
+                        if (endPage - startPage + 1 < maxVisiblePages) {
+                          startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                        }
+                        
+                        for (let i = startPage; i <= endPage; i++) {
+                          pageButtons.push(
+                            <button
+                              key={i}
+                              onClick={() => setCurrentPage(i)}
+                              style={{
+                                padding: '6px 10px',
+                                background: currentPage === i ? 'rgba(99, 102, 241, 0.6)' : 'rgba(30, 50, 80, 0.6)',
+                                border: currentPage === i ? '1px solid rgba(99, 102, 241, 0.8)' : '1px solid rgba(70, 130, 180, 0.2)',
+                                borderRadius: '4px',
+                                color: currentPage === i ? '#e8eef5' : '#93c5fd',
+                                cursor: 'pointer',
+                                fontSize: '12px',
+                                fontWeight: currentPage === i ? '700' : '600',
+                              }}
+                            >
+                              {i}
+                            </button>
+                          );
+                        }
+                        return pageButtons;
+                      })()}
+
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                        disabled={currentPage === totalPages}
+                        style={{
+                          padding: '6px 10px',
+                          background: currentPage === totalPages ? 'rgba(107, 114, 128, 0.2)' : 'rgba(59, 130, 246, 0.3)',
+                          border: '1px solid rgba(59, 130, 246, 0.3)',
+                          borderRadius: '4px',
+                          color: currentPage === totalPages ? '#6b7280' : '#93c5fd',
+                          cursor: currentPage === totalPages ? 'default' : 'pointer',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                        }}
+                      >
+                        ▶
+                      </button>
+                      
+                      <button
+                        onClick={() => setCurrentPage(totalPages)}
+                        disabled={currentPage === totalPages}
+                        style={{
+                          padding: '6px 10px',
+                          background: currentPage === totalPages ? 'rgba(107, 114, 128, 0.2)' : 'rgba(59, 130, 246, 0.3)',
+                          border: '1px solid rgba(59, 130, 246, 0.3)',
+                          borderRadius: '4px',
+                          color: currentPage === totalPages ? '#6b7280' : '#93c5fd',
+                          cursor: currentPage === totalPages ? 'default' : 'pointer',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                        }}
+                      >
+                        ▶▶
+                      </button>
+
+                      <span style={{ fontSize: '12px', color: '#b8c5d6', marginLeft: '12px' }}>
+                        {currentPage} / {totalPages}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* 테이블 */}
+                <div style={styles.tableWrapper}>
+                  <table style={styles.table}>
+                    <thead>
+                      <tr style={{ ...styles.tableHeader, background: 'rgba(55, 65, 81, 0.9)' }}>
+                        <th style={styles.thLeft}>매장명</th>
+                        <th style={styles.th}>작업계정</th>
+                        <th style={styles.th}>일발행/총발행</th>
+                        <th style={styles.th}>리뷰</th>
+                        <th style={styles.th}>이미지</th>
+                        <th style={styles.th}>작업일</th>
+                        <th style={styles.th}>로그</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginatedTasks.map((task) => (
+                        <tr key={task.id} style={styles.tableRow}>
+                          <td style={styles.tdLeft}>
+                            <div style={styles.taskName}>{task.place_name || '미지정'}</div>
+                            {task.notes && <div style={styles.notes}>{task.notes}</div>}
+                          </td>
+                          <td style={styles.td}>
+                            <span style={styles.accountBadge}>{getWorkAccount(task)}</span>
+                          </td>
+                          <td style={styles.td}>
+                            <span style={styles.scheduleInfo}>
+                              {task.store?.daily_frequency || '-'}회 / {task.store?.total_count || '-'}회
+                            </span>
+                          </td>
+                          <td style={styles.td}>
+                            <span
+                              style={{
+                                ...styles.statusBadge,
+                                backgroundColor: task.review_status === 'completed' ? '#059669' :
+                                  task.review_status === 'failed' ? '#ef4444' : '#8b5cf6',
+                              }}
+                            >
+                              {task.review_status === 'completed' ? '✅ 완료' :
+                                task.review_status === 'failed' ? '❌ 실패' : '⏹️ 대기'}
+                            </span>
+                          </td>
+                          <td style={styles.td}>
+                            <span
+                              style={{
+                                ...styles.statusBadge,
+                                backgroundColor: task.image_status === 'completed' ? '#059669' :
+                                  task.image_status === 'failed' ? '#ef4444' : '#8b5cf6',
+                              }}
+                            >
+                              {task.image_status === 'completed' ? '✅ 완료' :
+                                task.image_status === 'failed' ? '❌ 실패' : '⏹️ 대기'}
+                            </span>
+                          </td>
+                          <td style={styles.td}>
+                            <span style={styles.dateText}>
+                              {new Date(task.created_at).toLocaleString('ko-KR', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </td>
+                          <td style={styles.td}>
+                            <button
+                              onClick={() => handleViewLogs(task)}
+                              style={styles.logButton}
+                            >
+                              보기
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            );
+          })()}
+        </>
       )}
 
       {/* 로그 모달 */}
