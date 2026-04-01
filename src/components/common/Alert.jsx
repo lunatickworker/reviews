@@ -1,6 +1,5 @@
 // frontend/src/components/common/Alert.jsx
 import React, { useEffect } from 'react';
-import { spacing } from '../../styles/theme';
 import { FiAlertCircle, FiCheckCircle, FiInfo, FiX } from 'react-icons/fi';
 
 /**

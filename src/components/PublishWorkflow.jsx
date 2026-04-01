@@ -44,10 +44,6 @@ const PublishWorkflow = () => {
   const [taskCurrentPage, setTaskCurrentPage] = useState(1);
   const [storeItemsPerPage, setStoreItemsPerPage] = useState(10);
   const [taskItemsPerPage, setTaskItemsPerPage] = useState(10);
-  
-  // AI 리뷰 생성 상태
-  const [draftReviews, setDraftReviews] = useState('[{"content":"","applyAt":1}]'); // 원고 작성
-  
 
   // Helper 함수: 작업의 진행 상태를 동적으로 판단
   const isTaskInProgress = (task) => {

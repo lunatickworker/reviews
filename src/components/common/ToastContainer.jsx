@@ -1,5 +1,5 @@
 // frontend/src/components/common/ToastContainer.jsx
-import React, { useState, useCallback } from 'react';
+import React from 'react';
 import Toast from './Toast';
 
 export const useToast = () => {
