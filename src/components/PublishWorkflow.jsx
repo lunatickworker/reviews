@@ -23,6 +23,7 @@ const PublishWorkflow = () => {
   // 모달 상태
   const [showAddStore, setShowAddStore] = useState(false);
   const [editingStoreId, setEditingStoreId] = useState(null);
+  const [isGeneratingReviews, setIsGeneratingReviews] = useState(false);
 
   // 폼 데이터
   const [storeForm, setStoreForm] = useState({
@@ -391,6 +392,14 @@ const PublishWorkflow = () => {
     });
   };
 
+  // CSS 애니메이션
+  const spinnerStyle = `
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  `;
+
   const styles = {
     container: {
       background: 'linear-gradient(135deg, rgba(12, 20, 35, 0.99) 0%, rgba(20, 35, 55, 0.99) 100%)',
@@ -469,7 +478,9 @@ const PublishWorkflow = () => {
   };
 
   return (
-    <PageLayout 
+    <>
+      <style>{spinnerStyle}</style>
+      <PageLayout 
       title="배포 워크플로우" 
       description={`등록된 매장: ${stores.length}개 | 진행 중인 작업: ${displayTasks.length}개`}
       actions={
@@ -1486,32 +1497,88 @@ const PublishWorkflow = () => {
                     원고 작성 (직접 입력 또는 AI로 생성)
                   </label>
                   <button
+                    disabled={isGeneratingReviews}
                     onClick={async () => {
                       try {
+                        setIsGeneratingReviews(true);
+                        setError('');
                         const guidance = storeForm.reviewMessage || '좋은 매장입니다';
-                        const response = await storeApi.generateReviews(guidance, 5, token);
-                        if (response && response.reviews) {
-                          const reviewText = response.reviews.map(r => r.content || r).join('\n');
-                          setStoreForm({ ...storeForm, draftReviews: reviewText });
+                        console.log('🤖 AI 리뷰 생성 요청:', guidance);
+                        
+                        // 타임아웃 설정 (300초)
+                        const timeoutPromise = new Promise((_, reject) =>
+                          setTimeout(() => reject(new Error('요청 타임아웃: AI 생성이 너무 오래 걸립니다.')), 300000)
+                        );
+
+                        // 단일 리뷰 생성 엔드포인트 호출
+                        const response = await Promise.race([
+                          storeApi.generateReview(guidance, token),
+                          timeoutPromise,
+                        ]);
+                        
+                        console.log('📦 AI 응답:', response);
+                        console.log('📦 응답 타입:', typeof response);
+                        console.log('📦 응답 keys:', Object.keys(response || {}));
+                        
+                        // single endpoint returns { review: '...' }
+                        let reviewText = '';
+                        if (response && response.review) {
+                          reviewText = response.review;
+                        } else if (response && response.reviews && Array.isArray(response.reviews)) {
+                          reviewText = (response.reviews[0] && (response.reviews[0].text || response.reviews[0].content)) || '';
+                        }
+
+                        console.log('✅ 생성된 리뷰 텍스트(raw):', reviewText);
+
+                        // 원고 길이 60자로 제한
+                        const truncated = reviewText ? reviewText.substring(0, 60) : '';
+                        if (reviewText) {
+                          setStoreForm({ ...storeForm, draftReviews: truncated });
                           setSuccessMessage('✅ AI 리뷰가 생성되었습니다.');
                           setTimeout(() => setSuccessMessage(''), 2000);
+                        } else {
+                          console.error('❌ 응답이 유효하지 않음:', response);
+                          setError('AI 응답이 유효하지 않습니다. 다시 시도해주세요.');
                         }
                       } catch (err) {
+                        console.error('❌ AI 요청 실패:', err);
                         setError('AI 리뷰 생성 실패: ' + err.message);
+                      } finally {
+                        setIsGeneratingReviews(false);
                       }
                     }}
                     style={{
                       padding: '6px 12px',
                       fontSize: '12px',
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      background: isGeneratingReviews ? 'linear-gradient(135deg, #7c7c8c 0%, #8a8a98 100%)' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                       color: '#fff',
                       border: 'none',
                       borderRadius: '4px',
-                      cursor: 'pointer',
+                      cursor: isGeneratingReviews ? 'not-allowed' : 'pointer',
                       fontWeight: '600',
+                      opacity: isGeneratingReviews ? 0.7 : 1,
+                      transition: 'all 0.3s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
                     }}
                   >
-                    🤖 AI 리뷰 생성
+                    {isGeneratingReviews ? (
+                      <>
+                        <span style={{
+                          display: 'inline-block',
+                          width: '12px',
+                          height: '12px',
+                          border: '2px solid rgba(255, 255, 255, 0.3)',
+                          borderTop: '2px solid #fff',
+                          borderRadius: '50%',
+                          animation: 'spin 0.8s linear infinite',
+                        }} />
+                        생성 중...
+                      </>
+                    ) : (
+                      '🤖 AI 리뷰 생성'
+                    )}
                   </button>
                 </div>
                 <textarea
@@ -1667,6 +1734,7 @@ const PublishWorkflow = () => {
           />
         )}
       </PageLayout>
+    </>
     );
   };
 
