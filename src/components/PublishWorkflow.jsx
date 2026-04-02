@@ -31,10 +31,79 @@ const PublishWorkflow = () => {
     address: '',
     reviewMessage: '',
     draftReviews: '',
-    imageUrls: '',
     dailyFrequency: 1,
     totalCount: 1,
   });
+  const [existingImageUrls, setExistingImageUrls] = useState([]);
+  const [selectedImages, setSelectedImages] = useState([]); // File objects
+
+  const handleFilesSelected = (fileList) => {
+    const files = Array.from(fileList || []);
+    const allowed = files.slice(0, 2);
+    const valid = [];
+    for (const f of allowed) {
+      if (f.size > 2 * 1024 * 1024) {
+        setError('이미지 파일은 최대 2MB까지 업로드 가능합니다.');
+        continue;
+      }
+      if (!f.type.startsWith('image/')) {
+        setError('이미지 파일만 업로드 가능합니다.');
+        continue;
+      }
+      valid.push(f);
+    }
+    setSelectedImages(valid);
+  };
+
+  const handleUploadNow = async (storeId) => {
+    if (!storeId) return;
+    if (!selectedImages || selectedImages.length === 0) return;
+    try {
+      setError('');
+      const resp = await storeApi.uploadImages(storeId, selectedImages, token);
+      // update existing images list
+      setExistingImageUrls(resp.store.image_urls || []);
+      setSelectedImages([]);
+      setSuccessMessage('이미지가 업로드되었습니다.');
+      setTimeout(() => setSuccessMessage(''), 2500);
+    } catch (err) {
+      console.error('이미지 업로드 실패:', err);
+      setError('이미지 업로드에 실패했습니다.');
+    }
+  };
+
+  const removeSelectedImage = (index) => {
+    const arr = [...selectedImages];
+    arr.splice(index, 1);
+    setSelectedImages(arr);
+  };
+
+  const downloadUrl = async (url, name) => {
+    try {
+      // Fetch the image as a blob so the download attribute works reliably
+      const res = await fetch(url, { mode: 'cors' });
+      if (!res.ok) throw new Error('이미지 다운로드 실패: ' + res.statusText);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = name || 'image';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      // revoke the object URL after a short delay to ensure the download starts
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+    } catch (e) {
+      console.error('다운로드 실패:', e);
+      // fallback: open in new tab
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+  };
 
   // 작업 탭 필터
   const [taskSearchTerm, setTaskSearchTerm] = useState('');
@@ -140,10 +209,8 @@ const PublishWorkflow = () => {
         return;
       }
 
-      const imageUrls = storeForm.imageUrls
-        .split('\n')
-        .map((url) => url.trim())
-        .filter((url) => url.length > 0);
+      // 이미지 URL 입력 방식 제거: 이미지 업로드는 파일 업로드로 처리
+      const imageUrls = [];
 
       if (editingStoreId) {
         // 편집 모드
@@ -152,17 +219,27 @@ const PublishWorkflow = () => {
           storeForm.storeName.trim(),
           storeForm.address.trim(),
           storeForm.reviewMessage.trim(),
-          imageUrls,
+          existingImageUrls,
           parseInt(storeForm.dailyFrequency) || 1,
           parseInt(storeForm.totalCount) || 1,
           token,
           storeForm.draftReviews.trim()
         );
+        // 이미지가 선택되어 있으면, 편집된 매장 ID로 업로드
+        if (selectedImages && selectedImages.length > 0) {
+          try {
+            await storeApi.uploadImages(editingStoreId, selectedImages, token);
+          } catch (imgErr) {
+            console.error('이미지 업로드 실패:', imgErr);
+            setError('이미지 업로드에 실패했습니다. 매장은 수정되었습니다.');
+          }
+        }
+
         setSuccessMessage('✅ 매장이 수정되었습니다.');
         setEditingStoreId(null);
       } else {
         // 추가 모드
-        await storeApi.create(
+        const result = await storeApi.create(
           storeForm.storeName.trim(),
           storeForm.address.trim(),
           storeForm.reviewMessage.trim(),
@@ -172,6 +249,18 @@ const PublishWorkflow = () => {
           token,
           storeForm.draftReviews.trim()
         );
+
+        // 이미지가 선택되어 있으면, 생성된 매장 ID로 서버에 업로드
+        if (selectedImages && selectedImages.length > 0) {
+          try {
+            await storeApi.uploadImages(result.store.id, selectedImages, token);
+          } catch (imgErr) {
+            console.error('이미지 업로드 실패:', imgErr);
+            // 이미지 업로드 실패는 매장 생성 성공을 막지 않음
+            setError('이미지 업로드에 실패했습니다. 매장은 생성되었습니다.');
+          }
+        }
+
         setSuccessMessage('✅ 매장이 등록되었습니다.');
       }
 
@@ -180,10 +269,10 @@ const PublishWorkflow = () => {
         address: '',
         reviewMessage: '',
         draftReviews: '',
-        imageUrls: '',
         dailyFrequency: 1,
         totalCount: 1,
       });
+      setSelectedImages([]);
       setShowAddStore(false);
       await loadData();
       setTimeout(() => setSuccessMessage(''), 3000);
@@ -200,10 +289,11 @@ const PublishWorkflow = () => {
       address: store.address || '',
       reviewMessage: store.review_message || '',
       draftReviews: store.draft_reviews || '',
-      imageUrls: (store.image_urls || []).join('\n'),
+      // image URLs are managed via `existingImageUrls`
       dailyFrequency: store.daily_frequency || 1,
       totalCount: store.total_count || 1,
     });
+    setExistingImageUrls(store.image_urls || []);
     setShowAddStore(true);
   };
 
@@ -386,10 +476,11 @@ const PublishWorkflow = () => {
       address: '',
       reviewMessage: '',
       draftReviews: '',
-      imageUrls: '',
       dailyFrequency: 1,
       totalCount: 1,
     });
+    setSelectedImages([]);
+    setExistingImageUrls([]);
   };
 
   // CSS 애니메이션
@@ -714,15 +805,9 @@ const PublishWorkflow = () => {
                           <td style={styles.tdCenter}>{store.draft_reviews?.substring(0, 15) || '-'}</td>
                           <td style={styles.tdCenter}>
                             {store.image_urls?.length ? (
-                              <div style={{ fontSize: '12px' }}>
-                                {store.image_urls.length}개
-                                <div style={{ fontSize: '10px', color: '#6b7280', marginTop: '2px' }}>
-                                  {store.image_urls.slice(0, 2).map((url, idx) => (
-                                    <div key={idx} style={{ maxWidth: '120px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                      {url.substring(0, 20)}...
-                                    </div>
-                                  ))}
-                                </div>
+                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center' }}>
+                                <img src={store.image_urls[0]} alt="thumb" style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '6px', cursor: 'pointer' }} onClick={() => downloadUrl(store.image_urls[0], `${store.store_name}-image.jpg`)} />
+                                <span style={{ fontSize: '12px', color: '#9ca3af' }}>{store.image_urls.length}개</span>
                               </div>
                             ) : (
                               '-'
@@ -1598,37 +1683,83 @@ const PublishWorkflow = () => {
                     fontSize: '12px',
                   }}
                 />
-                <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px' }}>
-                  💡 버튼을 클릭하면 리뷰 가이드를 기반으로 AI가 리뷰를 자동 생성합니다
-                </div>
-              </div>
+                
+              {/* 이미지 업로드 (드래그/드롭, 최대 2개) */}
+              <div style={{ marginBottom: '12px' }}>
+                          <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#b8c5d6' }}>
+                            이미지 업로드 (최대 2개, 각 2MB)
+                          </label>
+                          <div
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              handleFilesSelected(e.dataTransfer.files);
+                            }}
+                            style={{
+                              width: '100%',
+                              height: '50%',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexDirection: 'column',
+                              gap: '8px',
+                              padding: '18px',
+                              border: '2px dashed rgba(124, 58, 237, 0.4)',
+                              borderRadius: '10px',
+                              color: '#b8c5d6',
+                              background: 'linear-gradient(180deg, rgba(0,0,0,0.06), rgba(0,0,0,0.12))',
+                              boxSizing: 'border-box',
+                              overflow: 'hidden'
+                            }}
+                          >
+                            <div style={{ fontSize: '14px', color: '#dbeafe', fontWeight: 600 }}>이미지를 끌어다 놓거나</div>
+                            <label style={{ background: '#4f46e5', padding: '8px 12px', borderRadius: '8px', color: '#fff', cursor: 'pointer', fontSize: '13px' }}>
+                              파일 선택
+                              <input type="file" accept="image/*" multiple onChange={(e) => handleFilesSelected(e.target.files)} style={{ display: 'none' }} />
+                            </label>
+                            <div style={{ fontSize: '12px', color: '#9ca3af' }}>최대 2개 · 각 2MB</div>
+                          </div>
 
-              {/* 이미지 URL */}
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#b8c5d6' }}>
-                  이미지 URL (한 줄에 하나씩)
-                </label>
-                <textarea
-                  placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg"
-                  value={storeForm.imageUrls}
-                  onChange={(e) => setStoreForm({ ...storeForm, imageUrls: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    background: 'rgba(0, 0, 0, 0.3)',
-                    border: '1px solid rgba(124, 58, 237, 0.3)',
-                    borderRadius: '6px',
-                    color: '#fff',
-                    minHeight: '80px',
-                    boxSizing: 'border-box',
-                    fontFamily: 'monospace',
-                    fontSize: '12px',
-                  }}
-                />
-                <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px' }}>
-                  현재: {storeForm.imageUrls.split('\n').filter((url) => url.trim().length > 0).length}개
-                </div>
-              </div>
+                          {selectedImages.length > 0 && (
+                            <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                              {selectedImages.map((f, idx) => (
+                                <div key={idx} style={{ position: 'relative' }}>
+                                  <img src={URL.createObjectURL(f)} alt={f.name} style={{ width: '120px', height: '120px', objectFit: 'cover', borderRadius: '8px', boxShadow: '0 4px 12px rgba(2,6,23,0.4)' }} />
+                                  <button onClick={() => removeSelectedImage(idx)} style={{ position: 'absolute', top: '-8px', right: '-8px', background: '#ef4444', border: 'none', borderRadius: '50%', width: '26px', height: '26px', color: '#fff', cursor: 'pointer', fontSize: '14px' }}>×</button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {/* 기존에 저장된 이미지 목록 (imageUrls textarea 기반) */}
+                          {existingImageUrls && existingImageUrls.length > 0 && (
+                            <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                              {existingImageUrls.map((url, idx) => (
+                                <div key={idx} style={{ position: 'relative' }}>
+                                  <img src={url} alt={`img-${idx}`} style={{ width: '120px', height: '120px', objectFit: 'cover', borderRadius: '8px', boxShadow: '0 4px 12px rgba(2,6,23,0.4)' }} />
+                                  <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', marginTop: '6px' }}>
+                                    <button onClick={() => downloadUrl(url, `store-image-${idx}.jpg`)} style={{ background: '#3b82f6', border: 'none', color: '#fff', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>
+                                      다운로드
+                                    </button>
+                                    <button onClick={async () => {
+                                      if (!window.confirm('이 이미지를 삭제하시겠습니까?')) return;
+                                      try {
+                                        const res = await storeApi.deleteImage(editingStoreId || (result && result.store && result.store.id), url, token);
+                                        setExistingImageUrls(res.store.image_urls || []);
+                                        setSuccessMessage('이미지가 삭제되었습니다.');
+                                        setTimeout(() => setSuccessMessage(''), 2000);
+                                      } catch (e) {
+                                        console.error('이미지 삭제 실패:', e);
+                                        setError('이미지 삭제에 실패했습니다.');
+                                      }
+                                    }} style={{ background: '#ef4444', border: 'none', color: '#fff', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>
+                                      삭제
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
 
               {/* 일발행/총발행 */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
@@ -1713,6 +1844,7 @@ const PublishWorkflow = () => {
                 </button>
               </div>
             </div>
+          </div>
           </div>
         )}
 

@@ -98,6 +98,36 @@ export const storeApi = {
     apiCall('POST', '/stores/generate-review', { guidance }, token),
   generateReviews: (guidance, count, token) =>
     apiCall('POST', '/stores/generate-reviews', { guidance, count }, token),
+  uploadImages: async (id, files, token) => {
+    const url = `${API_BASE_URL}/stores/${id}/images`;
+    const formData = new FormData();
+    files.forEach((f) => formData.append('images', f));
+
+    const headers = {
+      'ngrok-skip-browser-warning': 'true',
+      'User-Agent': 'Mozilla/5.0 (Application)'
+    };
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    const resp = await fetch(url, { method: 'POST', headers, body: formData });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data?.error || '이미지 업로드 실패');
+    return data;
+  }
+  ,deleteImage: async (id, url, token) => {
+    const resp = await fetch(`${API_BASE_URL}/stores/${id}/images`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true'
+      , ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({ url })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data?.error || '이미지 삭제 실패');
+    return data;
+  }
 };
 
 // 작업 API
