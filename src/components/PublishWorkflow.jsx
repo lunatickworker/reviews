@@ -1530,8 +1530,8 @@ const PublishWorkflow = () => {
 
                         console.log('✅ 생성된 리뷰 텍스트(raw):', reviewText);
 
-                        // 원고 길이 60자로 제한
-                        const truncated = reviewText ? reviewText.substring(0, 60) : '';
+                        // 원고 길이 100자로 제한
+                        const truncated = reviewText ? reviewText.substring(0, 100) : '';
                         if (reviewText) {
                           setStoreForm({ ...storeForm, draftReviews: truncated });
                           setSuccessMessage('✅ AI 리뷰가 생성되었습니다.');
