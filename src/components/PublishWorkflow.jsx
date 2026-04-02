@@ -1717,6 +1717,23 @@ const PublishWorkflow = () => {
                               파일 선택
                               <input type="file" accept="image/*" multiple onChange={(e) => handleFilesSelected(e.target.files)} style={{ display: 'none' }} />
                             </label>
+                            {/* 즉시 업로드 버튼: 편집 중인 매장이 있어야 동작 */}
+                            <button
+                              onClick={() => handleUploadNow(editingStoreId)}
+                              disabled={!editingStoreId || selectedImages.length === 0}
+                              style={{
+                                marginTop: '8px',
+                                background: !editingStoreId || selectedImages.length === 0 ? 'rgba(107,114,128,0.3)' : '#10b981',
+                                border: 'none',
+                                color: '#fff',
+                                padding: '6px 10px',
+                                borderRadius: '8px',
+                                cursor: !editingStoreId || selectedImages.length === 0 ? 'not-allowed' : 'pointer',
+                                fontSize: '12px',
+                              }}
+                            >
+                              지금 업로드
+                            </button>
                             <div style={{ fontSize: '12px', color: '#9ca3af' }}>최대 2개 · 각 2MB</div>
                           </div>
 
