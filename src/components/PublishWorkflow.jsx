@@ -1743,7 +1743,9 @@ const PublishWorkflow = () => {
                                     <button onClick={async () => {
                                       if (!window.confirm('이 이미지를 삭제하시겠습니까?')) return;
                                       try {
-                                        const res = await storeApi.deleteImage(editingStoreId || (result && result.store && result.store.id), url, token);
+                                        const storeIdToUse = editingStoreId;
+                                        if (!storeIdToUse) throw new Error('매장 ID를 찾을 수 없습니다. 먼저 매장을 저장하세요.');
+                                        const res = await storeApi.deleteImage(storeIdToUse, url, token);
                                         setExistingImageUrls(res.store.image_urls || []);
                                         setSuccessMessage('이미지가 삭제되었습니다.');
                                         setTimeout(() => setSuccessMessage(''), 2000);
