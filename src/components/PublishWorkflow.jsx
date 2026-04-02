@@ -733,7 +733,7 @@ const PublishWorkflow = () => {
                             <span style={{ color: '#9ca3af' }}> / </span>
                             <span style={{ color: '#48bb78', fontWeight: '600' }}>{store.total_count || 1}</span>
                             <span style={{ color: '#9ca3af' }}> / </span>
-                            <span style={{ color: '#f56565', fontWeight: '600' }}>{store.deployed_count || 0}</span>
+                            <span style={{ color: '#f56565', fontWeight: '600' }}>{(store.deployed_count > 0) ? store.deployed_count : '-'}</span>
                           </td>
                           <td style={styles.tdCenter}>
                             {store.created_at ? new Date(store.created_at).toLocaleDateString('ko-KR') : '-'}
