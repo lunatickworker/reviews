@@ -242,7 +242,6 @@ const PublishWorkflow = () => {
     const parsed = detectReviewWorkAccount();
     console.log('⏱️ PublishWorkflow 폴링 시작, 첫 감지:', parsed);
     if (parsed) {
-      setDetectedWorkAccount(parsed);
       try { localStorage.setItem('detectedWorkAccount', parsed); } catch (e) {}
     }
     
