@@ -79,8 +79,6 @@ const PublishWorkflow = () => {
     return null;
   };
 
-  const [detectedWorkAccount, setDetectedWorkAccount] = useState(() => getSavedWorkAccount());
-
   const handleFilesSelected = (fileList) => {
     const files = Array.from(fileList || []);
     const allowed = files.slice(0, 2);
@@ -253,13 +251,12 @@ const PublishWorkflow = () => {
       const value = detectReviewWorkAccount();
       if (value) {
         console.log('✅ 감지됨:', value);
-        setDetectedWorkAccount(value);
         try { localStorage.setItem('detectedWorkAccount', value); } catch (e) {}
       }
     }, 500);
     
     return () => clearInterval(t1);
-  }, [showAddStore]);
+  }, [showAddStore, detectReviewWorkAccount]);
 
   const handleAddStore = async () => {
     try {
