@@ -37,10 +37,6 @@ const PublishWorkflow = () => {
   const [existingImageUrls, setExistingImageUrls] = useState([]);
   const [selectedImages, setSelectedImages] = useState([]); // File objects
 
-  const getSavedWorkAccount = () => {
-    try { return localStorage.getItem('detectedWorkAccount') || ''; } catch (e) { return ''; }
-  };
-
   const findInFrames = (selector) => {
     const search = (doc) => {
       const el = doc.querySelector(selector);
@@ -59,24 +55,6 @@ const PublishWorkflow = () => {
       return null;
     };
     return search(document);
-  };
-
-  const detectReviewWorkAccount = () => {
-    try {
-      const el = findInFrames('.Af21Ie');
-      console.log('🔍 findInFrames 결과:', el, el?.textContent);
-      const value = el?.textContent?.trim();
-      if (value) {
-        console.log('✅ 파싱 성공:', value);
-        try { localStorage.setItem('detectedWorkAccount', value); } catch (e) {}
-        return value;
-      } else {
-        console.log('❌ element found 하지만 value 없음:', el);
-      }
-    } catch (e) {
-      console.error('⚠️ detectReviewWorkAccount 에러:', e);
-    }
-    return null;
   };
 
   const handleFilesSelected = (fileList) => {
@@ -238,6 +216,25 @@ const PublishWorkflow = () => {
   useEffect(() => {
     if (!showAddStore) return;
     
+    // detectReviewWorkAccount 함수를 useEffect 내부에서 정의
+    const detectReviewWorkAccount = () => {
+      try {
+        const el = findInFrames('.Af21Ie');
+        console.log('🔍 findInFrames 결과:', el, el?.textContent);
+        const value = el?.textContent?.trim();
+        if (value) {
+          console.log('✅ 파싱 성공:', value);
+          try { localStorage.setItem('detectedWorkAccount', value); } catch (e) {}
+          return value;
+        } else {
+          console.log('❌ element found 하지만 value 없음:', el);
+        }
+      } catch (e) {
+        console.error('⚠️ detectReviewWorkAccount 에러:', e);
+      }
+      return null;
+    };
+    
     // 한 번 즉시 실행
     const parsed = detectReviewWorkAccount();
     console.log('⏱️ PublishWorkflow 폴링 시작, 첫 감지:', parsed);
@@ -255,7 +252,7 @@ const PublishWorkflow = () => {
     }, 500);
     
     return () => clearInterval(t1);
-  }, [showAddStore, detectReviewWorkAccount]);
+  }, [showAddStore]);
 
   const handleAddStore = async () => {
     try {
