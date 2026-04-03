@@ -154,11 +154,13 @@ export const logsApi = {
 
 // 리뷰 배포 API
 export const mapApi = {
-  automateMap: (shortUrl, notes, storeId, totalCount, token) =>
-    apiCall('POST', '/automate-map', { shortUrl, notes, storeId, totalCount }, token),
+  automateMap: (shortUrl, notes, storeId, totalCount, token, workAccount) =>
+    apiCall('POST', '/automate-map', { shortUrl, notes, storeId, totalCount, workAccount }, token),
   getTasks: (token) => apiCall('GET', '/tasks', null, token),
   getReviews: (token) => apiCall('GET', '/reviews', null, token),
   getImageReviews: (token) => apiCall('GET', '/image-reviews', null, token),
   getReviewStatistics: (token, dateRange = '7days') =>
     apiCall('GET', `/statistics/reviews?period=${dateRange}`, null, token),
+  extractReviewLink: (taskId, token) =>
+    apiCall('POST', '/extract-review-link', { taskId }, token),
 };

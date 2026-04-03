@@ -5,25 +5,98 @@ import { subscribeToTable } from '../utils/realtimeApi';
 import { PageLayout } from './common';
 
 export default function ReviewAnalytics() {
-  const { token } = useAuth();
+  const { token, isAdmin } = useAuth();
   const isInitialLoad = useRef(true);
   const [tasks, setTasks] = useState([]);
+  const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState('');
+  const getSavedWorkAccount = () => {
+    try {
+      return localStorage.getItem('detectedWorkAccount') || '';
+    } catch (e) {
+      return '';
+    }
+  };
+
+  const findInFrames = (selector) => {
+    const search = (doc) => {
+      const el = doc.querySelector(selector);
+      if (el) return el;
+      const iframes = Array.from(doc.querySelectorAll('iframe'));
+      for (const iframe of iframes) {
+        try {
+          const childDoc = iframe.contentDocument || iframe.contentWindow?.document;
+          if (!childDoc) continue;
+          const found = search(childDoc);
+          if (found) return found;
+        } catch (e) {
+          continue;
+        }
+      }
+      return null;
+    };
+    return search(document);
+  };
+
+  const detectReviewWorkAccount = () => {
+    try {
+      const el = findInFrames('.Af21Ie');
+      const value = el?.textContent?.trim();
+      if (value) {
+        try {
+          localStorage.setItem('detectedWorkAccount', value);
+        } catch (e) {}
+        return value;
+      }
+    } catch (e) {}
+    return null;
+  };
+
+  const [workAccountFilter, setWorkAccountFilter] = useState(() => getSavedWorkAccount());
+  const [detectedWorkAccount, setDetectedWorkAccount] = useState(() => getSavedWorkAccount());
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      try {
+        const v = getSavedWorkAccount();
+        if (v !== detectedWorkAccount) setDetectedWorkAccount(v);
+        if (v && !workAccountFilter) setWorkAccountFilter(v);
+      } catch (e) {}
+    }, 1000);
+    return () => clearInterval(t);
+  }, [detectedWorkAccount, workAccountFilter]);
+
+  useEffect(() => {
+    const t2 = setInterval(() => {
+      const parsed = detectReviewWorkAccount();
+      if (parsed && parsed !== detectedWorkAccount) {
+        setDetectedWorkAccount(parsed);
+        setWorkAccountFilter(parsed);
+      }
+    }, 1500);
+    return () => clearInterval(t2);
+  }, [detectedWorkAccount]);
+
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [logs, setLogs] = useState([]);
   const [showLogModal, setShowLogModal] = useState(false);
   const [logLoading, setLogLoading] = useState(false);
+  const [extractingTaskId, setExtractingTaskId] = useState(null); // 링크 추출 중인 task
   const [filterType, setFilterType] = useState('all'); // all, review, image
   const [dateRange, setDateRange] = useState('today'); // today, week, month
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
-    const fetchTasks = async () => {
+    const fetchData = async () => {
       try {
-        const data = await mapApi.getTasks(token);
-        setTasks(data || []);
+        const [taskData, storeData] = await Promise.all([
+          mapApi.getTasks(token),
+          (await import('../utils/api')).storeApi.getAll(token),
+        ]);
+        setTasks(taskData || []);
+        setStores(storeData || []);
       } catch (error) {
         console.error('작업 조회 실패:', error);
       } finally {
@@ -35,7 +108,7 @@ export default function ReviewAnalytics() {
     };
 
     if (token) {
-      fetchTasks();
+      fetchData();
     }
   }, [token]);
 
@@ -89,9 +162,19 @@ export default function ReviewAnalytics() {
 
     // 검색 필터 (매장이름)
     if (searchText.trim()) {
-      filtered = filtered.filter(task =>
-        task.place_name && task.place_name.toLowerCase().includes(searchText.toLowerCase())
-      );
+      const q = searchText.toLowerCase();
+      filtered = filtered.filter(task => {
+        const storeName = stores.find(s => s.id === task.store_id)?.store_name || '';
+        return storeName.toLowerCase().includes(q);
+      });
+    }
+
+    if (workAccountFilter && workAccountFilter.trim()) {
+      const wa = workAccountFilter.toLowerCase();
+      filtered = filtered.filter(task => {
+        const acct = (task.work_account || '').toLowerCase();
+        return acct.includes(wa);
+      });
     }
 
     return filtered;
@@ -101,9 +184,8 @@ export default function ReviewAnalytics() {
 
   // 작업계정 표시 (Google 계정 이메일의 @ 앞부분)
   const getWorkAccount = (task) => {
-    if (task.work_account) {
-      return task.work_account;
-    }
+    if (task.work_account) return task.work_account;
+    if (detectedWorkAccount && detectedWorkAccount.trim()) return detectedWorkAccount.trim();
     return '미지정';
   };
 
@@ -120,6 +202,36 @@ export default function ReviewAnalytics() {
       setShowLogModal(true);
     } finally {
       setLogLoading(false);
+    }
+  };
+
+  // 링크 자동 추출
+  const handleExtractLink = async (task) => {
+    setExtractingTaskId(task.id);
+    try {
+      const response = await mapApi.extractReviewLink(task.id, token);
+      if (response && response.review_share_link) {
+        if (window.toastInstance) {
+          window.toastInstance.add({
+            type: 'success',
+            message: `✅ 링크 추출 완료!`,
+            duration: 3000
+          });
+        }
+      } else {
+        throw new Error('링크 추출 실패');
+      }
+    } catch (error) {
+      console.error('링크 추출 실패:', error);
+      if (window.toastInstance) {
+        window.toastInstance.add({
+          type: 'error',
+          message: `❌ ${error.message || '링크 추출에 실패했습니다'}`,
+          duration: 3000
+        });
+      }
+    } finally {
+      setExtractingTaskId(null);
     }
   };
 
@@ -152,7 +264,10 @@ export default function ReviewAnalytics() {
             <label style={styles.label}>기간</label>
             <select
               value={dateRange}
-              onChange={(e) => setDateRange(e.target.value)}
+              onChange={(e) => {
+                setDateRange(e.target.value);
+                setCurrentPage(1); // ✅ 필터 변경 시 페이지 1로 리셋
+              }}
               style={styles.select}
             >
               <option value="today">오늘</option>
@@ -168,7 +283,10 @@ export default function ReviewAnalytics() {
               <input
                 type="date"
                 value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
+                onChange={(e) => {
+                  setSelectedDate(e.target.value);
+                  setCurrentPage(1); // ✅ 날짜 변경 시 페이지 1로 리셋
+                }}
                 style={styles.dateInput}
               />
             </div>
@@ -178,7 +296,10 @@ export default function ReviewAnalytics() {
             <label style={styles.label}>작업유형</label>
             <select
               value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
+              onChange={(e) => {
+                setFilterType(e.target.value);
+                setCurrentPage(1); // ✅ 필터 변경 시 페이지 1로 리셋
+              }}
               style={styles.select}
             >
               <option value="all">전체</option>
@@ -193,10 +314,15 @@ export default function ReviewAnalytics() {
               type="text"
               placeholder="매장이름 입력..."
               value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
+              onChange={(e) => {
+                setSearchText(e.target.value);
+                setCurrentPage(1); // ✅ 검색할 때 페이지 1로 리셋
+              }}
               style={styles.searchInput}
             />
           </div>
+
+
 
           <button
             onClick={() => {
@@ -441,6 +567,7 @@ export default function ReviewAnalytics() {
                         <th style={styles.th}>일발행/총발행</th>
                         <th style={styles.th}>리뷰</th>
                         <th style={styles.th}>이미지</th>
+                        <th style={styles.th}>리뷰상세확인</th>
                         <th style={styles.th}>작업일</th>
                         <th style={styles.th}>로그</th>
                       </tr>
@@ -449,7 +576,7 @@ export default function ReviewAnalytics() {
                       {paginatedTasks.map((task) => (
                         <tr key={task.id} style={styles.tableRow}>
                           <td style={styles.tdLeft}>
-                            <div style={styles.taskName}>{task.place_name || '미지정'}</div>
+                            <div style={styles.taskName}>{stores.find(s => s.id === task.store_id)?.store_name || '미지정'}</div>
                             {task.notes && <div style={styles.notes}>{task.notes}</div>}
                           </td>
                           <td style={styles.td}>
@@ -485,6 +612,36 @@ export default function ReviewAnalytics() {
                             </span>
                           </td>
                           <td style={styles.td}>
+                            {task.review_share_link ? (
+                              <a
+                                href={task.review_share_link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  color: '#3b82f6',
+                                  textDecoration: 'none',
+                                  cursor: 'pointer',
+                                  fontSize: '12px',
+                                  padding: '4px 8px',
+                                  borderRadius: '4px',
+                                  border: '1px solid rgba(59, 130, 246, 0.3)',
+                                  display: 'inline-block',
+                                  transition: 'all 0.2s',
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.target.style.background = 'rgba(59, 130, 246, 0.1)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.target.style.background = 'transparent';
+                                }}
+                              >
+                                리뷰보기 ↗
+                              </a>
+                            ) : (
+                              <span style={{ color: '#9ca3af', fontSize: '12px' }}>-</span>
+                            )}
+                          </td>
+                          <td style={styles.td}>
                             <span style={styles.dateText}>
                               {new Date(task.created_at).toLocaleString('ko-KR', {
                                 year: 'numeric',
@@ -502,6 +659,19 @@ export default function ReviewAnalytics() {
                             >
                               보기
                             </button>
+                            {isAdmin && (
+                              <button
+                                onClick={() => handleExtractLink(task)}
+                                style={{
+                                  ...styles.extractButton,
+                                  opacity: extractingTaskId === task.id ? 0.6 : 1,
+                                  cursor: extractingTaskId === task.id ? 'not-allowed' : 'pointer',
+                                }}
+                                disabled={extractingTaskId === task.id}
+                              >
+                                {extractingTaskId === task.id ? '추출 중...' : '링크 추출'}
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -824,6 +994,19 @@ const styles = {
     fontSize: '15px',
     fontWeight: '500',
     transition: 'all 0.2s ease',
+  },
+
+  extractButton: {
+    padding: '6px 12px',
+    background: 'rgba(34, 197, 94, 0.15)',
+    border: '1px solid rgba(34, 197, 94, 0.2)',
+    borderRadius: '6px',
+    color: '#86efac',
+    cursor: 'pointer',
+    fontSize: '15px',
+    fontWeight: '500',
+    transition: 'all 0.2s ease',
+    marginLeft: '8px',
   },
 
   emptyState: {

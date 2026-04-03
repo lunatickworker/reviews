@@ -64,11 +64,14 @@ export default function TaskManagement() {
   // 검색 필터링
   if (searchText.trim()) {
     const query = searchText.toLowerCase();
-    displayTasks = displayTasks.filter(task => 
-      (task.place_name && task.place_name.toLowerCase().includes(query)) ||
-      (task.work_account && task.work_account.toLowerCase().includes(query)) ||
-      (task.notes && task.notes.toLowerCase().includes(query))
-    );
+    displayTasks = displayTasks.filter(task => {
+      const storeName = stores.find(s => s.id === task.store_id)?.store_name || '';
+      return (
+        (storeName && storeName.toLowerCase().includes(query)) ||
+        (task.work_account && task.work_account.toLowerCase().includes(query)) ||
+        (task.notes && task.notes.toLowerCase().includes(query))
+      );
+    });
   }
 
   // 진행 중이거나 아직 완료되지 않은 작업만 필터링 (완료 작업은 리뷰현황에서만 볼 수 있음)
@@ -97,10 +100,71 @@ export default function TaskManagement() {
   };
 
   // 작업 계정 표시 (Google 계정 이메일의 @ 앞부분)
-  const getWorkAccount = (task) => {
-    if (task.work_account) {
-      return task.work_account;
+  const getSavedWorkAccount = () => {
+    try {
+      return localStorage.getItem('detectedWorkAccount') || '';
+    } catch (e) {
+      return '';
     }
+  };
+
+  const findInFrames = (selector) => {
+    const search = (doc) => {
+      const el = doc.querySelector(selector);
+      if (el) return el;
+      const iframes = Array.from(doc.querySelectorAll('iframe'));
+      for (const iframe of iframes) {
+        try {
+          const childDoc = iframe.contentDocument || iframe.contentWindow?.document;
+          if (!childDoc) continue;
+          const found = search(childDoc);
+          if (found) return found;
+        } catch (e) {
+          continue;
+        }
+      }
+      return null;
+    };
+    return search(document);
+  };
+
+  const detectReviewWorkAccount = () => {
+    try {
+      const el = findInFrames('.Af21Ie');
+      const value = el?.textContent?.trim();
+      if (value) {
+        try { localStorage.setItem('detectedWorkAccount', value); } catch (e) {}
+        return value;
+      }
+    } catch (e) {}
+    return null;
+  };
+
+  const [detectedWorkAccount, setDetectedWorkAccount] = useState(() => getSavedWorkAccount());
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      try {
+        const v = getSavedWorkAccount();
+        if (v !== detectedWorkAccount) setDetectedWorkAccount(v);
+      } catch (e) {}
+    }, 1000);
+    return () => clearInterval(t);
+  }, [detectedWorkAccount]);
+
+  useEffect(() => {
+    const t2 = setInterval(() => {
+      const parsed = detectReviewWorkAccount();
+      if (parsed && parsed !== detectedWorkAccount) {
+        setDetectedWorkAccount(parsed);
+      }
+    }, 1500);
+    return () => clearInterval(t2);
+  }, [detectedWorkAccount]);
+
+  const getWorkAccount = (task) => {
+    if (task.work_account) return task.work_account;
+    if (detectedWorkAccount && detectedWorkAccount.trim()) return detectedWorkAccount.trim();
     return '미지정';
   };
 
@@ -201,6 +265,7 @@ export default function TaskManagement() {
         )}
       </div>
 
+
       {sortedTasks.length === 0 ? (
         <div style={styles.emptyState}>
           <p>오늘 완료되거나 실패된 작업이 없습니다.</p>
@@ -218,6 +283,7 @@ export default function TaskManagement() {
                 <th style={styles.th}>마지막배포</th>
                 <th style={styles.th}>리뷰</th>
                 <th style={styles.th}>리뷰내용</th>
+                <th style={styles.th}>리뷰상세확인</th>
                 <th style={styles.th}>상태</th>
                 <th style={styles.th}>이미지</th>
                 <th style={styles.th}>스크린샷</th>
@@ -227,7 +293,7 @@ export default function TaskManagement() {
               </tr>
             </thead>
             <tbody>
-              {sortedTasks.map((task) => {
+                      {sortedTasks.map((task) => {
                 return (
                 <tr key={task.id} style={styles.tableRow}>
                   <td style={styles.td}>
@@ -251,7 +317,7 @@ export default function TaskManagement() {
                         }
                       }}
                     >
-                      {task.place_name || '미지정'}
+                      {stores.find(s => s.id === task.store_id)?.store_name || '미지정'}
                     </div>
                   </td>
                   <td style={styles.td}>
@@ -287,6 +353,36 @@ export default function TaskManagement() {
                     <div style={styles.reviewContent}>
                       {task.notes || '내용 없음'}
                     </div>
+                  </td>
+                  <td style={styles.td}>
+                    {task.review_share_link ? (
+                      <a
+                        href={task.review_share_link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          color: '#3b82f6',
+                          textDecoration: 'none',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          border: '1px solid rgba(59, 130, 246, 0.3)',
+                          display: 'inline-block',
+                          transition: 'all 0.2s',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.background = 'rgba(59, 130, 246, 0.1)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.background = 'transparent';
+                        }}
+                      >
+                        리뷰보기 ↗
+                      </a>
+                    ) : (
+                      <span style={{ color: '#9ca3af', fontSize: '12px' }}>-</span>
+                    )}
                   </td>
                   <td style={styles.td}>
                     <span

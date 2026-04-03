@@ -1,7 +1,7 @@
 // frontend/src/components/DashboardStats.jsx
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { mapApi } from '../utils/api';
+import { mapApi, storeApi } from '../utils/api';
 import { subscribeToTable } from '../utils/realtimeApi';
 import { PageLayout, Loading } from './common';
 
@@ -9,21 +9,26 @@ export default function DashboardStats() {
   const { token } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [stores, setStores] = useState([]);
 
   useEffect(() => {
-    const fetchTasks = async () => {
+    const fetchData = async () => {
       try {
-        const data = await mapApi.getTasks(token);
-        setTasks(data || []);
+        const [taskData, storeData] = await Promise.all([
+          mapApi.getTasks(token),
+          storeApi.getAll(token),
+        ]);
+        setTasks(taskData || []);
+        setStores(storeData || []);
       } catch (error) {
-        console.error('작업 조회 실패:', error);
+        console.error('데이터 조회 실패:', error);
       } finally {
         setLoading(false);
       }
     };
 
     if (token) {
-      fetchTasks();
+      fetchData();
     }
   }, [token]);
 
@@ -138,7 +143,7 @@ export default function DashboardStats() {
               {todayTasks.map((task) => (
                 <div key={task.id} style={styles.taskItem}>
                   <div style={styles.taskInfo}>
-                    <div style={styles.taskName}>{task.place_name || '로딩 중...'}</div>
+                    <div style={styles.taskName}>{(stores.find(s => s.id === task.store_id)?.store_name) || '로딩 중...'}</div>
                     {task.notes && <div style={styles.taskNotes}>{task.notes}</div>}
                   </div>
                   <div style={styles.taskStatus}>

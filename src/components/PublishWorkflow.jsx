@@ -37,6 +37,50 @@ const PublishWorkflow = () => {
   const [existingImageUrls, setExistingImageUrls] = useState([]);
   const [selectedImages, setSelectedImages] = useState([]); // File objects
 
+  const getSavedWorkAccount = () => {
+    try { return localStorage.getItem('detectedWorkAccount') || ''; } catch (e) { return ''; }
+  };
+
+  const findInFrames = (selector) => {
+    const search = (doc) => {
+      const el = doc.querySelector(selector);
+      if (el) return el;
+      const iframes = Array.from(doc.querySelectorAll('iframe'));
+      for (const iframe of iframes) {
+        try {
+          const childDoc = iframe.contentDocument || iframe.contentWindow?.document;
+          if (!childDoc) continue;
+          const found = search(childDoc);
+          if (found) return found;
+        } catch (e) {
+          continue;
+        }
+      }
+      return null;
+    };
+    return search(document);
+  };
+
+  const detectReviewWorkAccount = () => {
+    try {
+      const el = findInFrames('.Af21Ie');
+      console.log('🔍 findInFrames 결과:', el, el?.textContent);
+      const value = el?.textContent?.trim();
+      if (value) {
+        console.log('✅ 파싱 성공:', value);
+        try { localStorage.setItem('detectedWorkAccount', value); } catch (e) {}
+        return value;
+      } else {
+        console.log('❌ element found 하지만 value 없음:', el);
+      }
+    } catch (e) {
+      console.error('⚠️ detectReviewWorkAccount 에러:', e);
+    }
+    return null;
+  };
+
+  const [detectedWorkAccount, setDetectedWorkAccount] = useState(() => getSavedWorkAccount());
+
   const handleFilesSelected = (fileList) => {
     const files = Array.from(fileList || []);
     const allowed = files.slice(0, 2);
@@ -134,12 +178,12 @@ const PublishWorkflow = () => {
         // 진행 중인 task만 표시
         return isTaskInProgress(task);
       })
-      .map((task) => {
-        // 각 task에 store 정보 추가
+        .map((task) => {
+        // 각 task에 store 정보 추가 (등록된 매장명이 우선이며, 파싱된 place_name 사용 금지)
         const store = stores.find(s => s.id === task.store_id);
         return {
           ...task,
-          store: store || { store_name: task.place_name }
+          store: store || null
         };
       });
   };
@@ -193,6 +237,29 @@ const PublishWorkflow = () => {
     return () => clearInterval(interval);
   }, [loadData]);
 
+  useEffect(() => {
+    if (!showAddStore) return;
+    
+    // 한 번 즉시 실행
+    const parsed = detectReviewWorkAccount();
+    console.log('⏱️ PublishWorkflow 폴링 시작, 첫 감지:', parsed);
+    if (parsed) {
+      setDetectedWorkAccount(parsed);
+      try { localStorage.setItem('detectedWorkAccount', parsed); } catch (e) {}
+    }
+    
+    // 자동 폴링: 500ms마다 재시도 (더 빠르게)
+    const t1 = setInterval(() => {
+      const value = detectReviewWorkAccount();
+      if (value) {
+        console.log('✅ 감지됨:', value);
+        setDetectedWorkAccount(value);
+        try { localStorage.setItem('detectedWorkAccount', value); } catch (e) {}
+      }
+    }, 500);
+    
+    return () => clearInterval(t1);
+  }, [showAddStore]);
 
   const handleAddStore = async () => {
     try {
@@ -228,7 +295,7 @@ const PublishWorkflow = () => {
         // 이미지가 선택되어 있으면, 편집된 매장 ID로 업로드
         if (selectedImages && selectedImages.length > 0) {
           try {
-            await storeApi.uploadImages(editingStoreId, selectedImages, token);
+            await handleUploadNow(editingStoreId);
           } catch (imgErr) {
             console.error('이미지 업로드 실패:', imgErr);
             setError('이미지 업로드에 실패했습니다. 매장은 수정되었습니다.');
@@ -253,7 +320,7 @@ const PublishWorkflow = () => {
         // 이미지가 선택되어 있으면, 생성된 매장 ID로 서버에 업로드
         if (selectedImages && selectedImages.length > 0) {
           try {
-            await storeApi.uploadImages(result.store.id, selectedImages, token);
+            await handleUploadNow(result.store.id);
           } catch (imgErr) {
             console.error('이미지 업로드 실패:', imgErr);
             // 이미지 업로드 실패는 매장 생성 성공을 막지 않음
@@ -325,12 +392,14 @@ const PublishWorkflow = () => {
     setError('');
     
     try {
+      const detectedWorkAccount = localStorage.getItem('detectedWorkAccount') || '';
       await mapApi.automateMap(
         store.address,
         store.draft_reviews,
         store.id,
         store.total_count || 1,
-        token
+        token,
+        detectedWorkAccount
       );
 
       setSuccessMessage(`✅ ${store.store_name} 배포가 시작되었습니다.`);
@@ -1175,7 +1244,7 @@ const PublishWorkflow = () => {
                         if (taskStatusFilter !== 'all' && displayStatus !== taskStatusFilter) {
                           return false;
                         }
-                        if (taskSearchTerm && !(task.store?.store_name || task.place_name).toLowerCase().includes(taskSearchTerm.toLowerCase())) {
+                        if (taskSearchTerm && !((task.store?.store_name || '').toLowerCase().includes(taskSearchTerm.toLowerCase()))) {
                           return false;
                         }
                         return true;
@@ -1207,7 +1276,7 @@ const PublishWorkflow = () => {
                               </td>
                             )}
                             <td style={styles.td}>
-                              <strong>{task.store?.store_name || task.place_name}</strong>
+                              <strong>{task.store?.store_name || '미지정'}</strong>
                             </td>
                               <td style={styles.tdCenter}>
                                 <span
@@ -1315,7 +1384,7 @@ const PublishWorkflow = () => {
                     if (taskStatusFilter !== 'all' && displayStatus !== taskStatusFilter) {
                       return false;
                     }
-                    if (taskSearchTerm && !(task.store?.store_name || task.place_name).toLowerCase().includes(taskSearchTerm.toLowerCase())) {
+                    if (taskSearchTerm && !((task.store?.store_name || '').toLowerCase().includes(taskSearchTerm.toLowerCase()))) {
                       return false;
                     }
                     return true;
@@ -1683,7 +1752,9 @@ const PublishWorkflow = () => {
                     fontSize: '12px',
                   }}
                 />
-                
+
+
+
               {/* 이미지 업로드 (드래그/드롭, 최대 2개) */}
               <div style={{ marginBottom: '12px' }}>
                           <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#b8c5d6' }}>
@@ -1717,25 +1788,8 @@ const PublishWorkflow = () => {
                               파일 선택
                               <input type="file" accept="image/*" multiple onChange={(e) => handleFilesSelected(e.target.files)} style={{ display: 'none' }} />
                             </label>
-                            {/* 즉시 업로드 버튼: 편집 중인 매장이 있어야 동작 */}
-                            <button
-                              onClick={() => handleUploadNow(editingStoreId)}
-                              disabled={!editingStoreId || selectedImages.length === 0}
-                              style={{
-                                marginTop: '8px',
-                                background: !editingStoreId || selectedImages.length === 0 ? 'rgba(107,114,128,0.3)' : '#10b981',
-                                border: 'none',
-                                color: '#fff',
-                                padding: '6px 10px',
-                                borderRadius: '8px',
-                                cursor: !editingStoreId || selectedImages.length === 0 ? 'not-allowed' : 'pointer',
-                                fontSize: '12px',
-                              }}
-                            >
-                              지금 업로드
-                            </button>
-                            <div style={{ fontSize: '12px', color: '#9ca3af' }}>최대 2개 · 각 2MB</div>
-                          </div>
+                            
+                            </div>
 
                           {selectedImages.length > 0 && (
                             <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>

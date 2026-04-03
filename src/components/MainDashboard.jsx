@@ -157,10 +157,11 @@ const MainDashboard = () => {
       { name: '실패', value: statusMap.failed },
     ].filter((s) => s.value > 0);
 
-    // 매장별 작업량
+    // 매장별 작업량 (가능하면 stores 테이블의 `store_name`을 우선 사용)
     const storeMap = {};
     tasks.forEach((task) => {
-      const storeName = task.place_name || '미지정';
+      const storeObj = stores.find((s) => s.id === task.store_id);
+      const storeName = (storeObj && storeObj.store_name) || '미지정';
       storeMap[storeName] = (storeMap[storeName] || 0) + 1;
     });
     const storeChart = Object.entries(storeMap)
