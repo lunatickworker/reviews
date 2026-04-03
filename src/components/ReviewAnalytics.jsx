@@ -39,20 +39,6 @@ export default function ReviewAnalytics() {
     return search(document);
   };
 
-  const detectReviewWorkAccount = () => {
-    try {
-      const el = findInFrames('.Af21Ie');
-      const value = el?.textContent?.trim();
-      if (value) {
-        try {
-          localStorage.setItem('detectedWorkAccount', value);
-        } catch (e) {}
-        return value;
-      }
-    } catch (e) {}
-    return null;
-  };
-
   const [workAccountFilter, setWorkAccountFilter] = useState(() => getSavedWorkAccount());
   const [detectedWorkAccount, setDetectedWorkAccount] = useState(() => getSavedWorkAccount());
 
@@ -69,6 +55,21 @@ export default function ReviewAnalytics() {
 
   useEffect(() => {
     const t2 = setInterval(() => {
+      // 함수를 useEffect 내부에서 정의
+      const detectReviewWorkAccount = () => {
+        try {
+          const el = findInFrames('.Af21Ie');
+          const value = el?.textContent?.trim();
+          if (value) {
+            try {
+              localStorage.setItem('detectedWorkAccount', value);
+            } catch (e) {}
+            return value;
+          }
+        } catch (e) {}
+        return null;
+      };
+
       const parsed = detectReviewWorkAccount();
       if (parsed && parsed !== detectedWorkAccount) {
         setDetectedWorkAccount(parsed);
