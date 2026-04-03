@@ -76,7 +76,7 @@ export default function ReviewAnalytics() {
       }
     }, 1500);
     return () => clearInterval(t2);
-  }, [detectReviewWorkAccount]);
+  }, [detectedWorkAccount]);
 
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [logs, setLogs] = useState([]);
