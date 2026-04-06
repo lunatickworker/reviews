@@ -445,7 +445,6 @@ const PublishWorkflow = () => {
     }
 
     // 배포 시작
-    setPendingDeploy(store);
     setDeployingStoreId(store.id);
     setError('');
 
@@ -469,7 +468,6 @@ const PublishWorkflow = () => {
         console.error('❌ taskId를 받지 못했습니다:', result);
         setError('배포 응답에 이상이 있습니다. 다시 시도해주세요.');
         setDeployingStoreId(null);
-        setPendingDeploy(null);
         return;
       }
       
@@ -480,7 +478,6 @@ const PublishWorkflow = () => {
       setError(`배포 실패: ${err.message}`);
       console.error(err);
       setDeployingStoreId(null);
-      setPendingDeploy(null);
     }
   };
 
