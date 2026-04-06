@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { accountApi } from '../utils/api';
@@ -16,13 +16,7 @@ export default function AccountManagement() {
   const [newEmail, setNewEmail] = useState('');
   const [adding, setAdding] = useState(false);
 
-  useEffect(() => {
-    if (isAdmin || isAgency) {
-      fetchAccounts();
-    }
-  }, []);
-
-  const fetchAccounts = async () => {
+  const fetchAccounts = useCallback(async () => {
     setLoading(true);
     try {
       const data = await accountApi.getAll(token);
@@ -33,7 +27,13 @@ export default function AccountManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, showError]);
+
+  useEffect(() => {
+    if (isAdmin || isAgency) {
+      fetchAccounts();
+    }
+  }, [isAdmin, isAgency, fetchAccounts]);
 
   const addAccount = async () => {
     if (!newEmail.trim()) {

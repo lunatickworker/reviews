@@ -25,7 +25,6 @@ const PublishWorkflow = () => {
   const [showAddStore, setShowAddStore] = useState(false);
   const [editingStoreId, setEditingStoreId] = useState(null);
   const [isGeneratingReviews, setIsGeneratingReviews] = useState(false);
-  const [pendingDeploy, setPendingDeploy] = useState(null);
   const [showContinuePrompt, setShowContinuePrompt] = useState(false); // 계속 진행 모달
   const [currentTaskId, setCurrentTaskId] = useState(null); // 진행 중인 task ID
   const [isContinueLoading, setIsContinueLoading] = useState(false); // 계속 진행 대기
@@ -505,24 +504,6 @@ const PublishWorkflow = () => {
     } catch (err) {
       setError(`계속 진행 실패: ${err.message}`);
       console.error(err);
-    } finally {
-      setIsContinueLoading(false);
-    }
-  };
-
-  // 취소 버튼 클릭
-  const handleCancelClick = async () => {
-    if (!currentTaskId) return;
-
-    setIsContinueLoading(true);
-    try {
-      await mapApi.cancelDeploy(currentTaskId, token);
-      
-      setShowContinuePrompt(false);
-      setError('배포가 취소되었습니다.');
-      setCurrentTaskId(null);
-    } catch (err) {
-      console.error(`취소 실패: ${err.message}`);
     } finally {
       setIsContinueLoading(false);
     }
