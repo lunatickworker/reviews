@@ -14,6 +14,7 @@ export const MENU_CONFIG = {
     { id: 'reviews', label: '📖 리뷰', component: 'ReviewAnalytics' },
     { id: 'deploy', label: '🚀 배포', component: 'SimpleDeploy' },
     { id: 'users', label: '👥 계정 관리', component: 'UserManagement' },
+    { id: 'accounts', label: '🔐 Google 계정', component: 'AccountManagement' },
   ],
   agency: [
     { id: 'dashboard', label: '📊 대시보드', component: 'DashboardStats' },

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { storeApi, taskApi, mapApi } from '../utils/api';
+import { subscribeToTable } from '../utils/realtimeApi';
 import { FiPlus } from 'react-icons/fi';
 import * as XLSX from 'xlsx';
 import { PageLayout, Alert } from './common';
@@ -24,6 +25,10 @@ const PublishWorkflow = () => {
   const [showAddStore, setShowAddStore] = useState(false);
   const [editingStoreId, setEditingStoreId] = useState(null);
   const [isGeneratingReviews, setIsGeneratingReviews] = useState(false);
+  const [pendingDeploy, setPendingDeploy] = useState(null);
+  const [showContinuePrompt, setShowContinuePrompt] = useState(false); // 계속 진행 모달
+  const [currentTaskId, setCurrentTaskId] = useState(null); // 진행 중인 task ID
+  const [isContinueLoading, setIsContinueLoading] = useState(false); // 계속 진행 대기
 
   // 폼 데이터
   const [storeForm, setStoreForm] = useState({
@@ -135,14 +140,35 @@ const PublishWorkflow = () => {
   const [storeItemsPerPage, setStoreItemsPerPage] = useState(10);
   const [taskItemsPerPage, setTaskItemsPerPage] = useState(10);
 
-  // Helper 함수: 작업의 진행 상태를 동적으로 판단
-  const isTaskInProgress = (task) => {
-    const totalCount = task.total_count || task.store?.total_count || 0;
-    const completedCount = task.completed_count || 0;
-    return totalCount !== completedCount;
+  // Helper 함수: 매장의 현재 발행수 계산 (완료된 모든 작업의 합)
+  const getStoreCurrentCount = (storeId) => {
+    return tasks
+      .filter(task => task.store_id === storeId)
+      .reduce((sum, task) => sum + (task.completed_count || 0), 0);
   };
 
-  // Helper 함수: 표시할 상태 결정
+  // Helper 함수: 매장의 총발행수 조회
+  const getStoreTotalCount = (storeId) => {
+    const store = stores.find(s => s.id === storeId);
+    return store?.total_count || 0;
+  };
+
+  // Helper 함수: 매장이 진행 중인지 판단 (같은 매장의 모든 task 누적 기준)
+  const isStoreInProgress = (storeId) => {
+    const currentCount = getStoreCurrentCount(storeId);
+    const totalCount = getStoreTotalCount(storeId);
+    
+    // 진행 중: 현재발행수 < 총발행수
+    return currentCount < totalCount;
+  };
+
+  // Helper 함수: 작업의 진행 상태를 동적으로 판단 (★ 매장 기준!)
+  const isTaskInProgress = (task) => {
+    // ✅ 개별 task가 아니라 "같은 매장"이 진행 중인지로 판단
+    return isStoreInProgress(task.store_id);
+  };
+
+  // Helper 함수: 표시할 상태 결정 (★ 매장 기준!)
   const getTaskDisplayStatus = (task) => {
     return isTaskInProgress(task) ? 'in_progress' : 'completed';
   };
@@ -212,6 +238,39 @@ const PublishWorkflow = () => {
     const interval = setInterval(loadData, 10000); // 10초마다 새로고침
     return () => clearInterval(interval);
   }, [loadData]);
+
+  // ✅ Tasks 배열 변경 추적 로깅
+  useEffect(() => {
+    if (tasks.length > 0) {
+      const completedTasks = tasks.filter(t => t.completed_count > 0);
+      if (completedTasks.length > 0) {
+        console.log('📊 [완료된 Task]', completedTasks.map(t => `${t.id}(완료:${t.completed_count})`).join(', '));
+      }
+    }
+  }, [tasks]);
+
+  // ✅ Tasks 실시간 구독 (completed_count 실시간 반영)
+  useEffect(() => {
+    console.log('📡 Tasks 실시간 구독 시작');
+    return subscribeToTable('tasks', {
+      onInsert: (newTask) => {
+        console.log('➕ 새 task 추가됨:', newTask.id);
+        setTasks(prev => [...prev, newTask]);
+      },
+      onUpdate: (updatedTask) => {
+        console.log('✏️ Task 업데이트됨:', updatedTask.id, {
+          completed_count: updatedTask.completed_count,
+          review_status: updatedTask.review_status,
+          review_share_link: updatedTask.review_share_link ? '있음' : '없음'
+        });
+        setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+      },
+      onDelete: (deletedTask) => {
+        console.log('❌ Task 삭제됨:', deletedTask.id);
+        setTasks(prev => prev.filter(t => t.id !== deletedTask.id));
+      },
+    });
+  }, []);
 
   useEffect(() => {
     if (!showAddStore) return;
@@ -377,31 +436,95 @@ const PublishWorkflow = () => {
       return;
     }
 
-    if (!window.confirm(`${store.store_name}을(를) 배포하시겠습니까?`)) {
+    // ✅ 총발행 초과 여부 체크
+    const currentCount = getStoreCurrentCount(store.id);
+    const totalCount = store.total_count || 1;
+    
+    if (currentCount >= totalCount) {
+      setError(`❌ 이미 총발행수(${totalCount})에 도달했습니다. 더 이상 배포할 수 없습니다.\n현재발행수: ${currentCount} / ${totalCount}`);
       return;
     }
 
+    // 배포 시작
+    setPendingDeploy(store);
     setDeployingStoreId(store.id);
     setError('');
-    
+
     try {
-      const detectedWorkAccount = localStorage.getItem('detectedWorkAccount') || '';
-      await mapApi.automateMap(
+      console.log('🚀 배포 시작:', store.store_name);
+      
+      const result = await mapApi.automateMap(
         store.address,
         store.draft_reviews,
         store.id,
         store.total_count || 1,
         token,
-        detectedWorkAccount
+        '' // workAccount (빈 문자열 - 수동 로그인이므로 계정 선택 X)
       );
 
-      setSuccessMessage(`✅ ${store.store_name} 배포가 시작되었습니다.`);
-      setTimeout(() => setSuccessMessage(''), 3000);
+      // ✅ 배포 시작! task ID 저장 후 "계속 진행" 모달 표시
+      console.log('✅ 배포 시작됨! Task ID:', result?.taskId);
+      console.log('📦 전체 응답:', result);
+      
+      if (!result?.taskId) {
+        console.error('❌ taskId를 받지 못했습니다:', result);
+        setError('배포 응답에 이상이 있습니다. 다시 시도해주세요.');
+        setDeployingStoreId(null);
+        setPendingDeploy(null);
+        return;
+      }
+      
+      setCurrentTaskId(result.taskId);
+      console.log('✅ showContinuePrompt를 true로 설정합니다');
+      setShowContinuePrompt(true);
     } catch (err) {
       setError(`배포 실패: ${err.message}`);
       console.error(err);
-    } finally {
       setDeployingStoreId(null);
+      setPendingDeploy(null);
+    }
+  };
+
+  // 계속 진행 버튼 클릭
+  const handleContinueClick = async () => {
+    if (!currentTaskId) return;
+
+    setIsContinueLoading(true);
+    try {
+      await mapApi.continueDeploy(currentTaskId, token);
+      
+      setShowContinuePrompt(false);
+      setSuccessMessage('✅ 배포가 진행 중입니다. Task 탭해서 확인해주세요.');
+      
+      // 2초 후 task 탭으로 자동 전환
+      setTimeout(() => {
+        setActiveTab('task');
+        setSuccessMessage('');
+        setCurrentTaskId(null);
+      }, 1500);
+    } catch (err) {
+      setError(`계속 진행 실패: ${err.message}`);
+      console.error(err);
+    } finally {
+      setIsContinueLoading(false);
+    }
+  };
+
+  // 취소 버튼 클릭
+  const handleCancelClick = async () => {
+    if (!currentTaskId) return;
+
+    setIsContinueLoading(true);
+    try {
+      await mapApi.cancelDeploy(currentTaskId, token);
+      
+      setShowContinuePrompt(false);
+      setError('배포가 취소되었습니다.');
+      setCurrentTaskId(null);
+    } catch (err) {
+      console.error(`취소 실패: ${err.message}`);
+    } finally {
+      setIsContinueLoading(false);
     }
   };
 
@@ -775,7 +898,7 @@ const PublishWorkflow = () => {
                   flexDirection: 'column',
                   justifyContent: 'space-between'
                 }}>
-                  <h3 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '600', color: '#5ba8c5', letterSpacing: '0.5px' }}>진행 중인 작업</h3>
+                  <h3 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '600', color: '#5ba8c5', letterSpacing: '0.5px' }}>승인중인 작업</h3>
                   <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px' }}>
                     <span style={{ fontSize: '56px', fontWeight: '700', color: '#4a8fa8', lineHeight: '1' }}>
                       {displayTasks.length}
@@ -880,7 +1003,7 @@ const PublishWorkflow = () => {
                             <span style={{ color: '#9ca3af' }}> / </span>
                             <span style={{ color: '#48bb78', fontWeight: '600' }}>{store.total_count || 1}</span>
                             <span style={{ color: '#9ca3af' }}> / </span>
-                            <span style={{ color: '#f56565', fontWeight: '600' }}>{(store.deployed_count > 0) ? store.deployed_count : '-'}</span>
+                            <span style={{ color: '#f56565', fontWeight: '600' }}>{getStoreCurrentCount(store.id)}</span>
                           </td>
                           <td style={styles.tdCenter}>
                             {store.created_at ? new Date(store.created_at).toLocaleDateString('ko-KR') : '-'}
@@ -1142,7 +1265,7 @@ const PublishWorkflow = () => {
                       <span style={{ color: '#e8eef5', fontWeight: '600' }}>{tasks.length}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ color: '#b8c5d6' }}>진행:</span>
+                      <span style={{ color: '#b8c5d6' }}>승인중:</span>
                       <span style={{ color: '#93c5fd', fontWeight: '600' }}>{displayTasks.length}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -1188,7 +1311,7 @@ const PublishWorkflow = () => {
                     }}
                   >
                     <option value="all">모든 상태</option>
-                    <option value="in_progress">진행 중</option>
+                    <option value="in_progress">승인중</option>
                     <option value="completed">완료</option>
                   </select>
                   
@@ -1247,7 +1370,7 @@ const PublishWorkflow = () => {
                         return (
                           <tr>
                             <td colSpan={isAdmin ? "8" : "7"} style={{ ...styles.td, textAlign: 'center', color: '#b8c5d6' }}>
-                              {displayTasks.length === 0 ? '진행 중인 작업이 없습니다.' : '검색 결과가 없습니다.'}
+                              {displayTasks.length === 0 ? '승인 중인 작업이 없습니다.' : '검색 결과가 없습니다.'}
                             </td>
                           </tr>
                         );
@@ -1288,7 +1411,7 @@ const PublishWorkflow = () => {
                                     fontWeight: '600',
                                   }}
                                 >
-                                  {task.review_status === 'completed' ? '✓ 완료' : '◯ 진행'}
+                                  {task.review_status === 'completed' ? '✓ 완료' : '◯ 승인중'}
                                 </span>
                               </td>
                               <td style={styles.tdCenter}>
@@ -1312,7 +1435,7 @@ const PublishWorkflow = () => {
                                     fontWeight: '600',
                                   }}
                                 >
-                                  {task.image_status === 'completed' || task.image_status === 'ready' ? '✓ 완료' : task.image_status === 'in_progress' ? '→ 진행중' : '✗ 대기중'}
+                                  {task.image_status === 'completed' || task.image_status === 'ready' ? '✓ 완료' : task.image_status === 'in_progress' ? '→ 진행중' : '✗ 없음'}
                                 </span>
                               </td>
                               <td style={styles.tdCenter}>
@@ -1339,7 +1462,7 @@ const PublishWorkflow = () => {
                                     fontWeight: '600',
                                   }}
                                 >
-                                  {displayStatus === 'completed' ? '완료' : '진행 중'}
+                                  {displayStatus === 'completed' ? '완료' : '승인중'}
                                 </span>
                               </td>
                               <td style={styles.tdCenter}>
@@ -1932,6 +2055,149 @@ const PublishWorkflow = () => {
           />
         )}
       </PageLayout>
+
+      {/* 계속 진행 / 취소 모달 - 오른쪽 하단 */}
+      {showContinuePrompt && (
+        <>
+          {/* 배경 오버레이 */}
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.4)',
+              zIndex: 999,
+            }}
+            onClick={() => setShowContinuePrompt(false)}
+          />
+
+          {/* 모달 - 오른쪽 하단 */}
+          <div style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            zIndex: 1000,
+            maxWidth: '420px',
+            width: 'calc(100% - 48px)',
+          }}>
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(30, 50, 90, 0.95) 0%, rgba(20, 40, 70, 0.95) 100%)',
+              border: '1px solid rgba(70, 130, 180, 0.3)',
+              borderRadius: '16px',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.4)',
+              overflow: 'hidden',
+              backdropFilter: 'blur(10px)',
+            }}>
+              {/* 헤더 */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '16px 20px',
+                background: 'rgba(70, 130, 180, 0.1)',
+                borderBottom: '1px solid rgba(70, 130, 180, 0.2)',
+              }}>
+                <h3 style={{
+                  margin: 0,
+                  fontSize: '16px',
+                  fontWeight: '700',
+                  color: '#e8eef5',
+                }}>
+                  🔐 로그인 확인
+                </h3>
+                <button
+                  onClick={() => setShowContinuePrompt(false)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#b8c5d6',
+                    fontSize: '20px',
+                    cursor: 'pointer',
+                    padding: '4px',
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* 본문 */}
+              <div style={{
+                padding: '16px 20px',
+              }}>
+                <p style={{
+                  margin: '0 0 12px 0',
+                  fontSize: '13px',
+                  color: '#cbd5e1',
+                  lineHeight: '1.5',
+                }}>
+                  ✅ 브라우저에서 Google 로그인을 완료했으면<br/>
+                  <strong>"계속 진행"</strong>을 클릭하세요.
+                </p>
+
+                <div style={{
+                  background: 'rgba(70, 130, 180, 0.1)',
+                  border: '1px solid rgba(70, 130, 180, 0.2)',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  fontSize: '12px',
+                  color: '#93c5fd',
+                }}>
+                  로그인 창에서 계정을 선택하고 진행해주세요.
+                </div>
+              </div>
+
+              {/* 버튼 영역 */}
+              <div style={{
+                display: 'flex',
+                gap: '8px',
+                padding: '12px 16px 16px',
+              }}>
+                <button
+                  onClick={() => setShowContinuePrompt(false)}
+                  disabled={isContinueLoading}
+                  style={{
+                    flex: 1,
+                    padding: '10px 16px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    background: 'rgba(70, 130, 180, 0.2)',
+                    color: '#93c5fd',
+                    border: '1px solid rgba(70, 130, 180, 0.3)',
+                    borderRadius: '8px',
+                    cursor: isContinueLoading ? 'not-allowed' : 'pointer',
+                    opacity: isContinueLoading ? 0.6 : 1,
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleContinueClick}
+                  disabled={isContinueLoading}
+                  style={{
+                    flex: 1,
+                    padding: '10px 16px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    background: isContinueLoading ? 'rgba(70, 130, 180, 0.5)' : 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                    color: '#ecfdf5',
+                    border: '1px solid rgba(5, 150, 105, 0.3)',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 12px rgba(5, 150, 105, 0.2)',
+                    cursor: isContinueLoading ? 'not-allowed' : 'pointer',
+                    opacity: isContinueLoading ? 0.6 : 1,
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {isContinueLoading ? '진행 중...' : '➔ 계속 진행'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </>
     );
   };

@@ -6,7 +6,7 @@ export const useToast = () => {
   // 이것은 useContext와 함께 사용할 것입니다
 };
 
-const ToastContainer = ({ toasts, removeToast }) => {
+const ToastContainer = ({ toasts = [], removeToast }) => {
   return (
     <div
       style={{
@@ -20,7 +20,7 @@ const ToastContainer = ({ toasts, removeToast }) => {
         pointerEvents: 'none',
       }}
     >
-      {toasts.map(toast => (
+      {(toasts || []).map(toast => (
         <div
           key={toast.id}
           style={{ pointerEvents: 'auto' }}

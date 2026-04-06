@@ -47,6 +47,13 @@ const Navigation = ({ currentPage, onNavigate }) => {
       roles: ['admin', 'agency'],
       description: '팀원 관리',
     },
+    {
+      id: 'accounts',
+      label: 'Google 계정',
+      icon: FiUsers,
+      roles: ['admin'],
+      description: 'Google 계정 관리',
+    },
   ];
 
   const filteredMenu = menuItems.filter((item) => {

@@ -10,6 +10,7 @@ import StoreManagement from '../components/StoreManagement';
 import SimpleDeploy from '../components/SimpleDeploy';
 import ReviewAnalytics from '../components/ReviewAnalytics';
 import DashboardStats from '../components/DashboardStats';
+import AccountManagement from '../components/AccountManagement';
 
 const COMPONENT_MAP = {
   DashboardStats,
@@ -18,6 +19,7 @@ const COMPONENT_MAP = {
   ReviewAnalytics,
   SimpleDeploy,
   UserManagement,
+  AccountManagement,
 };
 
 export default function AdminDashboard() {
@@ -295,9 +297,11 @@ export default function AdminDashboard() {
       <main style={styles.main}>
         <div style={styles.content}>
           {mainMenu.map((menu) => {
+            console.log(`🔍 Rendering check - activeTab: ${activeTab}, menu.id: ${menu.id}, component: ${menu.component}`);
             if (activeTab === menu.id) {
               const Component = COMPONENT_MAP[menu.component];
-              return Component ? <Component key={menu.id} /> : null;
+              console.log(`✅ Matched! Rendering: ${menu.component}, Component exists: ${!!Component}`);
+              return Component ? <Component key={menu.id} /> : <div>Component not found: {menu.component}</div>;
             }
             return null;
           })}

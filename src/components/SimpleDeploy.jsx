@@ -1,24 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { storeApi, mapApi } from '../utils/api';
+import { subscribeToTable } from '../utils/realtimeApi';
 import { PageLayout, Alert } from './common';
+import CompletionModal from './common/CompletionModal';
 
 const SimpleDeploy = () => {
   const { token, isAdmin } = useAuth();
   const [stores, setStores] = useState([]);
+  const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [deployingStoreId, setDeployingStoreId] = useState(null);
+  
+  // 모달 상태
+  const [modalTask, setModalTask] = useState(null);
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [pendingStore, setPendingStore] = useState(null);  // 확인 대기 중인 store
 
   useEffect(() => {
     const loadStores = async () => {
       try {
         setLoading(true);
-        const data = await storeApi.getAll(token);
-        setStores(data || []);
+        const [storeData, taskData] = await Promise.all([
+          storeApi.getAll(token),
+          mapApi.getTasks(token),
+        ]);
+        setStores(storeData || []);
+        setTasks(taskData || []);
       } catch (err) {
-        setError('매장 조회 실패');
+        setError('데이터 조회 실패');
         console.error(err);
       } finally {
         setLoading(false);
@@ -29,6 +41,99 @@ const SimpleDeploy = () => {
       loadStores();
     }
   }, [token]);
+
+  // 실시간 구독 - Tasks (별점 업데이트 감지)
+  useEffect(() => {
+    return subscribeToTable('tasks', {
+      onUpdate: (updatedTask) => {
+        console.log('📍 Task 업데이트 감지:', updatedTask.id, 'stars:', updatedTask.stars);
+        setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+        
+        // 별점이 있고 미완료 상태면 모달 띄우기
+        if (updatedTask.stars && updatedTask.stars > 0 && 
+            (updatedTask.review_status !== 'completed' || updatedTask.image_status !== 'completed')) {
+          setModalTask(updatedTask);
+          console.log('📋 별점 감지! 모달 띄움:', updatedTask.id);
+        }
+      },
+    });
+  }, []);
+
+  // 최종 완료 처리 - 리뷰만 완료
+  const handleReviewOnly = async () => {
+    if (!modalTask) return;
+
+    setIsCompleting(true);
+    try {
+      const response = await mapApi.updateTaskStatus(
+        modalTask.id,
+        { review_status: 'completed' },
+        'PUT',
+        token
+      );
+
+      if (response?.updatedTask) {
+        setTasks(prev => prev.map(t => t.id === response.updatedTask.id ? response.updatedTask : t));
+        if (window.toastInstance) {
+          window.toastInstance.add({
+            type: 'success',
+            message: '✅ 리뷰가 완료 표시되었습니다.',
+            duration: 3000
+          });
+        }
+      }
+      setModalTask(null);
+    } catch (error) {
+      console.error('리뷰 완료 처리 실패:', error);
+      if (window.toastInstance) {
+        window.toastInstance.add({
+          type: 'error',
+          message: '❌ 처리에 실패했습니다.',
+          duration: 3000
+        });
+      }
+    } finally {
+      setIsCompleting(false);
+    }
+  };
+
+  // 최종 완료 처리 - 리뷰+이미지 완료
+  const handleReviewWithImage = async () => {
+    if (!modalTask) return;
+
+    setIsCompleting(true);
+    try {
+      const response = await mapApi.updateTaskStatus(
+        modalTask.id,
+        { review_status: 'completed', image_status: 'completed' },
+        'PUT',
+        token
+      );
+
+      if (response?.updatedTask) {
+        setTasks(prev => prev.map(t => t.id === response.updatedTask.id ? response.updatedTask : t));
+        if (window.toastInstance) {
+          window.toastInstance.add({
+            type: 'success',
+            message: '✅ 리뷰와 이미지가 완료 표시되었습니다.',
+            duration: 3000
+          });
+        }
+      }
+      setModalTask(null);
+    } catch (error) {
+      console.error('리뷰+이미지 완료 처리 실패:', error);
+      if (window.toastInstance) {
+        window.toastInstance.add({
+          type: 'error',
+          message: '❌ 처리에 실패했습니다.',
+          duration: 3000
+        });
+      }
+    } finally {
+      setIsCompleting(false);
+    }
+  };
 
   const handleDeploy = async (store) => {
     if (!window.confirm(`${store.store_name}을(를) 배포하시겠습니까?`)) {
@@ -190,6 +295,17 @@ const SimpleDeploy = () => {
           ))}
         </div>
       )}
+
+      {/* 최종 완료 확인 모달 - 별점 선택 후 */}
+      <CompletionModal
+        isOpen={!!modalTask}
+        task={modalTask}
+        storeName={modalTask ? stores.find(s => s.id === modalTask.store_id)?.store_name : ''}
+        onReviewOnly={handleReviewOnly}
+        onReviewWithImage={handleReviewWithImage}
+        onClose={() => setModalTask(null)}
+        isLoading={isCompleting}
+      />
     </PageLayout>
   );
 };

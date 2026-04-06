@@ -89,6 +89,11 @@ export default function ReviewAnalytics() {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
 
+  // 수동 링크 입력 상태
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  const [editingLink, setEditingLink] = useState('');
+  const [savingLinkTaskId, setSavingLinkTaskId] = useState(null);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -113,7 +118,7 @@ export default function ReviewAnalytics() {
     }
   }, [token]);
 
-  // 실시간 구독
+  // 실시간 구독 - Tasks
   useEffect(() => {
     return subscribeToTable('tasks', {
       onInsert: (newTask) => setTasks(prev => [...prev, newTask]),
@@ -122,9 +127,23 @@ export default function ReviewAnalytics() {
     });
   }, []);
 
+  // 실시간 구독 - Stores (일발행/총발행 실시간 반영)
+  useEffect(() => {
+    return subscribeToTable('stores', {
+      onInsert: (newStore) => setStores(prev => [...prev, newStore]),
+      onUpdate: (updatedStore) => setStores(prev => prev.map(s => s.id === updatedStore.id ? updatedStore : s)),
+      onDelete: (deletedStore) => setStores(prev => prev.filter(s => s.id !== deletedStore.id)),
+    });
+  }, []);
+
   // 날짜 범위에 따라 필터링
   const getFilteredTasks = () => {
     let filtered = tasks;
+
+    // Agency 권한: review_share_link가 있는 task만 표시
+    if (!isAdmin) {
+      filtered = filtered.filter(task => task.review_share_link && task.review_share_link.trim());
+    }
 
     // 날짜 범위 필터
     const now = new Date();
@@ -236,13 +255,71 @@ export default function ReviewAnalytics() {
     }
   };
 
-  // 통계 계산
+  // 수동 링크 저장
+  const handleSaveLink = async (task) => {
+    if (!editingLink.trim()) {
+      if (window.toastInstance) {
+        window.toastInstance.add({
+          type: 'error',
+          message: '❌ 링크를 입력해주세요.',
+          duration: 3000
+        });
+      }
+      return;
+    }
+
+    if (!editingLink.includes('maps')) {
+      if (window.toastInstance) {
+        window.toastInstance.add({
+          type: 'error',
+          message: '❌ 유효한 Google Maps 링크가 아닙니다.',
+          duration: 3000
+        });
+      }
+      return;
+    }
+
+    setSavingLinkTaskId(task.id);
+    try {
+      const response = await mapApi.updateReviewLink(task.id, editingLink.trim(), token);
+      
+      // ✅ 즉시 tasks 배열 업데이트 (Real-time 구독 대기 필요 없음)
+      if (response.updatedTask) {
+        setTasks(prev => prev.map(t => t.id === response.updatedTask.id ? response.updatedTask : t));
+        console.log('✅ Tasks 로컬 상태 업데이트됨:', response.updatedTask.id, 'review_status:', response.updatedTask.review_status);
+      }
+      
+      if (window.toastInstance) {
+        window.toastInstance.add({
+          type: 'success',
+          message: '✅ 링크가 저장되었습니다.',
+          duration: 3000
+        });
+      }
+      setEditingTaskId(null);
+      setEditingLink('');
+    } catch (error) {
+      console.error('링크 저장 실패:', error);
+      if (window.toastInstance) {
+        window.toastInstance.add({
+          type: 'error',
+          message: `❌ ${error.message || '링크 저장에 실패했습니다'}`,
+          duration: 3000
+        });
+      }
+    } finally {
+      setSavingLinkTaskId(null);
+    }
+  };
+
+  // 📊 통계 계산 - ⚠️ 필터링 BEFORE 데이터 사용 (전체 기준)
+  // 테이블은 필터링된 데이터 표시, 통계는 전체 데이터 기반
   const statistics = {
-    total: filteredTasks.length,
-    completedReview: filteredTasks.filter(t => t.review_status === 'completed').length,
-    failedReview: filteredTasks.filter(t => t.review_status === 'failed').length,
-    completedImage: filteredTasks.filter(t => t.image_status === 'completed').length,
-    failedImage: filteredTasks.filter(t => t.image_status === 'failed').length,
+    total: tasks.length,  // 전체 tasks
+    completedReview: tasks.filter(t => t.review_status === 'completed').length,  // 전체 완료
+    failedReview: tasks.filter(t => t.review_status === 'failed').length,  // 전체 실패
+    completedImage: tasks.filter(t => t.image_status === 'completed').length,  // 전체 이미지 완료
+    failedImage: tasks.filter(t => t.image_status === 'failed').length,  // 전체 이미지 실패
   };
 
   const reviewSuccessRate = statistics.total > 0
@@ -564,7 +641,7 @@ export default function ReviewAnalytics() {
                     <thead>
                       <tr style={{ ...styles.tableHeader, background: 'rgba(55, 65, 81, 0.9)' }}>
                         <th style={styles.thLeft}>매장명</th>
-                        <th style={styles.th}>작업계정</th>
+                        {isAdmin && <th style={styles.th}>작업계정</th>}
                         <th style={styles.th}>일발행/총발행</th>
                         <th style={styles.th}>리뷰</th>
                         <th style={styles.th}>이미지</th>
@@ -580,12 +657,14 @@ export default function ReviewAnalytics() {
                             <div style={styles.taskName}>{stores.find(s => s.id === task.store_id)?.store_name || '미지정'}</div>
                             {task.notes && <div style={styles.notes}>{task.notes}</div>}
                           </td>
-                          <td style={styles.td}>
-                            <span style={styles.accountBadge}>{getWorkAccount(task)}</span>
-                          </td>
+                          {isAdmin && (
+                            <td style={styles.td}>
+                              <span style={styles.accountBadge}>{getWorkAccount(task)}</span>
+                            </td>
+                          )}
                           <td style={styles.td}>
                             <span style={styles.scheduleInfo}>
-                              {task.store?.daily_frequency || '-'}회 / {task.store?.total_count || '-'}회
+                              {stores.find(s => s.id === task.store_id)?.daily_frequency || '-'}회 / {stores.find(s => s.id === task.store_id)?.total_count || '-'}회
                             </span>
                           </td>
                           <td style={styles.td}>
@@ -638,6 +717,77 @@ export default function ReviewAnalytics() {
                               >
                                 리뷰보기 ↗
                               </a>
+                            ) : isAdmin ? (
+                              editingTaskId === task.id ? (
+                                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                  <input
+                                    type="text"
+                                    placeholder="Google Maps 링크..."
+                                    value={editingLink}
+                                    onChange={(e) => setEditingLink(e.target.value)}
+                                    style={{
+                                      fontSize: '11px',
+                                      padding: '4px 6px',
+                                      borderRadius: '4px',
+                                      border: '1px solid #3b82f6',
+                                      background: 'rgba(30, 50, 80, 0.8)',
+                                      color: '#93c5fd',
+                                      width: '150px',
+                                    }}
+                                  />
+                                  <button
+                                    onClick={() => handleSaveLink(task)}
+                                    disabled={savingLinkTaskId === task.id}
+                                    style={{
+                                      padding: '4px 8px',
+                                      fontSize: '11px',
+                                      background: savingLinkTaskId === task.id ? 'rgba(107, 114, 128, 0.3)' : '#059669',
+                                      border: 'none',
+                                      borderRadius: '4px',
+                                      color: 'white',
+                                      cursor: savingLinkTaskId === task.id ? 'not-allowed' : 'pointer',
+                                      opacity: savingLinkTaskId === task.id ? 0.6 : 1,
+                                    }}
+                                  >
+                                    {savingLinkTaskId === task.id ? '저장중...' : '저장'}
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setEditingTaskId(null);
+                                      setEditingLink('');
+                                    }}
+                                    style={{
+                                      padding: '4px 8px',
+                                      fontSize: '11px',
+                                      background: 'rgba(107, 114, 128, 0.3)',
+                                      border: 'none',
+                                      borderRadius: '4px',
+                                      color: '#9ca3af',
+                                      cursor: 'pointer',
+                                    }}
+                                  >
+                                    취소
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setEditingTaskId(task.id);
+                                    setEditingLink(task.review_share_link || '');
+                                  }}
+                                  style={{
+                                    padding: '4px 8px',
+                                    fontSize: '11px',
+                                    background: 'rgba(245, 158, 11, 0.2)',
+                                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                                    borderRadius: '4px',
+                                    color: '#f59e0b',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  링크 입력
+                                </button>
+                              )
                             ) : (
                               <span style={{ color: '#9ca3af', fontSize: '12px' }}>-</span>
                             )}

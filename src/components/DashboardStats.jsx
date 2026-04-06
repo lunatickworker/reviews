@@ -202,7 +202,7 @@ function getStatusBorderColor(status) {
 function getStatusLabel(status) {
   const labels = {
     'completed': '✓ 완료',
-    'in_progress': '◷ 진행',
+    'in_progress': '◷ 승인중',
     'pending': '○ 대기',
     'failed': '✕ 실패'
   };

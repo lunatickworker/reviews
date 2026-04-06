@@ -156,6 +156,10 @@ export const logsApi = {
 export const mapApi = {
   automateMap: (shortUrl, notes, storeId, totalCount, token, workAccount) =>
     apiCall('POST', '/automate-map', { shortUrl, notes, storeId, totalCount, workAccount }, token),
+  continueDeploy: (taskId, token) =>
+    apiCall('POST', `/continue/${taskId}`, null, token),
+  cancelDeploy: (taskId, token) =>
+    apiCall('POST', `/cancel/${taskId}`, null, token),
   getTasks: (token) => apiCall('GET', '/tasks', null, token),
   getReviews: (token) => apiCall('GET', '/reviews', null, token),
   getImageReviews: (token) => apiCall('GET', '/image-reviews', null, token),
@@ -163,4 +167,17 @@ export const mapApi = {
     apiCall('GET', `/statistics/reviews?period=${dateRange}`, null, token),
   extractReviewLink: (taskId, token) =>
     apiCall('POST', '/extract-review-link', { taskId }, token),
+  updateReviewLink: (taskId, review_share_link, token) =>
+    apiCall('POST', `/tasks/${taskId}/review-link`, { review_share_link }, token),
+  updateTaskStatus: (taskId, updates, method = 'PUT', token) =>
+    apiCall(method, `/tasks/${taskId}`, updates, token),
+};
+
+// 계정 관리 API
+export const accountApi = {
+  getAll: (token) => apiCall('GET', '/accounts', null, token),
+  add: (email, token) =>
+    apiCall('POST', '/accounts', { email }, token),
+  delete: (id, token) =>
+    apiCall('DELETE', `/accounts/${id}`, null, token),
 };

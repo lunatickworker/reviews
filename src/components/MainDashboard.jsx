@@ -152,7 +152,7 @@ const MainDashboard = () => {
     });
     const statusChart = [
       { name: '완료', value: statusMap.completed },
-      { name: '진행중', value: statusMap.in_progress },
+      { name: '승인중', value: statusMap.in_progress },
       { name: '대기', value: statusMap.pending },
       { name: '실패', value: statusMap.failed },
     ].filter((s) => s.value > 0);
@@ -252,7 +252,7 @@ const MainDashboard = () => {
               icon={FiTrendingUp}
             />
             <StatCard
-              label="진행 중"
+              label="승인중"
               count={stats.totalTasks - stats.completedTasks}
               color="blue"
             />
