@@ -604,11 +604,10 @@ const PublishWorkflow = () => {
       {
         매장명: '매장 이름',
         매장주소: 'https://maps.app.goo.gl/...',
-        리뷰메세지: '리뷰 내용',
+        리뷰가이드: '리뷰 내용',
         원고: '리뷰 원고\n원고2',
-        이미지주소: 'https://example.com/image1.jpg|https://example.com/image2.jpg',
         하루횟수: 1,
-        총횟수: 10,
+        총횟수: 1,
       },
     ];
 
@@ -650,9 +649,8 @@ const PublishWorkflow = () => {
         try {
           const storeName = row.매장명?.trim();
           const address = row.매장주소?.trim();
-          const reviewMessage = row.리뷰메세지?.trim() || '';
-          const draftReviews = row.원고?.trim() || '';
-          const imageUrlsStr = row.이미지주소?.trim() || '';
+          const draftReviews = row.리뷰가이드?.trim() || '';
+          const reviewMessage = row.원고?.trim() || '';
           const dailyFrequency = parseInt(row.하루횟수) || 1;
           const totalCount = parseInt(row.총횟수) || 1;
 
@@ -669,18 +667,18 @@ const PublishWorkflow = () => {
             continue;
           }
 
-          // 이미지 URL 파싱 (| 로 구분)
-          const imageUrls = imageUrlsStr
-            .split('|')
-            .map((url) => url.trim())
-            .filter((url) => url.length > 0 && url.startsWith('http'));
+          if (!draftReviews) {
+            failureCount++;
+            failedRows.push(`${i + 2}행: 리뷰가이드 누락`);
+            continue;
+          }
 
           // 매장 생성
           await storeApi.create(
             storeName,
             address,
             reviewMessage,
-            imageUrls,
+            [],
             dailyFrequency,
             totalCount,
             token,

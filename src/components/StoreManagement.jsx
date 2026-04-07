@@ -302,7 +302,7 @@ const StoreManagement = () => {
           const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
           // 필수 컬럼명 정의
-          const requiredColumns = ['매장명', '매장주소', '리뷰메세지', '이미지주소', '하루횟수', '총횟수'];
+          const requiredColumns = ['매장명', '매장주소', '리뷰가이드', '하루횟수', '총횟수'];
           
           // 파일의 헤더/컬럼 확인
           if (jsonData.length === 0) {
@@ -332,18 +332,20 @@ const StoreManagement = () => {
           for (const row of jsonData) {
             const storeName = row['매장명']?.toString().trim();
             const address = row['매장주소']?.toString().trim() || '';
-            const reviewMessage = row['리뷰메세지']?.toString().trim() || '';
-            const imageUrlsText = row['이미지주소']?.toString().trim() || '';
-            // 쉼표로 구분된 여러 이미지 URL이 있을 수 있음
-            const imageUrls = imageUrlsText
-              ? imageUrlsText.split(',').map(url => url.trim()).filter(url => url.length > 0)
-              : [];
+            const draftReviews = row['리뷰가이드']?.toString().trim() || '';
+            const reviewMessage = row['원고']?.toString().trim() || '';
             const dailyFrequency = parseInt(row['하루횟수']) || 1;
             const totalCount = parseInt(row['총횟수']) || 1;
 
             if (!storeName) {
               failCount++;
               failedStores.push('매장명 없음');
+              continue;
+            }
+
+            if (!address) {
+              failCount++;
+              failedStores.push(`${storeName}: 매장주소 누락`);
               continue;
             }
 
@@ -355,8 +357,7 @@ const StoreManagement = () => {
             }
 
             try {
-              const draftReviews = row['리뷰가이드'] ? row['리뷰가이드'].toString().trim() : '';
-              await storeApi.create(storeName, address, reviewMessage, imageUrls, dailyFrequency, totalCount, token, draftReviews);
+              await storeApi.create(storeName, address, reviewMessage, [], dailyFrequency, totalCount, token, draftReviews);
               successCount++;
             } catch (err) {
               failCount++;
@@ -392,7 +393,7 @@ const StoreManagement = () => {
 
   const downloadTemplate = () => {
     const template = [
-      { 매장명: '장어맛집', 매장주소: 'https://maps.app.goo.gl/4C1ftLsCmzKvpw6Q7', 리뷰메세지: '맜있게 먹었어요.', 리뷰가이드: '점심 특가 메뉴 추천', 이미지주소: 'https://example.com/image1.jpg, https://example.com/image2.jpg', 하루횟수: 2, 총횟수: 10 },
+      { 매장명: '장어맛집', 매장주소: 'https://maps.app.goo.gl/4C1ftLsCmzKvpw6Q7', 리뷰가이드: '맜있게 먹었어요.', 원고: '점심 특가 메뉴 추천', 하루횟수: 1, 총횟수: 1 },
     ];
 
     const worksheet = XLSX.utils.json_to_sheet(template);
@@ -613,7 +614,6 @@ const StoreManagement = () => {
                 매장명 {sortConfig.key === 'store_name' && (sortConfig.order === 'asc' ? '▲' : '▼')}
               </th>
               <th style={{ ...styles.th, width: isAdmin ? '12%' : '15%' }}>주소</th>
-              <th style={{ ...styles.th, width: isAdmin ? '12%' : '15%' }}>이미지 주소</th>
               <th style={{ ...styles.th, width: isAdmin ? '14%' : '17%' }}>리뷰 메세지</th>
               <th style={{ ...styles.th, width: isAdmin ? '12%' : '14%' }}>리뷰 가이드</th>
               <th style={{ ...styles.th, width: '7%' }}>하루발행</th>
@@ -633,11 +633,11 @@ const StoreManagement = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={isAdmin ? 9 : 8} style={styles.loadingCell}>로딩 중...</td>
+                <td colSpan={isAdmin ? 8 : 7} style={styles.loadingCell}>로딩 중...</td>
               </tr>
             ) : stores.length === 0 ? (
               <tr>
-                <td colSpan={isAdmin ? 9 : 8} style={styles.emptyCellBG}>
+                <td colSpan={isAdmin ? 8 : 7} style={styles.emptyCellBG}>
                   등록된 매장이 없습니다. 새 매장을 등록해주세요.
                 </td>
               </tr>
@@ -660,19 +660,6 @@ const StoreManagement = () => {
                       ) : (
                         store.address
                       )
-                    ) : (
-                      '-'
-                    )}
-                  </td>
-                  <td style={{ ...styles.td, width: isAdmin ? '12%' : '15%', fontSize: '14px' }}>
-                    {store.image_urls && store.image_urls.length > 0 ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        {store.image_urls.map((imageUrl, idx) => (
-                          <a key={idx} href={imageUrl} target="_blank" rel="noopener noreferrer" style={styles.link}>
-                            {imageUrl.substring(0, 20)}...
-                          </a>
-                        ))}
-                      </div>
                     ) : (
                       '-'
                     )}
