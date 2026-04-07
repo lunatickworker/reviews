@@ -20,6 +20,11 @@ const PublishWorkflow = () => {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [deployingStoreId, setDeployingStoreId] = useState(null);
+  
+  // 동시 배포 제어 (최대 5개까지 동시 배포)
+  const [activeDeployments, setActiveDeployments] = useState(new Set());
+  const [currentDeployStoreId, setCurrentDeployStoreId] = useState(null);
+  const MAX_CONCURRENT_DEPLOYS = 5;
 
   // 모달 상태
   const [showAddStore, setShowAddStore] = useState(false);
@@ -137,11 +142,19 @@ const PublishWorkflow = () => {
   const [selectedStoreAgency, setSelectedStoreAgency] = useState('all'); // 매장 탭
   const [selectedTaskAgency, setSelectedTaskAgency] = useState('all'); // 작업 탭
 
+  // 작업 선택 상태 변수 추가
+  const [showStarSelector, setShowStarSelector] = useState(false);
+
   // 작업 완료 모달 상태
   const [selectedTask, setSelectedTask] = useState(null);
   const [selectedStars, setSelectedStars] = useState(0);
   const [showTaskCompletionModal, setShowTaskCompletionModal] = useState(false);
   const [isUpdatingTask, setIsUpdatingTask] = useState(false);
+  
+  // 작업 삭제 모달 상태 (Admin만)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState(null);
+  const [isDeletingTask, setIsDeletingTask] = useState(false);
   
   // 페이지네이션
   const [storeCurrentPage, setStoreCurrentPage] = useState(1);
@@ -579,6 +592,12 @@ const PublishWorkflow = () => {
       return;
     }
 
+    // ✅ 동시 배포 수 제한 확인
+    if (activeDeployments.size >= MAX_CONCURRENT_DEPLOYS) {
+      setError(`😅 배포는 동시에 최대 ${MAX_CONCURRENT_DEPLOYS}개까지만 가능합니다.\n현재 배포 중: ${activeDeployments.size}개`);
+      return;
+    }
+
     // ✅ 총발행 초과 여부 체크
     const currentCount = getStoreCurrentCount(store.id);
     const totalCount = store.total_count || 1;
@@ -589,7 +608,9 @@ const PublishWorkflow = () => {
     }
 
     // 배포 시작
+    setActiveDeployments(prev => new Set([...prev, store.id]));
     setDeployingStoreId(store.id);
+    setCurrentDeployStoreId(store.id);
     setError('');
 
     try {
@@ -611,7 +632,11 @@ const PublishWorkflow = () => {
       if (!result?.taskId) {
         console.error('❌ taskId를 받지 못했습니다:', result);
         setError('배포 응답에 이상이 있습니다. 다시 시도해주세요.');
-        setDeployingStoreId(null);
+        setActiveDeployments(prev => {
+          const next = new Set(prev);
+          next.delete(store.id);
+          return next;
+        });
         return;
       }
       
@@ -621,6 +646,12 @@ const PublishWorkflow = () => {
     } catch (err) {
       setError(`배포 실패: ${err.message}`);
       console.error(err);
+      setActiveDeployments(prev => {
+        const next = new Set(prev);
+        next.delete(store.id);
+        return next;
+      });
+    } finally {
       setDeployingStoreId(null);
     }
   };
@@ -636,15 +667,36 @@ const PublishWorkflow = () => {
       setShowContinuePrompt(false);
       setSuccessMessage('✅ 배포가 진행 중입니다. Task 탭해서 확인해주세요.');
       
+      // 배포 완료 후 activeDeployments에서 제거 (약 30초 후)
+      setTimeout(() => {
+        if (currentDeployStoreId) {
+          setActiveDeployments(prev => {
+            const next = new Set(prev);
+            next.delete(currentDeployStoreId);
+            return next;
+          });
+        }
+      }, 30000);
+      
       // 2초 후 task 탭으로 자동 전환
       setTimeout(() => {
         setActiveTab('task');
         setSuccessMessage('');
         setCurrentTaskId(null);
+        setCurrentDeployStoreId(null);
       }, 1500);
     } catch (err) {
       setError(`계속 진행 실패: ${err.message}`);
       console.error(err);
+      // 에러 발생 시 바로 제거
+      if (currentDeployStoreId) {
+        setActiveDeployments(prev => {
+          const next = new Set(prev);
+          next.delete(currentDeployStoreId);
+          return next;
+        });
+      }
+      setCurrentDeployStoreId(null);
     } finally {
       setIsContinueLoading(false);
     }
@@ -789,10 +841,30 @@ const PublishWorkflow = () => {
     setExistingImageUrls([]);
   };
 
-  // 작업 선택 (테이블 행 클릭)
+  // 작업 선택 (테이블 행 클릭) - 별점 선택 UI만 표시
   const handleSelectTask = (task) => {
     setSelectedTask(task);
     setSelectedStars(task.stars || 0);
+    setShowStarSelector(true);
+    setShowTaskCompletionModal(false);
+  };
+
+  // 작업 완료 모달 닫기 (상태 초기화)
+  const closeTaskCompletionModal = () => {
+    setShowTaskCompletionModal(false);
+    setSelectedTask(null);
+    setSelectedStars(0);
+  };
+
+  // 별점 선택 후 완전한 모달 표시
+  const handleStarSelected = (stars) => {
+    setSelectedStars(stars);
+    // tasks 배열에서 최신 데이터를 찾아서 selectedTask를 업데이트
+    const latestTask = tasks.find(t => t.id === selectedTask.id);
+    if (latestTask) {
+      setSelectedTask(latestTask);
+    }
+    setShowStarSelector(false);
     setShowTaskCompletionModal(true);
   };
 
@@ -804,6 +876,28 @@ const PublishWorkflow = () => {
       setIsUpdatingTask(true);
       setError('');
 
+      // 🔍 DEBUG: 어떤 버튼을 눌렀는지 확인
+      console.log(`📌 Task ${selectedTask.id} [${selectedTask.store?.store_name}] 업데이트:`, {
+        reviewCompleted,
+        imageCompleted,
+        타입: reviewCompleted && imageCompleted ? '리뷰+이미지 완료' : reviewCompleted ? '리뷰만 완료' : '미완료',
+        별점: selectedStars,
+        설정값: {
+          review_status: reviewCompleted ? 'completed' : 'in_progress',
+          image_status: imageCompleted ? 'completed' : 'in_progress',
+        }
+      });
+
+      // 로컬 상태 즉시 업데이트 (낙관적 업데이트)
+      const updatedTask = {
+        ...selectedTask,
+        review_status: reviewCompleted ? 'completed' : 'in_progress',
+        image_status: imageCompleted ? 'completed' : 'in_progress',
+        stars: selectedStars,
+      };
+      setTasks(prev => prev.map(t => t.id === selectedTask.id ? updatedTask : t));
+
+      // 서버에 비동기로 업데이트
       await mapApi.updateTask(
         selectedTask.id,
         {
@@ -813,17 +907,14 @@ const PublishWorkflow = () => {
         },
         token
       );
-
-      // 작업 목록 새로고침
-      await loadData();
       
       setSuccessMessage('작업 상태가 업데이트되었습니다.');
       setTimeout(() => setSuccessMessage(''), 2000);
 
-      setShowTaskCompletionModal(false);
-      setSelectedTask(null);
-      setSelectedStars(0);
+      closeTaskCompletionModal();
     } catch (err) {
+      // 에러 발생 시 로컬 상태 복원
+      setTasks(prev => prev.map(t => t.id === selectedTask.id ? selectedTask : t));
       setError(`작업 업데이트 실패: ${err.message}`);
       console.error(err);
     } finally {
@@ -839,6 +930,32 @@ const PublishWorkflow = () => {
   // 리뷰 + 이미지 완료
   const handleCompleteReviewAndImage = () => {
     updateTaskCompletion(true, true);
+  };
+
+  // 작업 삭제 (Admin만)
+  const handleDeleteTask = async () => {
+    if (!taskToDelete) return;
+
+    try {
+      setIsDeletingTask(true);
+      setError('');
+
+      await taskApi.delete(taskToDelete.id, token);
+
+      // 작업 목록에서 제거
+      setTasks(prev => prev.filter(t => t.id !== taskToDelete.id));
+
+      setSuccessMessage('작업이 삭제되었습니다.');
+      setTimeout(() => setSuccessMessage(''), 2000);
+
+      setShowDeleteConfirm(false);
+      setTaskToDelete(null);
+    } catch (err) {
+      setError(`작업 삭제 실패: ${err.message}`);
+      console.error(err);
+    } finally {
+      setIsDeletingTask(false);
+    }
   };
 
   // CSS 애니메이션
@@ -1351,21 +1468,22 @@ const PublishWorkflow = () => {
                                     {isAdmin && (
                                       <button
                                         onClick={() => handleDeployStore(store)}
-                                        disabled={deployingStoreId === store.id}
+                                        disabled={deployingStoreId === store.id || (activeDeployments.size >= MAX_CONCURRENT_DEPLOYS && !activeDeployments.has(store.id))}
                                         style={{
-                                          background: deployingStoreId === store.id 
+                                          background: (deployingStoreId === store.id || (activeDeployments.size >= MAX_CONCURRENT_DEPLOYS && !activeDeployments.has(store.id)))
                                             ? 'rgba(107, 114, 128, 0.4)' 
                                             : 'rgba(34, 197, 94, 0.2)',
                                           border: '1px solid rgba(34, 197, 94, 0.5)',
-                                          color: deployingStoreId === store.id ? '#9ca3af' : '#86efac',
+                                          color: (deployingStoreId === store.id || (activeDeployments.size >= MAX_CONCURRENT_DEPLOYS && !activeDeployments.has(store.id))) ? '#9ca3af' : '#86efac',
                                           padding: '6px 10px',
                                           borderRadius: '6px',
-                                          cursor: deployingStoreId === store.id ? 'not-allowed' : 'pointer',
+                                          cursor: (deployingStoreId === store.id || (activeDeployments.size >= MAX_CONCURRENT_DEPLOYS && !activeDeployments.has(store.id))) ? 'not-allowed' : 'pointer',
                                           fontSize: '12px',
                                           marginRight: '4px',
-                                          opacity: deployingStoreId === store.id ? 0.6 : 1,
+                                          opacity: (deployingStoreId === store.id || (activeDeployments.size >= MAX_CONCURRENT_DEPLOYS && !activeDeployments.has(store.id))) ? 0.6 : 1,
                                           transition: 'all 0.3s ease',
                                         }}
+                                        title={activeDeployments.size >= MAX_CONCURRENT_DEPLOYS && !activeDeployments.has(store.id) ? `배포는 동시에 최대 ${MAX_CONCURRENT_DEPLOYS}개까지만 가능합니다` : ''}
                                       >
                                         {deployingStoreId === store.id ? '배포 중...' : '🚀 배포'}
                                       </button>
@@ -1696,6 +1814,7 @@ const PublishWorkflow = () => {
                       <th style={styles.thCenter}>상태</th>
                       <th style={styles.thCenter}>등록일</th>
                       <th style={styles.thCenter}>마지막 발행일시</th>
+                      {isAdmin && <th style={styles.thCenter}>작업</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -1876,6 +1995,39 @@ const PublishWorkflow = () => {
                                   <span style={{ color: '#7a8a9e' }}>-</span>
                                 )}
                               </td>
+                              {isAdmin && (
+                                <td style={styles.tdCenter}>
+                                  <button
+                                    onClick={() => {
+                                      setShowTaskCompletionModal(false);
+                                      setSelectedTask(null);
+                                      setTaskToDelete(task);
+                                      setShowDeleteConfirm(true);
+                                    }}
+                                    style={{
+                                      padding: '4px 10px',
+                                      background: 'rgba(239, 68, 68, 0.15)',
+                                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                                      borderRadius: '4px',
+                                      color: '#fca5a5',
+                                      cursor: 'pointer',
+                                      fontSize: '12px',
+                                      fontWeight: '600',
+                                      transition: 'all 0.2s ease',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.background = 'rgba(239, 68, 68, 0.25)';
+                                      e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
+                                      e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+                                    }}
+                                  >
+                                    🗑️ 삭제
+                                  </button>
+                                </td>
+                              )}
                             </tr>
                           );
                         });
@@ -2589,6 +2741,119 @@ const PublishWorkflow = () => {
         </>
       )}
 
+      {/* 별점 선택 UI - 행 클릭 후 먼저 표시 */}
+      {showStarSelector && selectedTask && (
+        <>
+          {/* 배경 오버레이 */}
+          <div
+            onClick={() => {
+              setShowStarSelector(false);
+              setSelectedTask(null);
+            }}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0, 0, 0, 0.5)',
+              zIndex: 999,
+            }}
+          />
+
+          {/* 별점 선택 모달 */}
+          <div
+            style={{
+              position: 'fixed',
+              bottom: '20px',
+              right: '20px',
+              width: '280px',
+              background: 'rgba(15, 23, 42, 0.95)',
+              border: '1px solid rgba(100, 116, 139, 0.3)',
+              borderRadius: '12px',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+              zIndex: 1000,
+              backdropFilter: 'blur(10px)',
+              overflow: 'hidden',
+            }}
+          >
+            {/* 헤더 */}
+            <div
+              style={{
+                padding: '16px',
+                background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(217, 119, 6, 0.1) 100%)',
+                borderBottom: '1px solid rgba(251, 191, 36, 0.2)',
+              }}
+            >
+              <h3 style={{ margin: '0 0 4px 0', color: '#fbbf24', fontSize: '14px', fontWeight: '700' }}>
+                벌점 선택
+              </h3>
+              <p style={{ margin: 0, color: '#9ca3af', fontSize: '12px' }}>
+                {selectedTask.store?.store_name || '불명'}
+              </p>
+            </div>
+
+            {/* 별점 선택기 */}
+            <div style={{ padding: '16px' }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                gap: '8px',
+                marginBottom: '12px',
+              }}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    onClick={() => handleStarSelected(star)}
+                    style={{
+                      background: selectedStars >= star ? 'rgba(251, 191, 36, 0.8)' : 'rgba(70, 130, 180, 0.2)',
+                      border: selectedStars >= star ? '1px solid #fbbf24' : '1px solid rgba(70, 130, 180, 0.3)',
+                      color: selectedStars >= star ? '#fbbf24' : '#93c5fd',
+                      padding: '10px 14px',
+                      borderRadius: '6px',
+                      fontSize: '18px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      fontWeight: '600',
+                    }}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+              <p style={{
+                margin: '0 0 12px 0',
+                fontSize: '13px',
+                color: '#cbd5e1',
+                textAlign: 'center',
+              }}>
+                선택된 벌점: {selectedStars}점
+              </p>
+              <button
+                onClick={() => {
+                  setShowStarSelector(false);
+                  setSelectedTask(null);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '10px 16px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  background: 'rgba(70, 130, 180, 0.2)',
+                  color: '#93c5fd',
+                  border: '1px solid rgba(70, 130, 180, 0.3)',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* 작업 완료 모달 - 오른쪽 하단 */}
       {showTaskCompletionModal && selectedTask && (
         <>
@@ -2603,7 +2868,7 @@ const PublishWorkflow = () => {
               backgroundColor: 'rgba(0, 0, 0, 0.4)',
               zIndex: 999,
             }}
-            onClick={() => setShowTaskCompletionModal(false)}
+            onClick={closeTaskCompletionModal}
           />
 
           {/* 모달 - 오른쪽 하단 */}
@@ -2641,7 +2906,7 @@ const PublishWorkflow = () => {
                   ⭐ 작업 완료
                 </h3>
                 <button
-                  onClick={() => setShowTaskCompletionModal(false)}
+                  onClick={closeTaskCompletionModal}
                   style={{
                     background: 'none',
                     border: 'none',
@@ -2766,7 +3031,7 @@ const PublishWorkflow = () => {
                 </button>
 
                 <button
-                  onClick={() => setShowTaskCompletionModal(false)}
+                  onClick={closeTaskCompletionModal}
                   disabled={isUpdatingTask}
                   style={{
                     padding: '10px 16px',
@@ -2784,6 +3049,131 @@ const PublishWorkflow = () => {
                   취소
                 </button>
               </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* 작업 삭제 확인 모달 - Admin만 */}
+      {isAdmin && showDeleteConfirm && taskToDelete && (
+        <>
+          {/* 배경 오버레이 */}
+          <div
+            onClick={() => {
+              if (!isDeletingTask) {
+                setShowDeleteConfirm(false);
+                setTaskToDelete(null);
+              }
+            }}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0, 0, 0, 0.5)',
+              zIndex: 999,
+            }}
+          />
+
+          {/* 모달 */}
+          <div
+            style={{
+              position: 'fixed',
+              bottom: '20px',
+              right: '20px',
+              width: '320px',
+              background: 'rgba(15, 23, 42, 0.95)',
+              border: '1px solid rgba(100, 116, 139, 0.3)',
+              borderRadius: '12px',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+              zIndex: 1000,
+              backdropFilter: 'blur(10px)',
+              overflow: 'hidden',
+            }}
+          >
+            {/* 헤더 */}
+            <div
+              style={{
+                padding: '16px',
+                background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.1) 100%)',
+                borderBottom: '1px solid rgba(239, 68, 68, 0.2)',
+              }}
+            >
+              <h3 style={{ margin: '0 0 4px 0', color: '#fca5a5', fontSize: '14px', fontWeight: '700' }}>
+                작업 삭제
+              </h3>
+              <p style={{ margin: 0, color: '#9ca3af', fontSize: '12px' }}>
+                {taskToDelete.store?.store_name || '불명'} 작업을 삭제하시겠습니까?
+              </p>
+            </div>
+
+            {/* 경고 메시지 */}
+            <div style={{ padding: '12px 16px', background: 'rgba(239, 68, 68, 0.1)' }}>
+              <p
+                style={{
+                  margin: 0,
+                  color: '#fca5a5',
+                  fontSize: '12px',
+                  lineHeight: '1.4',
+                }}
+              >
+                ⚠️ 이 작업은 되돌릴 수 없습니다. 정말 삭제하시겠습니까?
+              </p>
+            </div>
+
+            {/* 버튼 영역 */}
+            <div
+              style={{
+                display: 'flex',
+                gap: '8px',
+                padding: '12px 16px 16px',
+              }}
+            >
+              <button
+                onClick={handleDeleteTask}
+                disabled={isDeletingTask}
+                style={{
+                  flex: 1,
+                  padding: '10px 16px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  background: isDeletingTask ? 'rgba(239, 68, 68, 0.3)' : 'rgba(239, 68, 68, 0.8)',
+                  color: isDeletingTask ? '#9ca3af' : '#fef2f2',
+                  border: '1px solid rgba(239, 68, 68, 0.5)',
+                  borderRadius: '6px',
+                  cursor: isDeletingTask ? 'not-allowed' : 'pointer',
+                  opacity: isDeletingTask ? 0.6 : 1,
+                  transition: 'all 0.2s',
+                }}
+              >
+                {isDeletingTask ? '삭제 중...' : '🗑️ 삭제'}
+              </button>
+
+              <button
+                onClick={() => {
+                  if (!isDeletingTask) {
+                    setShowDeleteConfirm(false);
+                    setTaskToDelete(null);
+                  }
+                }}
+                disabled={isDeletingTask}
+                style={{
+                  flex: 1,
+                  padding: '10px 16px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  background: 'rgba(70, 130, 180, 0.2)',
+                  color: '#93c5fd',
+                  border: '1px solid rgba(70, 130, 180, 0.3)',
+                  borderRadius: '6px',
+                  cursor: isDeletingTask ? 'not-allowed' : 'pointer',
+                  opacity: isDeletingTask ? 0.6 : 1,
+                  transition: 'all 0.2s',
+                }}
+              >
+                취소
+              </button>
             </div>
           </div>
         </>
