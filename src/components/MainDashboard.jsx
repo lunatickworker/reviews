@@ -23,6 +23,7 @@ const MainDashboard = () => {
     totalStores: 0,
     reviewsCompleted: 0,
     successRate: 0,
+    activeSchedules: 0,
   });
   const [chartData, setChartData] = useState({
     daily: [],
@@ -60,6 +61,7 @@ const MainDashboard = () => {
   const calculateStats = useCallback((tasksData, storesData) => {
     const completed = tasksData.filter((t) => t.status === 'completed').length;
     const successRate = tasksData.length > 0 ? Math.round((completed / tasksData.length) * 100) : 0;
+    const activeSchedules = storesData.filter((s) => s.daily_frequency > 0).length;
 
     setStats({
       totalTasks: tasksData.length,
@@ -67,6 +69,7 @@ const MainDashboard = () => {
       totalStores: storesData.length,
       reviewsCompleted: completed,
       successRate,
+      activeSchedules,
     });
 
     generateChartData(tasksData, storesData);
@@ -85,17 +88,27 @@ const MainDashboard = () => {
   // 실시간 구독
   useEffect(() => {
     const unsubscribers = [];
+    const storeIds = new Set(stores.map(s => s.id));
 
-    // Tasks 테이블 구독
+    // Tasks 테이블 구독 - 🔐 조직격리: 자신의 stores에만 속하는 tasks만 처리
     unsubscribers.push(
       subscribeToTable('tasks', {
         onInsert: (newTask) => {
           console.log('📍 New task:', newTask);
-          setTasks(prev => [...prev, newTask]);
+          // 자신의 stores에만 속하는 task만 추가
+          if (storeIds.has(newTask.store_id)) {
+            setTasks(prev => [...prev, newTask]);
+          }
         },
         onUpdate: (updatedTask) => {
           console.log('✏️ Task updated:', updatedTask);
-          setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+          // 자신의 stores에만 속하는 task만 업데이트
+          if (storeIds.has(updatedTask.store_id)) {
+            setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+          } else {
+            // 다른 agency의 task면 제거
+            setTasks(prev => prev.filter(t => t.id !== updatedTask.id));
+          }
         },
         onDelete: (deletedTask) => {
           console.log('🗑️ Task deleted:', deletedTask);
@@ -126,7 +139,7 @@ const MainDashboard = () => {
     return () => {
       unsubscribers.forEach(unsubscribe => unsubscribe());
     };
-  }, []);
+  }, [stores]);
 
   const generateChartData = (tasks, stores) => {
     // 일일 작업량

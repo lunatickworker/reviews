@@ -3,25 +3,29 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { mapApi, storeApi } from '../utils/api';
 import { subscribeToTable } from '../utils/realtimeApi';
-import { PageLayout, Loading } from './common';
+import { PageLayout, Alert, Loading } from './common';
 
 export default function DashboardStats() {
   const { token } = useAuth();
   const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [stores, setStores] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setLoading(true);
         const [taskData, storeData] = await Promise.all([
           mapApi.getTasks(token),
           storeApi.getAll(token),
         ]);
         setTasks(taskData || []);
         setStores(storeData || []);
+        setError('');
       } catch (error) {
-        console.error('데이터 조회 실패:', error);
+        console.error('❌ 데이터 조회 실패:', error);
+        setError(error.message || '데이터를 불러올 수 없습니다.');
       } finally {
         setLoading(false);
       }
@@ -32,14 +36,31 @@ export default function DashboardStats() {
     }
   }, [token]);
 
-  // 실시간 구독
+  // 실시간 구독 - 🔐 조직격리: 자신의 stores에만 속하는 tasks만 처리
   useEffect(() => {
+    const storeIds = new Set(stores.map(s => s.id));
+    
     return subscribeToTable('tasks', {
-      onInsert: (newTask) => setTasks(prev => [...prev, newTask]),
-      onUpdate: (updatedTask) => setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t)),
-      onDelete: (deletedTask) => setTasks(prev => prev.filter(t => t.id !== deletedTask.id)),
+      onInsert: (newTask) => {
+        // 자신의 stores에만 속하는 task만 추가
+        if (storeIds.has(newTask.store_id)) {
+          setTasks(prev => [...prev, newTask]);
+        }
+      },
+      onUpdate: (updatedTask) => {
+        // 자신의 stores에만 속하는 task만 업데이트
+        if (storeIds.has(updatedTask.store_id)) {
+          setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+        } else {
+          // 다른 agency의 task면 제거
+          setTasks(prev => prev.filter(t => t.id !== updatedTask.id));
+        }
+      },
+      onDelete: (deletedTask) => {
+        setTasks(prev => prev.filter(t => t.id !== deletedTask.id));
+      },
     });
-  }, []);
+  }, [stores]);
 
   // 오늘 추가된 작업만 필터링
   const today = new Date();
@@ -65,8 +86,20 @@ export default function DashboardStats() {
 
   if (loading) {
     return (
-      <PageLayout title="올날의 매장 작업 현황" description="실시간 수행 상태">
+      <PageLayout title="오늘의 매장 작업 현황" description="실시간 수행 상태">
         <Loading message="데이터 로드 중..." />
+      </PageLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <PageLayout title="오늘의 매장 작업 현황" description="실시간 수행 상태">
+        <Alert 
+          type="error" 
+          message={`데이터 로드 실패: ${error}`}
+          onClose={() => setError('')}
+        />
       </PageLayout>
     );
   }

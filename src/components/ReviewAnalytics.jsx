@@ -119,13 +119,31 @@ export default function ReviewAnalytics() {
   }, [token]);
 
   // 실시간 구독 - Tasks
+  // 🔐 조직격리: 자신의 stores에만 속하는 tasks만 처리
   useEffect(() => {
+    const storeIds = new Set(stores.map(s => s.id));
+    
     return subscribeToTable('tasks', {
-      onInsert: (newTask) => setTasks(prev => [...prev, newTask]),
-      onUpdate: (updatedTask) => setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t)),
-      onDelete: (deletedTask) => setTasks(prev => prev.filter(t => t.id !== deletedTask.id)),
+      onInsert: (newTask) => {
+        // 자신의 stores에만 속하는 task만 추가
+        if (storeIds.has(newTask.store_id)) {
+          setTasks(prev => [...prev, newTask]);
+        }
+      },
+      onUpdate: (updatedTask) => {
+        // 자신의 stores에만 속하는 task만 업데이트
+        if (storeIds.has(updatedTask.store_id)) {
+          setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+        } else {
+          // 다른 agency의 task면 제거
+          setTasks(prev => prev.filter(t => t.id !== updatedTask.id));
+        }
+      },
+      onDelete: (deletedTask) => {
+        setTasks(prev => prev.filter(t => t.id !== deletedTask.id));
+      },
     });
-  }, []);
+  }, [stores]);
 
   // 실시간 구독 - Stores (일발행/총발행 실시간 반영)
   useEffect(() => {

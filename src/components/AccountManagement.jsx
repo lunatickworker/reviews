@@ -30,10 +30,10 @@ export default function AccountManagement() {
   }, [token, showError]);
 
   useEffect(() => {
-    if (isAdmin || isAgency) {
+    if (isAdmin) {
       fetchAccounts();
     }
-  }, [isAdmin, isAgency, fetchAccounts]);
+  }, [isAdmin, fetchAccounts]);
 
   const addAccount = async () => {
     if (!newEmail.trim()) {
@@ -75,7 +75,7 @@ export default function AccountManagement() {
     }
   };
 
-  if (!isAdmin && !isAgency) {
+  if (!isAdmin) {
     return (
       <PageLayout title="구글 계정 관리" icon="🔐">
         <PageCard>

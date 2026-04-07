@@ -249,12 +249,18 @@ const PublishWorkflow = () => {
   }, [tasks]);
 
   // ✅ Tasks 실시간 구독 (completed_count 실시간 반영)
+  // 🔐 조직격리: 자신의 stores에만 속하는 tasks만 처리
   useEffect(() => {
     console.log('📡 Tasks 실시간 구독 시작');
+    const storeIds = new Set(stores.map(s => s.id));
+    
     return subscribeToTable('tasks', {
       onInsert: (newTask) => {
         console.log('➕ 새 task 추가됨:', newTask.id);
-        setTasks(prev => [...prev, newTask]);
+        // 자신의 stores에만 속하는 task만 추가
+        if (storeIds.has(newTask.store_id)) {
+          setTasks(prev => [...prev, newTask]);
+        }
       },
       onUpdate: (updatedTask) => {
         console.log('✏️ Task 업데이트됨:', updatedTask.id, {
@@ -262,14 +268,20 @@ const PublishWorkflow = () => {
           review_status: updatedTask.review_status,
           review_share_link: updatedTask.review_share_link ? '있음' : '없음'
         });
-        setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+        // 자신의 stores에만 속하는 task만 업데이트
+        if (storeIds.has(updatedTask.store_id)) {
+          setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+        } else {
+          // 다른 agency의 task면 제거
+          setTasks(prev => prev.filter(t => t.id !== updatedTask.id));
+        }
       },
       onDelete: (deletedTask) => {
         console.log('❌ Task 삭제됨:', deletedTask.id);
         setTasks(prev => prev.filter(t => t.id !== deletedTask.id));
       },
     });
-  }, []);
+  }, [stores]);
 
   useEffect(() => {
     if (!showAddStore) return;

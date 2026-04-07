@@ -43,21 +43,27 @@ const SimpleDeploy = () => {
   }, [token]);
 
   // 실시간 구독 - Tasks (별점 업데이트 감지)
+  // 🔐 조직격리: 자신의 stores에만 속하는 tasks만 처리
   useEffect(() => {
+    const storeIds = new Set(stores.map(s => s.id));
+    
     return subscribeToTable('tasks', {
       onUpdate: (updatedTask) => {
-        console.log('📍 Task 업데이트 감지:', updatedTask.id, 'stars:', updatedTask.stars);
-        setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
-        
-        // 별점이 있고 미완료 상태면 모달 띄우기
-        if (updatedTask.stars && updatedTask.stars > 0 && 
-            (updatedTask.review_status !== 'completed' || updatedTask.image_status !== 'completed')) {
-          setModalTask(updatedTask);
-          console.log('📋 별점 감지! 모달 띄움:', updatedTask.id);
+        // 자신의 stores에만 속하는 task만 업데이트
+        if (storeIds.has(updatedTask.store_id)) {
+          console.log('📍 Task 업데이트 감지:', updatedTask.id, 'stars:', updatedTask.stars);
+          setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+          
+          // 별점이 있고 미완료 상태면 모달 띄우기
+          if (updatedTask.stars && updatedTask.stars > 0 && 
+              (updatedTask.review_status !== 'completed' || updatedTask.image_status !== 'completed')) {
+            setModalTask(updatedTask);
+            console.log('📋 별점 감지! 모달 띄움:', updatedTask.id);
+          }
         }
       },
     });
-  }, []);
+  }, [stores]);
 
   // 최종 완료 처리 - 리뷰만 완료
   const handleReviewOnly = async () => {
