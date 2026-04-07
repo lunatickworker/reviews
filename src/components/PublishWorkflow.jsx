@@ -133,6 +133,10 @@ const PublishWorkflow = () => {
   const [taskSearchTerm, setTaskSearchTerm] = useState('');
   const [taskStatusFilter, setTaskStatusFilter] = useState('all'); // all, pending, in_progress, completed
   
+  // Agency 필터
+  const [selectedStoreAgency, setSelectedStoreAgency] = useState('all'); // 매장 탭
+  const [selectedTaskAgency, setSelectedTaskAgency] = useState('all'); // 작업 탭
+  
   // 페이지네이션
   const [storeCurrentPage, setStoreCurrentPage] = useState(1);
   const [taskCurrentPage, setTaskCurrentPage] = useState(1);
@@ -190,6 +194,82 @@ const PublishWorkflow = () => {
   };
 
   const displayTasks = getDisplayTasks();
+
+  // Helper 함수: 금일 등록한 매장 필터링
+  const getTodayStores = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    return stores.filter(store => {
+      if (!store.created_at) return false;
+      const storeDate = new Date(store.created_at);
+      storeDate.setHours(0, 0, 0, 0);
+      return storeDate.getTime() === today.getTime();
+    });
+  };
+
+  // Helper 함수: 금일 등록 통계 계산
+  const getTodayStats = () => {
+    const todayStores = getTodayStores();
+    const todayStoreIds = new Set(todayStores.map(s => s.id));
+    
+    const todayTasks = tasks.filter(t => todayStoreIds.has(t.store_id));
+    const todayCompletedTasks = todayTasks.filter(t => !isTaskInProgress(t));
+    
+    // Agency별 매장 그룹핑
+    const agencyMap = {};
+    todayStores.forEach(store => {
+      const agencyName = store.user?.user_id || '미지정';
+      if (!agencyMap[agencyName]) {
+        agencyMap[agencyName] = [];
+      }
+      agencyMap[agencyName].push(store);
+    });
+    
+    return {
+      storeCount: todayStores.length,
+      taskCount: todayTasks.length,
+      completedCount: todayCompletedTasks.length,
+      agencyMap,
+      todayStores
+    };
+  };
+
+  const todayStats = getTodayStats();
+
+  // Helper 함수: 모든 agency 목록 추출
+  const getAllAgencies = () => {
+    const agencies = new Set();
+    stores.forEach(store => {
+      if (store.user?.user_id) {
+        agencies.add(store.user.user_id);
+      }
+    });
+    return Array.from(agencies).sort();
+  };
+
+  // Helper 함수: agency로 필터링된 stores 반환
+  const getFilteredStoresByAgency = () => {
+    if (!isAdmin || selectedStoreAgency === 'all') {
+      return stores;
+    }
+    return stores.filter(store => store.user?.user_id === selectedStoreAgency);
+  };
+
+  // Helper 함수: agency로 필터링된 tasks 반환
+  const getFilteredTasksByAgency = () => {
+    const filteredStoresIds = new Set();
+    
+    if (isAdmin && selectedTaskAgency !== 'all') {
+      stores
+        .filter(store => store.user?.user_id === selectedTaskAgency)
+        .forEach(store => filteredStoresIds.add(store.id));
+    } else {
+      stores.forEach(store => filteredStoresIds.add(store.id));
+    }
+    
+    return tasks.filter(task => filteredStoresIds.has(task.store_id));
+  };
 
   // 매장별 마지막 발행일시 구하기
   const getLastDeploymentDate = (storeId) => {
@@ -848,75 +928,165 @@ const PublishWorkflow = () => {
           <>
             {/* 개요 탭 */}
             {activeTab === 'overview' && (
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-                  gap: '16px',
-                }}
-              >
-                {/* 등록된 매장 - 파란색 */}
-                <div style={{ 
-                  background: 'linear-gradient(135deg, rgba(70, 130, 180, 0.16) 0%, rgba(70, 130, 180, 0.08) 100%)',
-                  padding: '28px 24px',
-                  borderRadius: '16px',
-                  border: '1px solid rgba(70, 130, 180, 0.3)',
-                  boxShadow: '0 12px 32px rgba(70, 130, 180, 0.12)',
-                  transition: 'all 0.3s ease',
-                  minHeight: '120px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between'
-                }}>
-                  <h3 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '600', color: '#6ca3d4', letterSpacing: '0.5px' }}>등록된 매장</h3>
-                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px' }}>
-                    <span style={{ fontSize: '56px', fontWeight: '700', color: '#4682b4', lineHeight: '1' }}>{stores.length}</span>
-                    <span style={{ fontSize: '14px', color: '#5b99c9', fontWeight: '500', marginBottom: '6px' }}>곳</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                {/* 전체 통계 */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                    gap: '16px',
+                  }}
+                >
+                  {/* 등록된 매장 - 파란색 */}
+                  <div style={{ 
+                    background: 'linear-gradient(135deg, rgba(70, 130, 180, 0.16) 0%, rgba(70, 130, 180, 0.08) 100%)',
+                    padding: '28px 24px',
+                    borderRadius: '16px',
+                    border: '1px solid rgba(70, 130, 180, 0.3)',
+                    boxShadow: '0 12px 32px rgba(70, 130, 180, 0.12)',
+                    transition: 'all 0.3s ease',
+                    minHeight: '120px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between'
+                  }}>
+                    <h3 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '600', color: '#6ca3d4', letterSpacing: '0.5px' }}>등록된 매장</h3>
+                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px' }}>
+                      <span style={{ fontSize: '56px', fontWeight: '700', color: '#4682b4', lineHeight: '1' }}>{stores.length}</span>
+                      <span style={{ fontSize: '14px', color: '#5b99c9', fontWeight: '500', marginBottom: '6px' }}>곳</span>
+                    </div>
+                  </div>
+                  
+                  {/* 진행 중인 작업 - 시안색 */}
+                  <div style={{ 
+                    background: 'linear-gradient(135deg, rgba(64, 135, 145, 0.16) 0%, rgba(64, 135, 145, 0.08) 100%)',
+                    padding: '28px 24px',
+                    borderRadius: '16px',
+                    border: '1px solid rgba(64, 135, 145, 0.3)',
+                    boxShadow: '0 12px 32px rgba(64, 135, 145, 0.12)',
+                    transition: 'all 0.3s ease',
+                    minHeight: '120px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between'
+                  }}>
+                    <h3 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '600', color: '#5ba8c5', letterSpacing: '0.5px' }}>승인중인 작업</h3>
+                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px' }}>
+                      <span style={{ fontSize: '56px', fontWeight: '700', color: '#4a8fa8', lineHeight: '1' }}>
+                        {displayTasks.length}
+                      </span>
+                      <span style={{ fontSize: '14px', color: '#5b99c9', fontWeight: '500', marginBottom: '6px' }}>건</span>
+                    </div>
+                  </div>
+                  
+                  {/* 완료된 작업 - 라벤더색 */}
+                  <div style={{ 
+                    background: 'linear-gradient(135deg, rgba(92, 84, 165, 0.16) 0%, rgba(92, 84, 165, 0.08) 100%)',
+                    padding: '28px 24px',
+                    borderRadius: '16px',
+                    border: '1px solid rgba(92, 84, 165, 0.3)',
+                    boxShadow: '0 12px 32px rgba(92, 84, 165, 0.12)',
+                    transition: 'all 0.3s ease',
+                    minHeight: '120px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between'
+                  }}>
+                    <h3 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '600', color: '#8077c4', letterSpacing: '0.5px' }}>완료된 작업</h3>
+                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px' }}>
+                      <span style={{ fontSize: '56px', fontWeight: '700', color: '#5c54a5', lineHeight: '1' }}>
+                        {tasks.length - displayTasks.length}
+                      </span>
+                      <span style={{ fontSize: '14px', color: '#5b99c9', fontWeight: '500', marginBottom: '6px' }}>건</span>
+                    </div>
                   </div>
                 </div>
-                
-                {/* 진행 중인 작업 - 시안색 */}
-                <div style={{ 
-                  background: 'linear-gradient(135deg, rgba(64, 135, 145, 0.16) 0%, rgba(64, 135, 145, 0.08) 100%)',
-                  padding: '28px 24px',
-                  borderRadius: '16px',
-                  border: '1px solid rgba(64, 135, 145, 0.3)',
-                  boxShadow: '0 12px 32px rgba(64, 135, 145, 0.12)',
-                  transition: 'all 0.3s ease',
-                  minHeight: '120px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between'
-                }}>
-                  <h3 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '600', color: '#5ba8c5', letterSpacing: '0.5px' }}>승인중인 작업</h3>
-                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px' }}>
-                    <span style={{ fontSize: '56px', fontWeight: '700', color: '#4a8fa8', lineHeight: '1' }}>
-                      {displayTasks.length}
-                    </span>
-                    <span style={{ fontSize: '14px', color: '#5b99c9', fontWeight: '500', marginBottom: '6px' }}>건</span>
+
+                {/* 금일 등록 통계 */}
+                <div style={{ paddingTop: '8px', borderTop: '1px solid rgba(70, 130, 180, 0.2)' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#a8d8ff', marginBottom: '16px' }}>📅 금일 등록 통계</h3>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                      gap: '16px',
+                    }}
+                  >
+                    {/* 금일 매장 수 - 초록색 */}
+                    <div style={{ 
+                      background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.16) 0%, rgba(34, 197, 94, 0.08) 100%)',
+                      padding: '28px 24px',
+                      borderRadius: '16px',
+                      border: '1px solid rgba(34, 197, 94, 0.3)',
+                      boxShadow: '0 12px 32px rgba(34, 197, 94, 0.12)',
+                      transition: 'all 0.3s ease',
+                      minHeight: '120px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between'
+                    }}>
+                      <h3 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '600', color: '#4ade80', letterSpacing: '0.5px' }}>등록한 매장</h3>
+                      <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px' }}>
+                        <span style={{ fontSize: '56px', fontWeight: '700', color: '#22c55e', lineHeight: '1' }}>{todayStats.storeCount}</span>
+                        <span style={{ fontSize: '14px', color: '#4ade80', fontWeight: '500', marginBottom: '6px' }}>곳</span>
+                      </div>
+                    </div>
+
+                    {/* 금일 작업 수 - 주황색 */}
+                    <div style={{ 
+                      background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.16) 0%, rgba(249, 115, 22, 0.08) 100%)',
+                      padding: '28px 24px',
+                      borderRadius: '16px',
+                      border: '1px solid rgba(249, 115, 22, 0.3)',
+                      boxShadow: '0 12px 32px rgba(249, 115, 22, 0.12)',
+                      transition: 'all 0.3s ease',
+                      minHeight: '120px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between'
+                    }}>
+                      <h3 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '600', color: '#fb923c', letterSpacing: '0.5px' }}>작업 수</h3>
+                      <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px' }}>
+                        <span style={{ fontSize: '56px', fontWeight: '700', color: '#f97316', lineHeight: '1' }}>{todayStats.taskCount}</span>
+                        <span style={{ fontSize: '14px', color: '#fb923c', fontWeight: '500', marginBottom: '6px' }}>건</span>
+                      </div>
+                    </div>
+
+                    {/* 금일 완료 수 - 분홍색 */}
+                    <div style={{ 
+                      background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.16) 0%, rgba(236, 72, 153, 0.08) 100%)',
+                      padding: '28px 24px',
+                      borderRadius: '16px',
+                      border: '1px solid rgba(236, 72, 153, 0.3)',
+                      boxShadow: '0 12px 32px rgba(236, 72, 153, 0.12)',
+                      transition: 'all 0.3s ease',
+                      minHeight: '120px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between'
+                    }}>
+                      <h3 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '600', color: '#ec4899', letterSpacing: '0.5px' }}>완료 수</h3>
+                      <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px' }}>
+                        <span style={{ fontSize: '56px', fontWeight: '700', color: '#db2777', lineHeight: '1' }}>{todayStats.completedCount}</span>
+                        <span style={{ fontSize: '14px', color: '#ec4899', fontWeight: '500', marginBottom: '6px' }}>건</span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                
-                {/* 완료된 작업 - 라벤더색 */}
-                <div style={{ 
-                  background: 'linear-gradient(135deg, rgba(92, 84, 165, 0.16) 0%, rgba(92, 84, 165, 0.08) 100%)',
-                  padding: '28px 24px',
-                  borderRadius: '16px',
-                  border: '1px solid rgba(92, 84, 165, 0.3)',
-                  boxShadow: '0 12px 32px rgba(92, 84, 165, 0.12)',
-                  transition: 'all 0.3s ease',
-                  minHeight: '120px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between'
-                }}>
-                  <h3 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '600', color: '#8077c4', letterSpacing: '0.5px' }}>완료된 작업</h3>
-                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px' }}>
-                    <span style={{ fontSize: '56px', fontWeight: '700', color: '#5c54a5', lineHeight: '1' }}>
-                      {tasks.length - displayTasks.length}
-                    </span>
-                    <span style={{ fontSize: '14px', color: '#5b99c9', fontWeight: '500', marginBottom: '6px' }}>건</span>
-                  </div>
+
+                  {/* Agency별 매장 정보 */}
+                  {todayStats.storeCount > 0 && (
+                    <div style={{ marginTop: '20px', padding: '16px', background: 'rgba(20, 40, 70, 0.4)', borderRadius: '12px', border: '1px solid rgba(70, 130, 180, 0.2)' }}>
+                      <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: '600', color: '#a8d8ff' }}>📋 소속별 등록 현황</h4>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {Object.entries(todayStats.agencyMap).map(([agency, storesInAgency]) => (
+                          <div key={agency} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#b8c5d6', padding: '8px 12px', background: 'rgba(30, 50, 80, 0.3)', borderRadius: '8px' }}>
+                            <span>{agency}</span>
+                            <span style={{ fontWeight: '600', color: '#4ade80' }}>{storesInAgency.length}개 매장</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -924,6 +1094,41 @@ const PublishWorkflow = () => {
             {/* 매장 탭 */}
             {activeTab === 'store' && (
               <div style={{ background: 'rgba(20, 40, 70, 0.35)', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(70, 130, 180, 0.2)' }}>
+                {/* 필터 바 */}
+                {isAdmin && (
+                  <div style={{
+                    display: 'flex',
+                    gap: '12px',
+                    padding: '12px 16px',
+                    borderBottom: '1px solid rgba(70, 130, 180, 0.2)',
+                    background: 'rgba(30, 50, 80, 0.4)',
+                    alignItems: 'center',
+                  }}>
+                    <label style={{ fontSize: '13px', fontWeight: '600', color: '#a8d8ff', whiteSpace: 'nowrap' }}>소속 필터:</label>
+                    <select
+                      value={selectedStoreAgency}
+                      onChange={(e) => {
+                        setSelectedStoreAgency(e.target.value);
+                        setStoreCurrentPage(1);
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        background: 'rgba(30, 50, 80, 0.6)',
+                        border: '1px solid rgba(70, 130, 180, 0.3)',
+                        color: '#e8eef5',
+                        borderRadius: '6px',
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                        minWidth: '200px',
+                      }}
+                    >
+                      <option value="all">모두 보기</option>
+                      {getAllAgencies().map(agency => (
+                        <option key={agency} value={agency}>{agency}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <table style={styles.table}>
                   <thead>
                     <tr style={{ background: 'rgba(30, 50, 80, 0.6)' }}>
@@ -947,139 +1152,148 @@ const PublishWorkflow = () => {
                       </tr>
                     ) : (
                       (() => {
+                        const filteredStores = getFilteredStoresByAgency();
                         const startIndex = (storeCurrentPage - 1) * storeItemsPerPage;
                         const endIndex = startIndex + storeItemsPerPage;
-                        const paginatedStores = stores.slice(startIndex, endIndex);
+                        const paginatedStores = filteredStores.slice(startIndex, endIndex);
                         
-                        return paginatedStores.map((store) => (
-                          <tr key={store.id}>
-                            {isAdmin && (
-                              <td style={styles.td}>
-                                <span style={{ fontSize: '12px', color: '#a0aec0' }}>
-                                  {store.user?.user_id || '-'}
-                                </span>
-                              </td>
-                            )}
-                            <td style={styles.td}>
-                              <strong>{store.store_name}</strong>
+                        return paginatedStores.length === 0 ? (
+                          <tr>
+                            <td colSpan={isAdmin ? "9" : "8"} style={{ ...styles.td, textAlign: 'center', color: '#b8c5d6' }}>
+                              해당 소속의 매장이 없습니다.
                             </td>
-                          <td style={styles.tdCenter}>
-                            {store.address ? (
-                              <a
-                                href={store.address}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{ color: '#3b82f6', textDecoration: 'none', fontSize: '12px' }}
-                              >
-                                {store.address.substring(0, 25)}...
-                              </a>
-                            ) : (
-                              '-'
-                            )}
-                          </td>
-                          <td style={styles.tdCenter}>{store.draft_reviews?.substring(0, 15) || '-'}</td>
-                          <td style={styles.tdCenter}>
-                            {store.image_urls?.length ? (
-                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center' }}>
-                                <img src={store.image_urls[0]} alt="thumb" style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '6px', cursor: 'pointer' }} onClick={() => downloadUrl(store.image_urls[0], `${store.store_name}-image.jpg`)} />
-                                <span style={{ fontSize: '12px', color: '#9ca3af' }}>{store.image_urls.length}개</span>
-                              </div>
-                            ) : (
-                              '-'
-                            )}
-                          </td>
-                          <td style={styles.tdCenter}>
-                            <span style={{ color: '#4682b4', fontWeight: '600' }}>{store.daily_frequency || 1}</span>
-                            <span style={{ color: '#9ca3af' }}> / </span>
-                            <span style={{ color: '#48bb78', fontWeight: '600' }}>{store.total_count || 1}</span>
-                            <span style={{ color: '#9ca3af' }}> / </span>
-                            <span style={{ color: '#f56565', fontWeight: '600' }}>{getStoreCurrentCount(store.id)}</span>
-                          </td>
-                          <td style={styles.tdCenter}>
-                            {store.created_at ? new Date(store.created_at).toLocaleDateString('ko-KR') : '-'}
-                          </td>
-                          <td style={styles.tdCenter}>
-                            {getLastDeploymentDate(store.id) ? (
-                              <div style={{ fontSize: '12px' }}>
-                                {new Date(getLastDeploymentDate(store.id)).toLocaleDateString('ko-KR')}
-                                <div style={{ fontSize: '10px', color: '#6b7280', marginTop: '2px' }}>
-                                  {new Date(getLastDeploymentDate(store.id)).toLocaleTimeString('ko-KR', { 
-                                    hour: '2-digit', 
-                                    minute: '2-digit',
-                                    second: '2-digit'
-                                  })}
-                                </div>
-                              </div>
-                            ) : (
-                              '-'
-                            )}
-                          </td>
-                          <td style={styles.tdCenter}>
-                            {(isAdmin || isAgency) && (
-                              <>
-                                <button
-                                  onClick={() => handleEditStore(store)}
-                                  style={{
-                                    background: 'rgba(59, 130, 246, 0.2)',
-                                    border: '1px solid rgba(59, 130, 246, 0.5)',
-                                    color: '#93c5fd',
-                                    padding: '6px 10px',
-                                    borderRadius: '6px',
-                                    cursor: 'pointer',
-                                    fontSize: '12px',
-                                    marginRight: '4px',
-                                  }}
-                                >
-                                  편집
-                                </button>
-                                {isAdmin && (
-                                  <button
-                                    onClick={() => handleDeployStore(store)}
-                                    disabled={deployingStoreId === store.id}
-                                    style={{
-                                      background: deployingStoreId === store.id 
-                                        ? 'rgba(107, 114, 128, 0.4)' 
-                                        : 'rgba(34, 197, 94, 0.2)',
-                                      border: '1px solid rgba(34, 197, 94, 0.5)',
-                                      color: deployingStoreId === store.id ? '#9ca3af' : '#86efac',
-                                      padding: '6px 10px',
-                                      borderRadius: '6px',
-                                      cursor: deployingStoreId === store.id ? 'not-allowed' : 'pointer',
-                                      fontSize: '12px',
-                                      marginRight: '4px',
-                                      opacity: deployingStoreId === store.id ? 0.6 : 1,
-                                      transition: 'all 0.3s ease',
-                                    }}
+                          </tr>
+                        ) : (
+                          paginatedStores.map((store) => (
+                            <tr key={store.id}>
+                              {isAdmin && (
+                                <td style={styles.td}>
+                                  <span style={{ fontSize: '12px', color: '#a0aec0' }}>
+                                    {store.user?.user_id || '-'}
+                                  </span>
+                                </td>
+                              )}
+                              <td style={styles.td}>
+                                <strong>{store.store_name}</strong>
+                              </td>
+                              <td style={styles.tdCenter}>
+                                {store.address ? (
+                                  <a
+                                    href={store.address}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{ color: '#3b82f6', textDecoration: 'none', fontSize: '12px' }}
                                   >
-                                    {deployingStoreId === store.id ? '배포 중...' : '🚀 배포'}
-                                  </button>
+                                    {store.address.substring(0, 25)}...
+                                  </a>
+                                ) : (
+                                  '-'
                                 )}
-                                <button
-                                  onClick={() => handleDeleteStore(store.id)}
-                                  style={{
-                                    background: 'rgba(239, 68, 68, 0.2)',
-                                    border: '1px solid rgba(239, 68, 68, 0.5)',
-                                    color: '#fca5a5',
-                                    padding: '6px 10px',
-                                    borderRadius: '6px',
-                                    cursor: 'pointer',
-                                    fontSize: '12px',
-                                  }}
-                                >
-                                  삭제
-                                </button>
-                              </>
-                            )}
-                          </td>
-                        </tr>
-                      ));
+                              </td>
+                              <td style={styles.tdCenter}>{store.draft_reviews?.substring(0, 15) || '-'}</td>
+                              <td style={styles.tdCenter}>
+                                {store.image_urls?.length ? (
+                                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center' }}>
+                                    <img src={store.image_urls[0]} alt="thumb" style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '6px', cursor: 'pointer' }} onClick={() => downloadUrl(store.image_urls[0], `${store.store_name}-image.jpg`)} />
+                                    <span style={{ fontSize: '12px', color: '#9ca3af' }}>{store.image_urls.length}개</span>
+                                  </div>
+                                ) : (
+                                  '-'
+                                )}
+                              </td>
+                              <td style={styles.tdCenter}>
+                                <span style={{ color: '#4682b4', fontWeight: '600' }}>{store.daily_frequency || 1}</span>
+                                <span style={{ color: '#9ca3af' }}> / </span>
+                                <span style={{ color: '#48bb78', fontWeight: '600' }}>{store.total_count || 1}</span>
+                                <span style={{ color: '#9ca3af' }}> / </span>
+                                <span style={{ color: '#f56565', fontWeight: '600' }}>{getStoreCurrentCount(store.id)}</span>
+                              </td>
+                              <td style={styles.tdCenter}>
+                                {store.created_at ? new Date(store.created_at).toLocaleDateString('ko-KR') : '-'}
+                              </td>
+                              <td style={styles.tdCenter}>
+                                {getLastDeploymentDate(store.id) ? (
+                                  <div style={{ fontSize: '12px' }}>
+                                    {new Date(getLastDeploymentDate(store.id)).toLocaleDateString('ko-KR')}
+                                    <div style={{ fontSize: '10px', color: '#6b7280', marginTop: '2px' }}>
+                                      {new Date(getLastDeploymentDate(store.id)).toLocaleTimeString('ko-KR', { 
+                                        hour: '2-digit', 
+                                        minute: '2-digit',
+                                        second: '2-digit'
+                                      })}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  '-'
+                                )}
+                              </td>
+                              <td style={styles.tdCenter}>
+                                {(isAdmin || isAgency) && (
+                                  <>
+                                    <button
+                                      onClick={() => handleEditStore(store)}
+                                      style={{
+                                        background: 'rgba(59, 130, 246, 0.2)',
+                                        border: '1px solid rgba(59, 130, 246, 0.5)',
+                                        color: '#93c5fd',
+                                        padding: '6px 10px',
+                                        borderRadius: '6px',
+                                        cursor: 'pointer',
+                                        fontSize: '12px',
+                                        marginRight: '4px',
+                                      }}
+                                    >
+                                      편집
+                                    </button>
+                                    {isAdmin && (
+                                      <button
+                                        onClick={() => handleDeployStore(store)}
+                                        disabled={deployingStoreId === store.id}
+                                        style={{
+                                          background: deployingStoreId === store.id 
+                                            ? 'rgba(107, 114, 128, 0.4)' 
+                                            : 'rgba(34, 197, 94, 0.2)',
+                                          border: '1px solid rgba(34, 197, 94, 0.5)',
+                                          color: deployingStoreId === store.id ? '#9ca3af' : '#86efac',
+                                          padding: '6px 10px',
+                                          borderRadius: '6px',
+                                          cursor: deployingStoreId === store.id ? 'not-allowed' : 'pointer',
+                                          fontSize: '12px',
+                                          marginRight: '4px',
+                                          opacity: deployingStoreId === store.id ? 0.6 : 1,
+                                          transition: 'all 0.3s ease',
+                                        }}
+                                      >
+                                        {deployingStoreId === store.id ? '배포 중...' : '🚀 배포'}
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() => handleDeleteStore(store.id)}
+                                      style={{
+                                        background: 'rgba(239, 68, 68, 0.2)',
+                                        border: '1px solid rgba(239, 68, 68, 0.5)',
+                                        color: '#fca5a5',
+                                        padding: '6px 10px',
+                                        borderRadius: '6px',
+                                        cursor: 'pointer',
+                                        fontSize: '12px',
+                                      }}
+                                    >
+                                      삭제
+                                    </button>
+                                  </>
+                                )}
+                              </td>
+                            </tr>
+                          ))
+                        );
                       })()
                     )}
                   </tbody>
                 </table>
 
                 {/* 매장 탭 페이지네이션 */}
-                {stores.length > 0 && (
+                {getFilteredStoresByAgency().length > 0 && (
                   <div style={{ 
                     display: 'flex', 
                     justifyContent: 'space-between',
@@ -1112,7 +1326,7 @@ const PublishWorkflow = () => {
                       </select>
                     </div>
 
-                    {stores.length > storeItemsPerPage && (
+                    {getFilteredStoresByAgency().length > storeItemsPerPage && (
                       <div style={{ 
                         display: 'flex', 
                         justifyContent: 'center', 
@@ -1250,18 +1464,26 @@ const PublishWorkflow = () => {
                   
                   {/* 통계 */}
                   <div style={{ display: 'flex', gap: '16px', fontSize: '12px', whiteSpace: 'nowrap', minWidth: 'fit-content' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ color: '#b8c5d6' }}>총:</span>
-                      <span style={{ color: '#e8eef5', fontWeight: '600' }}>{tasks.length}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ color: '#b8c5d6' }}>승인중:</span>
-                      <span style={{ color: '#93c5fd', fontWeight: '600' }}>{displayTasks.length}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ color: '#b8c5d6' }}>완료:</span>
-                      <span style={{ color: '#86efac', fontWeight: '600' }}>{tasks.length - displayTasks.length}</span>
-                    </div>
+                    {(() => {
+                      const filteredTasks = getFilteredTasksByAgency();
+                      const filteredDisplayTasks = filteredTasks.filter(t => isTaskInProgress(t));
+                      return (
+                        <>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span style={{ color: '#b8c5d6' }}>총:</span>
+                            <span style={{ color: '#e8eef5', fontWeight: '600' }}>{filteredTasks.length}</span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span style={{ color: '#b8c5d6' }}>승인중:</span>
+                            <span style={{ color: '#93c5fd', fontWeight: '600' }}>{filteredDisplayTasks.length}</span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span style={{ color: '#b8c5d6' }}>완료:</span>
+                            <span style={{ color: '#86efac', fontWeight: '600' }}>{filteredTasks.length - filteredDisplayTasks.length}</span>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
 
                   {/* 구분선 */}
@@ -1284,6 +1506,36 @@ const PublishWorkflow = () => {
                       fontSize: '12px',
                     }}
                   />
+
+                  {/* Agency 필터 */}
+                  {isAdmin && (
+                    <>
+                      <div style={{ width: '1px', height: '20px', background: 'rgba(70, 130, 180, 0.2)', minWidth: '1px' }}></div>
+                      <select
+                        value={selectedTaskAgency}
+                        onChange={(e) => {
+                          setSelectedTaskAgency(e.target.value);
+                          setTaskCurrentPage(1);
+                        }}
+                        style={{
+                          flex: '0 1 auto',
+                          minWidth: '180px',
+                          padding: '6px 10px',
+                          background: 'rgba(30, 50, 80, 0.6)',
+                          border: '1px solid rgba(70, 130, 180, 0.2)',
+                          borderRadius: '6px',
+                          color: '#e8eef5',
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <option value="all">모든 소속</option>
+                        {getAllAgencies().map(agency => (
+                          <option key={agency} value={agency}>{agency}</option>
+                        ))}
+                      </select>
+                    </>
+                  )}
                   
                   {/* 상태 필터 */}
                   <select
@@ -1345,7 +1597,11 @@ const PublishWorkflow = () => {
                   </thead>
                   <tbody>
                     {(() => {
-                      const filteredTasks = displayTasks.filter((task) => {
+                      // agency 필터 적용
+                      const agencyFilteredTasks = getFilteredTasksByAgency();
+                      
+                      // 상태 및 검색어 필터 적용
+                      const filteredTasks = agencyFilteredTasks.filter((task) => {
                         const displayStatus = getTaskDisplayStatus(task);
                         if (taskStatusFilter !== 'all' && displayStatus !== taskStatusFilter) {
                           return false;
@@ -1360,7 +1616,7 @@ const PublishWorkflow = () => {
                         return (
                           <tr>
                             <td colSpan={isAdmin ? "8" : "7"} style={{ ...styles.td, textAlign: 'center', color: '#b8c5d6' }}>
-                              {displayTasks.length === 0 ? '승인 중인 작업이 없습니다.' : '검색 결과가 없습니다.'}
+                              {agencyFilteredTasks.length === 0 ? '승인 중인 작업이 없습니다.' : '검색 결과가 없습니다.'}
                             </td>
                           </tr>
                         );
