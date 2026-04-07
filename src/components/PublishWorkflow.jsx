@@ -176,78 +176,6 @@ const PublishWorkflow = () => {
     return isTaskInProgress(task) ? 'in_progress' : 'completed';
   };
 
-  // 작업 리스트에 표시할 task 필터링
-  const getDisplayTasks = () => {
-    return tasks
-      .filter((task) => {
-        // 진행 중인 task만 표시
-        return isTaskInProgress(task);
-      })
-        .map((task) => {
-        // 각 task에 store 정보 추가 (등록된 매장명이 우선이며, 파싱된 place_name 사용 금지)
-        const store = stores.find(s => s.id === task.store_id);
-        return {
-          ...task,
-          store: store || null
-        };
-      });
-  };
-
-  const displayTasks = getDisplayTasks();
-
-  // Helper 함수: 금일 등록한 매장 필터링
-  const getTodayStores = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    return stores.filter(store => {
-      if (!store.created_at) return false;
-      const storeDate = new Date(store.created_at);
-      storeDate.setHours(0, 0, 0, 0);
-      return storeDate.getTime() === today.getTime();
-    });
-  };
-
-  // Helper 함수: 금일 등록 통계 계산
-  const getTodayStats = () => {
-    const todayStores = getTodayStores();
-    const todayStoreIds = new Set(todayStores.map(s => s.id));
-    
-    const todayTasks = tasks.filter(t => todayStoreIds.has(t.store_id));
-    const todayCompletedTasks = todayTasks.filter(t => !isTaskInProgress(t));
-    
-    // Agency별 매장 그룹핑
-    const agencyMap = {};
-    todayStores.forEach(store => {
-      const agencyName = store.user?.user_id || '미지정';
-      if (!agencyMap[agencyName]) {
-        agencyMap[agencyName] = [];
-      }
-      agencyMap[agencyName].push(store);
-    });
-    
-    return {
-      storeCount: todayStores.length,
-      taskCount: todayTasks.length,
-      completedCount: todayCompletedTasks.length,
-      agencyMap,
-      todayStores
-    };
-  };
-
-  const todayStats = getTodayStats();
-
-  // Helper 함수: 모든 agency 목록 추출
-  const getAllAgencies = () => {
-    const agencies = new Set();
-    stores.forEach(store => {
-      if (store.user?.user_id) {
-        agencies.add(store.user.user_id);
-      }
-    });
-    return Array.from(agencies).sort();
-  };
-
   // Helper 함수: agency로 필터링된 stores 반환
   const getFilteredStoresByAgency = () => {
     if (!isAdmin || selectedStoreAgency === 'all') {
@@ -269,6 +197,123 @@ const PublishWorkflow = () => {
     }
     
     return tasks.filter(task => filteredStoresIds.has(task.store_id));
+  };
+
+  // 작업 리스트에 표시할 task 필터링
+  const getDisplayTasks = () => {
+    // Agency 필터링 적용
+    const filteredTasks = getFilteredTasksByAgency();
+    
+    return filteredTasks
+      .filter((task) => {
+        // 진행 중인 task만 표시
+        return isTaskInProgress(task);
+      })
+        .map((task) => {
+        // 각 task에 store 정보 추가
+        const store = stores.find(s => s.id === task.store_id);
+        return {
+          ...task,
+          store: store || null
+        };
+      });
+  };
+
+  const displayTasks = getDisplayTasks();
+
+  // Helper 함수: 완료된 작업 계산 (Agency 필터링 적용)
+  const getCompletedTasks = () => {
+    // Agency 필터링 적용
+    const filteredTasks = getFilteredTasksByAgency();
+    
+    return filteredTasks.filter(task => !isTaskInProgress(task));
+  };
+
+  const completedTasks = getCompletedTasks();
+
+  // 디버그 로그
+  console.log('📊 전체 통계:');
+  console.log('  - 전체 작업:', tasks.length);
+  console.log('  - 진행 중인 작업:', displayTasks.length);
+  console.log('  - 완료된 작업:', completedTasks.length);
+  completedTasks.forEach(t => {
+    const store = stores.find(s => s.id === t.store_id);
+    const current = getStoreCurrentCount(t.store_id);
+    const total = getStoreTotalCount(t.store_id);
+    console.log(`    └─ Task ${t.id}: store=${store?.store_name}(${t.store_id}), 현재=${current}, 총=${total}`);
+  });
+
+  // Helper 함수: 금일 등록한 매장 필터링
+  const getTodayStores = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    return stores.filter(store => {
+      if (!store.created_at) return false;
+      const storeDate = new Date(store.created_at);
+      storeDate.setHours(0, 0, 0, 0);
+      return storeDate.getTime() === today.getTime();
+    });
+  };
+
+  // Helper 함수: 금일 등록 통계 계산
+  const getTodayStats = () => {
+    const todayStores = getTodayStores();
+    
+    // Agency 필터링 적용
+    let filteredTodayStores = todayStores;
+    if (isAdmin && selectedStoreAgency && selectedStoreAgency !== 'all') {
+      filteredTodayStores = todayStores.filter(store => store.user?.user_id === selectedStoreAgency);
+    }
+    
+    const todayStoreIds = new Set(filteredTodayStores.map(s => s.id));
+    
+    const todayTasks = tasks.filter(t => todayStoreIds.has(t.store_id));
+    const todayCompletedTasks = todayTasks.filter(t => !isTaskInProgress(t));
+    
+    // 디버그 로그
+    console.log('🔍 getTodayStats 디버그:');
+    console.log('  - todayStores (오늘 등록된 매장):', todayStores.length, todayStores.map(s => `${s.id}(${s.store_name})`));
+    console.log('  - filteredTodayStores (필터된 매장):', filteredTodayStores.length, filteredTodayStores.map(s => `${s.id}(${s.store_name})`));
+    console.log('  - todayTasks (오늘 매장 관련 작업):', todayTasks.length, todayTasks.map(t => `${t.id}(store:${t.store_id})`));
+    console.log('  - todayCompletedTasks (완료된 작업):', todayCompletedTasks.length);
+    todayCompletedTasks.forEach(t => {
+      const store = stores.find(s => s.id === t.store_id);
+      const current = getStoreCurrentCount(t.store_id);
+      const total = getStoreTotalCount(t.store_id);
+      console.log(`    └─ Task ${t.id}: store=${store?.store_name}(${t.store_id}), 현재=${current}, 총=${total}, 진행중=${isTaskInProgress(t)}`);
+    });
+    
+    // Agency별 매장 그룹핑 (필터링된 매장만)
+    const agencyMap = {};
+    filteredTodayStores.forEach(store => {
+      const agencyName = store.user?.user_id || '미지정';
+      if (!agencyMap[agencyName]) {
+        agencyMap[agencyName] = [];
+      }
+      agencyMap[agencyName].push(store);
+    });
+    
+    return {
+      storeCount: filteredTodayStores.length,
+      taskCount: todayTasks.length,
+      completedCount: todayCompletedTasks.length,
+      agencyMap,
+      todayStores: filteredTodayStores
+    };
+  };
+
+  const todayStats = getTodayStats();
+
+  // Helper 함수: 모든 agency 목록 추출
+  const getAllAgencies = () => {
+    const agencies = new Set();
+    stores.forEach(store => {
+      if (store.user?.user_id) {
+        agencies.add(store.user.user_id);
+      }
+    });
+    return Array.from(agencies).sort();
   };
 
   // 매장별 마지막 발행일시 구하기
@@ -993,7 +1038,7 @@ const PublishWorkflow = () => {
                     <h3 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '600', color: '#8077c4', letterSpacing: '0.5px' }}>완료된 작업</h3>
                     <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px' }}>
                       <span style={{ fontSize: '56px', fontWeight: '700', color: '#5c54a5', lineHeight: '1' }}>
-                        {tasks.length - displayTasks.length}
+                        {completedTasks.length}
                       </span>
                       <span style={{ fontSize: '14px', color: '#5b99c9', fontWeight: '500', marginBottom: '6px' }}>건</span>
                     </div>
