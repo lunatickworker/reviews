@@ -21,6 +21,7 @@ const StoreManagement = () => {
     storeName: '',
     address: '',
     reviewMessage: '',
+    draftReviews: '',
     imageUrls: [],
     dailyFrequency: 1,
     totalCount: 1,
@@ -74,7 +75,7 @@ const StoreManagement = () => {
   }, [loadStores]);
 
   const resetForm = () => {
-    setNewStore({ storeName: '', address: '', reviewMessage: '', imageUrls: [], dailyFrequency: 1, totalCount: 1 });
+    setNewStore({ storeName: '', address: '', reviewMessage: '', draftReviews: '', imageUrls: [], dailyFrequency: 1, totalCount: 1 });
     setTempImageUrl('');
     setEditingId(null);
     setShowForm(false);
@@ -148,6 +149,7 @@ const StoreManagement = () => {
       storeName: store.store_name,
       address: store.address || '',
       reviewMessage: store.review_message || '',
+      draftReviews: store.draft_reviews || '',
       imageUrls: Array.isArray(store.image_urls) ? store.image_urls : [],
       dailyFrequency: store.daily_frequency || 1,
       totalCount: store.total_count || 1,
@@ -248,7 +250,8 @@ const StoreManagement = () => {
           newStore.imageUrls,
           dailyFreq,
           totalCnt,
-          token
+          token,
+          newStore.draftReviews.trim()
         );
         setSuccessMessage('매장이 수정되었습니다.');
       } else {
@@ -259,7 +262,8 @@ const StoreManagement = () => {
           newStore.imageUrls,
           dailyFreq,
           totalCnt,
-          token
+          token,
+          newStore.draftReviews.trim()
         );
         setSuccessMessage('매장이 등록되었습니다.');
       }
@@ -297,6 +301,30 @@ const StoreManagement = () => {
           const worksheet = workbook.Sheets[workbook.SheetNames[0]];
           const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
+          // 필수 컬럼명 정의
+          const requiredColumns = ['매장명', '매장주소', '리뷰메세지', '이미지주소', '하루횟수', '총횟수'];
+          
+          // 파일의 헤더/컬럼 확인
+          if (jsonData.length === 0) {
+            setError('파일에 데이터가 없습니다.');
+            e.target.value = '';
+            return;
+          }
+
+          const fileColumns = Object.keys(jsonData[0]);
+          const missingColumns = requiredColumns.filter(col => !fileColumns.includes(col));
+
+          // 컬럼 포멧이 맞지 않으면 알람
+          if (missingColumns.length > 0) {
+            setError(
+              `❌ 파일 포멧이 이전 버전입니다!\n\n` +
+              `누락된 컬럼: ${missingColumns.join(', ')}\n\n` +
+              `아래 버튼에서 최신 템플릿을 다운로드하여 사용해주세요.`
+            );
+            e.target.value = '';
+            return;
+          }
+
           let successCount = 0;
           let failCount = 0;
           const failedStores = [];
@@ -327,7 +355,8 @@ const StoreManagement = () => {
             }
 
             try {
-              await storeApi.create(storeName, address, reviewMessage, imageUrls, dailyFrequency, totalCount, token);
+              const draftReviews = row['리뷰가이드'] ? row['리뷰가이드'].toString().trim() : '';
+              await storeApi.create(storeName, address, reviewMessage, imageUrls, dailyFrequency, totalCount, token, draftReviews);
               successCount++;
             } catch (err) {
               failCount++;
@@ -350,7 +379,7 @@ const StoreManagement = () => {
           setTimeout(() => setSuccessMessage(''), 5000);
           await loadStores();
         } catch (error) {
-          setError('엑셀 파일 형식이 올바르지 않습니다. (매장명, 매장주소, 리뷰메세지, 이미지주소 컬럼 필요)');
+          setError('엑셀 파일 파싱에 실패했습니다. 파일 형식을 확인해주세요.');
         }
       };
       reader.readAsBinaryString(file);
@@ -363,7 +392,7 @@ const StoreManagement = () => {
 
   const downloadTemplate = () => {
     const template = [
-      { 매장명: '장어맛집', 매장주소: 'https://maps.app.goo.gl/4C1ftLsCmzKvpw6Q7', 리뷰메세지: '맜있게 먹었어요.', 이미지주소: 'https://example.com/image1.jpg, https://example.com/image2.jpg', 하루횟수: 2, 총횟수: 10 },
+      { 매장명: '장어맛집', 매장주소: 'https://maps.app.goo.gl/4C1ftLsCmzKvpw6Q7', 리뷰메세지: '맜있게 먹었어요.', 리뷰가이드: '점심 특가 메뉴 추천', 이미지주소: 'https://example.com/image1.jpg, https://example.com/image2.jpg', 하루횟수: 2, 총횟수: 10 },
     ];
 
     const worksheet = XLSX.utils.json_to_sheet(template);
@@ -424,7 +453,16 @@ const StoreManagement = () => {
         </div>
       </div>
 
-      {error && <p style={styles.error}>{error}</p>}
+      {error && (
+        <div style={styles.errorContainer}>
+          <p style={styles.error}>{error}</p>
+          {error.includes('버전') && (
+            <button onClick={downloadTemplate} style={styles.downloadTemplateButton}>
+              📥 최신 템플릿 다운로드
+            </button>
+          )}
+        </div>
+      )}
       {successMessage && (
         <p style={styles.success}>
           {successMessage.split('\n').map((line, idx) => (
@@ -470,6 +508,19 @@ const StoreManagement = () => {
               onChange={(e) => setNewStore({ ...newStore, reviewMessage: e.target.value })}
               style={{ ...styles.input, minHeight: '80px', resize: 'vertical' }}
             />
+          </div>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>리뷰 가이드/원고</label>
+            <textarea
+              placeholder="예: 점심 특가 메뉴 추천 (선택입력)"
+              value={newStore.draftReviews}
+              onChange={(e) => setNewStore({ ...newStore, draftReviews: e.target.value })}
+              style={{ ...styles.input, minHeight: '100px', resize: 'vertical' }}
+            />
+            <p style={styles.helperText}>
+              ℹ️ 리뷰 가이드나 원고가 있으면 작성해주세요. (선택입력)
+            </p>
           </div>
 
           <div style={styles.formGroup}>
@@ -564,6 +615,7 @@ const StoreManagement = () => {
               <th style={{ ...styles.th, width: isAdmin ? '12%' : '15%' }}>주소</th>
               <th style={{ ...styles.th, width: isAdmin ? '12%' : '15%' }}>이미지 주소</th>
               <th style={{ ...styles.th, width: isAdmin ? '14%' : '17%' }}>리뷰 메세지</th>
+              <th style={{ ...styles.th, width: isAdmin ? '12%' : '14%' }}>리뷰 가이드</th>
               <th style={{ ...styles.th, width: '7%' }}>하루발행</th>
               <th style={{ ...styles.th, width: '7%' }}>총발행</th>
               {isAdmin && (
@@ -627,6 +679,18 @@ const StoreManagement = () => {
                   </td>
                   <td style={{ ...styles.td, width: isAdmin ? '14%' : '17%', fontSize: '15px' }}>
                     {store.review_message || '-'}
+                  </td>
+                  <td style={{ ...styles.td, width: isAdmin ? '12%' : '14%', fontSize: '14px', color: '#a78bfa' }}>
+                    {store.draft_reviews ? (
+                      <div title={store.draft_reviews} style={{ 
+                        overflow: 'hidden', 
+                        textOverflow: 'ellipsis', 
+                        whiteSpace: 'nowrap',
+                        maxWidth: '100%'
+                      }}>
+                        {store.draft_reviews.substring(0, 30)}...
+                      </div>
+                    ) : '-'}
                   </td>
                   <td style={{ ...styles.td, width: '7%', fontSize: '15px', textAlign: 'center', fontWeight: '500', color: '#f59e0b' }}>
                     {store.daily_frequency || '-'}회
@@ -781,6 +845,26 @@ const styles = {
     fontSize: '14px',
     marginBottom: '16px',
     whiteSpace: 'pre-wrap',
+  },
+
+  errorContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    marginBottom: '16px',
+  },
+
+  downloadTemplateButton: {
+    alignSelf: 'flex-start',
+    padding: '8px 16px',
+    backgroundColor: 'rgba(59, 130, 246, 0.6)',
+    border: '1px solid rgba(59, 130, 246, 0.5)',
+    borderRadius: '6px',
+    color: '#93c5fd',
+    fontSize: '13px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
   },
 
   success: {

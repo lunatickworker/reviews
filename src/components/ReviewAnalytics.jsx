@@ -304,18 +304,36 @@ export default function ReviewAnalytics() {
 
     setSavingLinkTaskId(task.id);
     try {
+      // 1️⃣ 링크 저장
       const response = await mapApi.updateReviewLink(task.id, editingLink.trim(), token);
       
-      // ✅ 즉시 tasks 배열 업데이트 (Real-time 구독 대기 필요 없음)
       if (response.updatedTask) {
-        setTasks(prev => prev.map(t => t.id === response.updatedTask.id ? response.updatedTask : t));
-        console.log('✅ Tasks 로컬 상태 업데이트됨:', response.updatedTask.id, 'review_status:', response.updatedTask.review_status);
+        // 2️⃣ 상태 변경: in_progress → completed
+        const statusUpdate = {};
+        if (task.review_status === 'in_progress') {
+          statusUpdate.review_status = 'completed';
+        }
+        if (task.image_status === 'in_progress') {
+          statusUpdate.image_status = 'completed';
+        }
+
+        // 상태가 변경될 것이 있으면 API 호출
+        if (Object.keys(statusUpdate).length > 0) {
+          const statusResponse = await mapApi.updateTaskStatus(task.id, statusUpdate, 'PUT', token);
+          if (statusResponse?.updatedTask) {
+            setTasks(prev => prev.map(t => t.id === statusResponse.updatedTask.id ? statusResponse.updatedTask : t));
+            console.log('✅ 상태 완료로 변경됨:', task.id, statusUpdate);
+          }
+        } else {
+          // 상태 변경이 없으면 링크 저장 결과만 반영
+          setTasks(prev => prev.map(t => t.id === response.updatedTask.id ? response.updatedTask : t));
+        }
       }
       
       if (window.toastInstance) {
         window.toastInstance.add({
           type: 'success',
-          message: '✅ 링크가 저장되었습니다.',
+          message: '✅ 링크가 저장되고 상태가 완료로 변경되었습니다.',
           duration: 3000
         });
       }
@@ -694,11 +712,13 @@ export default function ReviewAnalytics() {
                               style={{
                                 ...styles.statusBadge,
                                 backgroundColor: task.review_status === 'completed' ? '#059669' :
-                                  task.review_status === 'failed' ? '#ef4444' : '#8b5cf6',
+                                  task.review_status === 'failed' ? '#ef4444' : 
+                                  task.review_status === 'in_progress' ? '#f59e0b' : '#8b5cf6',
                               }}
                             >
                               {task.review_status === 'completed' ? '✅ 완료' :
-                                task.review_status === 'failed' ? '❌ 실패' : '⏹️ 대기'}
+                                task.review_status === 'failed' ? '❌ 실패' : 
+                                task.review_status === 'in_progress' ? '⏳ 승인중' : '⏹️ 없음'}
                             </span>
                           </td>
                           <td style={styles.td}>
@@ -706,11 +726,13 @@ export default function ReviewAnalytics() {
                               style={{
                                 ...styles.statusBadge,
                                 backgroundColor: task.image_status === 'completed' ? '#059669' :
-                                  task.image_status === 'failed' ? '#ef4444' : '#8b5cf6',
+                                  task.image_status === 'failed' ? '#ef4444' : 
+                                  task.image_status === 'in_progress' ? '#f59e0b' : '#8b5cf6',
                               }}
                             >
                               {task.image_status === 'completed' ? '✅ 완료' :
-                                task.image_status === 'failed' ? '❌ 실패' : '⏹️ 대기'}
+                                task.image_status === 'failed' ? '❌ 실패' : 
+                                task.image_status === 'in_progress' ? '⏳ 승인중' : '⏹️ 없음'}
                             </span>
                           </td>
                           <td style={styles.td}>

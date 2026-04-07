@@ -73,7 +73,7 @@ const SimpleDeploy = () => {
     try {
       const response = await mapApi.updateTaskStatus(
         modalTask.id,
-        { review_status: 'completed' },
+        { review_status: 'in_progress', image_status: 'pending' },
         'PUT',
         token
       );
@@ -83,7 +83,7 @@ const SimpleDeploy = () => {
         if (window.toastInstance) {
           window.toastInstance.add({
             type: 'success',
-            message: '✅ 리뷰가 완료 표시되었습니다.',
+            message: '✅ 리뷰 상태가 승인중으로 설정되었습니다.',
             duration: 3000
           });
         }
@@ -111,7 +111,7 @@ const SimpleDeploy = () => {
     try {
       const response = await mapApi.updateTaskStatus(
         modalTask.id,
-        { review_status: 'completed', image_status: 'completed' },
+        { review_status: 'in_progress', image_status: 'in_progress' },
         'PUT',
         token
       );
@@ -121,7 +121,7 @@ const SimpleDeploy = () => {
         if (window.toastInstance) {
           window.toastInstance.add({
             type: 'success',
-            message: '✅ 리뷰와 이미지가 완료 표시되었습니다.',
+            message: '✅ 리뷰와 이미지 상태가 승인중으로 설정되었습니다.',
             duration: 3000
           });
         }
