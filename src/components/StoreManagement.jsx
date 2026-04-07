@@ -332,8 +332,8 @@ const StoreManagement = () => {
           for (const row of jsonData) {
             const storeName = row['매장명']?.toString().trim();
             const address = row['매장주소']?.toString().trim() || '';
-            const draftReviews = row['리뷰가이드']?.toString().trim() || '';
-            const reviewMessage = row['원고']?.toString().trim() || '';
+            const reviewMessage = row['리뷰가이드']?.toString().trim() || '';  // 리뷰가이드 → review_message으로 저장
+            const draftReviews = row['원고']?.toString().trim() || '';        // 원고 → draft_reviews로 저장
             const dailyFrequency = parseInt(row['하루횟수']) || 1;
             const totalCount = parseInt(row['총횟수']) || 1;
 
@@ -353,6 +353,13 @@ const StoreManagement = () => {
             if (!addressValidation.valid) {
               failCount++;
               failedStores.push(`${storeName}: ${addressValidation.warning}`);
+              continue;
+            }
+
+            // 리뷰가이드 또는 원고 중 하나는 필수
+            if (!draftReviews && !reviewMessage) {
+              failCount++;
+              failedStores.push(`${storeName}: 리뷰가이드 또는 원고 중 하나는 필수입니다`);
               continue;
             }
 

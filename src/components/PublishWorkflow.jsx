@@ -694,8 +694,8 @@ const PublishWorkflow = () => {
         try {
           const storeName = row.매장명?.trim();
           const address = row.매장주소?.trim();
-          const draftReviews = row.리뷰가이드?.trim() || '';
-          const reviewMessage = row.원고?.trim() || '';
+          const reviewMessage = row.리뷰가이드?.trim() || '';  // 리뷰가이드 → review_message으로 저장
+          const draftReviews = row.원고?.trim() || '';        // 원고 → draft_reviews로 저장
           const dailyFrequency = parseInt(row.하루횟수) || 1;
           const totalCount = parseInt(row.총횟수) || 1;
 
@@ -712,9 +712,10 @@ const PublishWorkflow = () => {
             continue;
           }
 
-          if (!draftReviews) {
+          // 리뷰가이드 또는 원고 중 하나는 필수
+          if (!reviewMessage && !draftReviews) {
             failureCount++;
-            failedRows.push(`${i + 2}행: 리뷰가이드 누락`);
+            failedRows.push(`${i + 2}행: 리뷰가이드 또는 원고 중 하나는 필수입니다`);
             continue;
           }
 
