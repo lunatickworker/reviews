@@ -1997,13 +1997,11 @@ const PublishWorkflow = () => {
                                 {new Date(task.created_at).toLocaleDateString('ko-KR')}
                               </td>
                               <td style={styles.tdCenter}>
-                                {task.updated_at || task.created_at ? (
+                                {getLastDeploymentDate(task.store_id) ? (
                                   <div style={{ fontSize: '12px' }}>
-                                    <div style={{ color: '#93c5fd', fontWeight: '600' }}>
-                                      {new Date(task.updated_at || task.created_at).toLocaleDateString('ko-KR')}
-                                    </div>
+                                    {new Date(getLastDeploymentDate(task.store_id)).toLocaleDateString('ko-KR')}
                                     <div style={{ fontSize: '10px', color: '#6b7280', marginTop: '2px' }}>
-                                      {new Date(task.updated_at || task.created_at).toLocaleTimeString('ko-KR', { 
+                                      {new Date(getLastDeploymentDate(task.store_id)).toLocaleTimeString('ko-KR', { 
                                         hour: '2-digit', 
                                         minute: '2-digit',
                                         second: '2-digit'
