@@ -57,14 +57,21 @@ const MainDashboard = () => {
     }
   }, [token]);
 
-  // 통계 계산
+  // 통계 계산 - 🔐 당일 데이터만 포함
   const calculateStats = useCallback((tasksData, storesData) => {
-    const completed = tasksData.filter((t) => t.status === 'completed').length;
-    const successRate = tasksData.length > 0 ? Math.round((completed / tasksData.length) * 100) : 0;
+    // 당일 데이터 필터링
+    const today = new Date();
+    const todayTasks = tasksData.filter(t => {
+      const taskDate = new Date(t.created_at);
+      return taskDate.toLocaleDateString() === today.toLocaleDateString();
+    });
+
+    const completed = todayTasks.filter((t) => t.status === 'completed').length;
+    const successRate = todayTasks.length > 0 ? Math.round((completed / todayTasks.length) * 100) : 0;
     const activeSchedules = storesData.filter((s) => s.daily_frequency > 0).length;
 
     setStats({
-      totalTasks: tasksData.length,
+      totalTasks: todayTasks.length,
       completedTasks: completed,
       totalStores: storesData.length,
       reviewsCompleted: completed,
@@ -90,23 +97,23 @@ const MainDashboard = () => {
     const unsubscribers = [];
     const storeIds = new Set(stores.map(s => s.id));
 
-    // Tasks 테이블 구독 - 🔐 조직격리: 자신의 stores에만 속하는 tasks만 처리
+    // Tasks 테이블 구독 - 🔐 조직격리: Admin은 모든 데이터, Agency는 자신의 stores만
     unsubscribers.push(
       subscribeToTable('tasks', {
         onInsert: (newTask) => {
           console.log('📍 New task:', newTask);
-          // 자신의 stores에만 속하는 task만 추가
-          if (storeIds.has(newTask.store_id)) {
+          // Admin은 모든 task, Agency는 자신의 stores task만
+          if (isAdmin || storeIds.has(newTask.store_id)) {
             setTasks(prev => [...prev, newTask]);
           }
         },
         onUpdate: (updatedTask) => {
           console.log('✏️ Task updated:', updatedTask);
-          // 자신의 stores에만 속하는 task만 업데이트
-          if (storeIds.has(updatedTask.store_id)) {
+          // Admin은 모든 task, Agency는 자신의 stores task만
+          if (isAdmin || storeIds.has(updatedTask.store_id)) {
             setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
           } else {
-            // 다른 agency의 task면 제거
+            // Agency가 다른 stores의 task면 제거
             setTasks(prev => prev.filter(t => t.id !== updatedTask.id));
           }
         },
@@ -139,7 +146,7 @@ const MainDashboard = () => {
     return () => {
       unsubscribers.forEach(unsubscribe => unsubscribe());
     };
-  }, [stores]);
+  }, [stores, isAdmin]);
 
   const generateChartData = (tasks, stores) => {
     // 일일 작업량

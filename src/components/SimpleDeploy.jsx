@@ -43,14 +43,14 @@ const SimpleDeploy = () => {
   }, [token]);
 
   // 실시간 구독 - Tasks (별점 업데이트 감지)
-  // 🔐 조직격리: 자신의 stores에만 속하는 tasks만 처리
+  // 🔐 조직격리: Admin은 모든 데이터, Agency는 자신의 stores만
   useEffect(() => {
     const storeIds = new Set(stores.map(s => s.id));
     
     return subscribeToTable('tasks', {
       onUpdate: (updatedTask) => {
-        // 자신의 stores에만 속하는 task만 업데이트
-        if (storeIds.has(updatedTask.store_id)) {
+        // Admin은 모든 task, Agency는 자신의 stores task만
+        if (isAdmin || storeIds.has(updatedTask.store_id)) {
           console.log('📍 Task 업데이트 감지:', updatedTask.id, 'stars:', updatedTask.stars);
           setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
           
@@ -63,7 +63,7 @@ const SimpleDeploy = () => {
         }
       },
     });
-  }, [stores]);
+  }, [stores, isAdmin]);
 
   // 최종 완료 처리 - 리뷰만 완료
   const handleReviewOnly = async () => {

@@ -34,7 +34,7 @@ export default function TaskManagement() {
     }
   }, [token, isAdmin]);
 
-  // 실시간 구독 - 🔐 조직격리: 자신의 stores에만 속하는 tasks만 처리
+  // 실시간 구독 - 🔐 조직격리: Admin은 모든 데이터, Agency는 자신의 stores만
   useEffect(() => {
     const unsubscribers = [];
     const storeIds = new Set(stores.map(s => s.id));
@@ -42,17 +42,17 @@ export default function TaskManagement() {
     unsubscribers.push(
       subscribeToTable('tasks', {
         onInsert: (newTask) => {
-          // 자신의 stores에만 속하는 task만 추가
-          if (storeIds.has(newTask.store_id)) {
+          // Admin은 모든 task, Agency는 자신의 stores task만
+          if (isAdmin || storeIds.has(newTask.store_id)) {
             setTasks(prev => [...prev, newTask]);
           }
         },
         onUpdate: (updatedTask) => {
-          // 자신의 stores에만 속하는 task만 업데이트
-          if (storeIds.has(updatedTask.store_id)) {
+          // Admin은 모든 task, Agency는 자신의 stores task만
+          if (isAdmin || storeIds.has(updatedTask.store_id)) {
             setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
           } else {
-            // 다른 agency의 task면 제거
+            // Agency가 다른 stores의 task면 제거
             setTasks(prev => prev.filter(t => t.id !== updatedTask.id));
           }
         },
@@ -71,7 +71,7 @@ export default function TaskManagement() {
     );
 
     return () => unsubscribers.forEach(u => u());
-  }, [stores]);
+  }, [stores, isAdmin]);
 
   // 필터링: Backend에서 role별로 이미 필터링됨 (Admin은 모든 작업, Agency는 자신의 작업)
   // store_id column 추가 후 Admin이 선택한 매장별 필터링 가능

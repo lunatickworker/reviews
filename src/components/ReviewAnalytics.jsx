@@ -119,23 +119,23 @@ export default function ReviewAnalytics() {
   }, [token]);
 
   // 실시간 구독 - Tasks
-  // 🔐 조직격리: 자신의 stores에만 속하는 tasks만 처리
+  // 🔐 조직격리: Agency만 자신의 stores에만 속하는 tasks 처리 (Admin은 모든 데이터)
   useEffect(() => {
     const storeIds = new Set(stores.map(s => s.id));
     
     return subscribeToTable('tasks', {
       onInsert: (newTask) => {
-        // 자신의 stores에만 속하는 task만 추가
-        if (storeIds.has(newTask.store_id)) {
+        // Admin은 모든 task, Agency는 자신의 stores task만
+        if (isAdmin || storeIds.has(newTask.store_id)) {
           setTasks(prev => [...prev, newTask]);
         }
       },
       onUpdate: (updatedTask) => {
-        // 자신의 stores에만 속하는 task만 업데이트
-        if (storeIds.has(updatedTask.store_id)) {
+        // Admin은 모든 task, Agency는 자신의 stores task만
+        if (isAdmin || storeIds.has(updatedTask.store_id)) {
           setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
         } else {
-          // 다른 agency의 task면 제거
+          // Agency가 다른 stores의 task면 제거
           setTasks(prev => prev.filter(t => t.id !== updatedTask.id));
         }
       },
@@ -143,7 +143,7 @@ export default function ReviewAnalytics() {
         setTasks(prev => prev.filter(t => t.id !== deletedTask.id));
       },
     });
-  }, [stores]);
+  }, [stores, isAdmin]);
 
   // 실시간 구독 - Stores (일발행/총발행 실시간 반영)
   useEffect(() => {
@@ -217,6 +217,11 @@ export default function ReviewAnalytics() {
 
     return filtered;
   };
+
+  // 🔐 조직격리 적용: Agency는 review_share_link가 있는 task만
+  const organizedTasks = isAdmin 
+    ? tasks 
+    : tasks.filter(task => task.review_share_link && task.review_share_link.trim());
 
   const filteredTasks = getFilteredTasks();
 
@@ -330,14 +335,13 @@ export default function ReviewAnalytics() {
     }
   };
 
-  // 📊 통계 계산 - ⚠️ 필터링 BEFORE 데이터 사용 (전체 기준)
-  // 테이블은 필터링된 데이터 표시, 통계는 전체 데이터 기반
+  // 📊 통계 계산 - 🔐 필터링된 데이터(기간/타입/검색 포함) 기준
   const statistics = {
-    total: tasks.length,  // 전체 tasks
-    completedReview: tasks.filter(t => t.review_status === 'completed').length,  // 전체 완료
-    failedReview: tasks.filter(t => t.review_status === 'failed').length,  // 전체 실패
-    completedImage: tasks.filter(t => t.image_status === 'completed').length,  // 전체 이미지 완료
-    failedImage: tasks.filter(t => t.image_status === 'failed').length,  // 전체 이미지 실패
+    total: filteredTasks.length,
+    completedReview: filteredTasks.filter(t => t.review_status === 'completed').length,
+    failedReview: filteredTasks.filter(t => t.review_status === 'failed').length,
+    completedImage: filteredTasks.filter(t => t.image_status === 'completed').length,
+    failedImage: filteredTasks.filter(t => t.image_status === 'failed').length,
   };
 
   const reviewSuccessRate = statistics.total > 0
