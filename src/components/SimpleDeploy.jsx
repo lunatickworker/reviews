@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { storeApi, mapApi } from '../utils/api';
 import { subscribeToTable } from '../utils/realtimeApi';
@@ -17,7 +17,62 @@ const SimpleDeploy = () => {
   // 모달 상태
   const [modalTask, setModalTask] = useState(null);
   const [isCompleting, setIsCompleting] = useState(false);
-  const [pendingStore, setPendingStore] = useState(null);  // 확인 대기 중인 store
+  const [pendingStore, setPendingStore] = useState(null);
+  const shownModalTaskIdRef = useRef(null);  // 이미 띄워진 모달의 task ID 추적
+
+  useEffect(() => {
+    console.log('🎯 SimpleDeploy modalTask 상태 변경:', modalTask?.id);
+    if (modalTask) {
+      console.log('📢 모달 표시 시도:', {
+        id: modalTask.id,
+        stars: modalTask.stars,
+        review_status: modalTask.review_status
+      });
+    }
+  }, [modalTask]);
+
+  // 실시간 폴링: 백엔드가 대기중인 작업 감지 (별점 + pending 상태)
+  useEffect(() => {
+    const checkForWaitingTask = async () => {
+      try {
+        const latestTasks = await mapApi.getTasks(token);
+        
+        console.log(`📨 API 전체 응답:`, JSON.stringify(latestTasks, null, 2));
+        
+        if (latestTasks && latestTasks.length > 0) {
+          console.log(`📊 [폴링] 전체 ${latestTasks.length}개 task 상태:`);
+          latestTasks.forEach((t, idx) => {
+            console.log(`  [${idx}] ${t.id}:`, {
+              stars: t.stars,
+              review_status: t.review_status,
+              image_status: t.image_status,
+              keys: Object.keys(t)
+            });
+          });
+          
+          // 백엔드 대기 상태: stars > 0 + review_status === 'pending'
+          const waitingTask = latestTasks.find(t => {
+            const hasStars = t.stars && t.stars > 0;
+            const isPending = t.review_status === 'pending';
+            const notShown = shownModalTaskIdRef.current !== t.id;
+            return hasStars && isPending && notShown;
+          });
+          
+          if (waitingTask) {
+            console.log(`✅ [폴링] 감지! 모달 띄우기:`, waitingTask.id);
+            shownModalTaskIdRef.current = waitingTask.id;
+            setModalTask(waitingTask);
+          }
+        }
+      } catch (err) {
+        console.error('❌ [폴링] 오류:', err);
+      }
+    };
+
+    checkForWaitingTask();
+    const pollInterval = setInterval(checkForWaitingTask, 1000);
+    return () => clearInterval(pollInterval);
+  }, [token]);
 
   useEffect(() => {
     const loadStores = async () => {
@@ -43,7 +98,6 @@ const SimpleDeploy = () => {
   }, [token]);
 
   // 실시간 구독 - Tasks (별점 업데이트 감지)
-  // 🔐 조직격리: Admin은 모든 데이터, Agency는 자신의 stores만
   useEffect(() => {
     const storeIds = new Set(stores.map(s => s.id));
     
@@ -51,19 +105,20 @@ const SimpleDeploy = () => {
       onUpdate: (updatedTask) => {
         // Admin은 모든 task, Agency는 자신의 stores task만
         if (isAdmin || storeIds.has(updatedTask.store_id)) {
-          console.log('📍 Task 업데이트 감지:', updatedTask.id, 'stars:', updatedTask.stars);
+          console.log('📍 실시간 구독 - Task 업데이트 감지:', updatedTask.id, 'stars:', updatedTask.stars);
           setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
           
-          // 별점이 있고 미완료 상태면 모달 띄우기
-          if (updatedTask.stars && updatedTask.stars > 0 && 
-              (updatedTask.review_status !== 'completed' || updatedTask.image_status !== 'completed')) {
+          // 별점이 있으면 모달 띄우기
+          if (updatedTask.stars && updatedTask.stars > 0 && shownModalTaskIdRef.current !== updatedTask.id) {
+            console.log('🎉 실시간 구독으로 별점 감지! 모달 띄움:', updatedTask.id);
+            shownModalTaskIdRef.current = updatedTask.id;
             setModalTask(updatedTask);
-            console.log('📋 별점 감지! 모달 띄움:', updatedTask.id);
           }
         }
       },
     });
   }, [stores, isAdmin]);
+
 
   // 최종 완료 처리 - 리뷰만 완료
   const handleReviewOnly = async () => {
@@ -191,23 +246,24 @@ const SimpleDeploy = () => {
       title="🚀 배포" 
       description={`${stores.length}개 매장 관리`}
     >
-      {error && (
-        <Alert
-          type="error"
-          message={error}
-          onClose={() => setError('')}
-          duration={3000}
-        />
-      )}
+      <div onClick={(e) => e.stopPropagation()}>
+        {error && (
+          <Alert
+            type="error"
+            message={error}
+            onClose={() => setError('')}
+            duration={3000}
+          />
+        )}
 
-      {successMessage && (
-        <Alert
-          type="success"
-          message={successMessage}
-          onClose={() => setSuccessMessage('')}
-          duration={3000}
-        />
-      )}
+        {successMessage && (
+          <Alert
+            type="success"
+            message={successMessage}
+            onClose={() => setSuccessMessage('')}
+            duration={3000}
+          />
+        )}
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: '40px', color: '#b8c5d6' }}>
@@ -228,6 +284,10 @@ const SimpleDeploy = () => {
           {stores.map((store) => (
             <div
               key={store.id}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+              }}
               style={{
                 background: 'linear-gradient(135deg, rgba(70, 130, 180, 0.1) 0%, rgba(70, 130, 180, 0.05) 100%)',
                 border: '1px solid rgba(70, 130, 180, 0.3)',
@@ -301,6 +361,7 @@ const SimpleDeploy = () => {
           ))}
         </div>
       )}
+      </div>
 
       {/* 최종 완료 확인 모달 - 별점 선택 후 */}
       <CompletionModal
@@ -309,7 +370,6 @@ const SimpleDeploy = () => {
         storeName={modalTask ? stores.find(s => s.id === modalTask.store_id)?.store_name : ''}
         onReviewOnly={handleReviewOnly}
         onReviewWithImage={handleReviewWithImage}
-        onClose={() => setModalTask(null)}
         isLoading={isCompleting}
       />
     </PageLayout>

@@ -5,6 +5,7 @@ import { subscribeToTable } from '../utils/realtimeApi';
 import { FiPlus } from 'react-icons/fi';
 import * as XLSX from 'xlsx';
 import { PageLayout, Alert } from './common';
+import CompletionModal from './common/CompletionModal';
 
 /**
  * 통합 워크플로우 모듈
@@ -33,6 +34,8 @@ const PublishWorkflow = () => {
   const [showContinuePrompt, setShowContinuePrompt] = useState(false); // 계속 진행 모달
   const [currentTaskId, setCurrentTaskId] = useState(null); // 진행 중인 task ID
   const [isContinueLoading, setIsContinueLoading] = useState(false); // 계속 진행 대기
+  const [completionModalTask, setCompletionModalTask] = useState(null); // 완료 모달용 task
+  const [completionModalStore, setCompletionModalStore] = useState(null); // 완료 모달용 store
 
   // 폼 데이터
   const [storeForm, setStoreForm] = useState({
@@ -205,10 +208,21 @@ const PublishWorkflow = () => {
 
   // Helper 함수: agency로 필터링된 tasks 반환
   const getFilteredTasksByAgency = () => {
-    // ★ stores는 이미 backend에서 필터링됨 (Admin: 모든 stores, Agency: 자신의 stores만)
-    // 추가 필터링은 Admin이 선택한 agency로만 제한
-    const filteredStores = getFilteredStoresByAgency();
-    const filteredStoresIds = new Set(filteredStores.map(s => s.id));
+    // ★ Task 탭에서는 selectedTaskAgency 필터를 사용
+    // Store 탭에서는 selectedStoreAgency 필터를 사용
+    // activeTab에 따라 올바른 필터 선택
+    const agencyFilter = activeTab === 'task' ? selectedTaskAgency : selectedStoreAgency;
+    
+    if (!isAdmin || agencyFilter === 'all') {
+      return tasks;
+    }
+    
+    // Agency 필터 적용: 선택된 agency의 stores만 포함
+    const filteredStoresIds = new Set(
+      stores
+        .filter(store => store.user?.user_id === agencyFilter)
+        .map(s => s.id)
+    );
     
     return tasks.filter(task => filteredStoresIds.has(task.store_id));
   };
@@ -393,6 +407,10 @@ const PublishWorkflow = () => {
     }
   }, [tasks]);
 
+  // 🎉 폴링: 백엔드 대기 상태 감지 (별점 + pending)
+  // 🔴 자동 폴링 제거 - 상태 열 클릭할 때만 모달 띄움
+  // (백엔드 대기 로그 감지는 별도 방식 필요)
+
   // ✅ Tasks 실시간 구독 (completed_count 실시간 반영)
   // 🔐 조직격리: Admin은 모든 데이터, Agency는 자신의 stores만
   useEffect(() => {
@@ -411,11 +429,20 @@ const PublishWorkflow = () => {
         console.log('✏️ Task 업데이트됨:', updatedTask.id, {
           completed_count: updatedTask.completed_count,
           review_status: updatedTask.review_status,
-          review_share_link: updatedTask.review_share_link ? '있음' : '없음'
+          review_share_link: updatedTask.review_share_link ? '있음' : '없음',
+          stars: updatedTask.stars
         });
+        
         // Admin은 모든 task, Agency는 자신의 stores task만
         if (isAdmin || storeIds.has(updatedTask.store_id)) {
           setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+          
+          // 🎉 자동 모달 띄우기: 별점 + pending 상태 감지
+          if (updatedTask.stars && updatedTask.stars > 0 && updatedTask.review_status === 'pending') {
+            console.log('🎉 [자동 감지] 별점 + pending 상태! 모달 띄움:', updatedTask.id);
+            setCompletionModalTask(updatedTask);
+            setCompletionModalStore(updatedTask.store);
+          }
         } else {
           // Agency가 다른 stores의 task면 제거
           setTasks(prev => prev.filter(t => t.id !== updatedTask.id));
@@ -843,10 +870,8 @@ const PublishWorkflow = () => {
 
   // 작업 선택 (테이블 행 클릭) - 별점 선택 UI만 표시
   const handleSelectTask = (task) => {
-    setSelectedTask(task);
-    setSelectedStars(task.stars || 0);
-    setShowStarSelector(true);
-    setShowTaskCompletionModal(false);
+    // 작업 행 클릭 시 모달 띄우지 않음
+    return;
   };
 
   // 작업 완료 모달 닫기 (상태 초기화)
@@ -950,6 +975,7 @@ const PublishWorkflow = () => {
 
       setShowDeleteConfirm(false);
       setTaskToDelete(null);
+      setCompletionModalTask(null); // 완료 모달 닫기
     } catch (err) {
       setError(`작업 삭제 실패: ${err.message}`);
       console.error(err);
@@ -1876,21 +1902,9 @@ const PublishWorkflow = () => {
                         return (
                           <tr 
                             key={task.id}
-                            onClick={() => handleSelectTask(task)}
                             style={{
-                              cursor: 'pointer',
                               background: selectedTask?.id === task.id ? 'rgba(99, 102, 241, 0.2)' : undefined,
                               transition: 'background 0.2s ease',
-                            }}
-                            onMouseEnter={(e) => {
-                              if (selectedTask?.id !== task.id) {
-                                e.currentTarget.style.background = 'rgba(70, 130, 180, 0.1)';
-                              }
-                            }}
-                            onMouseLeave={(e) => {
-                              if (selectedTask?.id !== task.id) {
-                                e.currentTarget.style.background = '';
-                              }
                             }}
                           >
                             {isAdmin && (
@@ -1905,6 +1919,10 @@ const PublishWorkflow = () => {
                             </td>
                               <td style={styles.tdCenter}>
                                 <span
+                                  onClick={() => {
+                                    setCompletionModalTask(task);
+                                    setCompletionModalStore(task.store);
+                                  }}
                                   style={{
                                     background:
                                       task.review_status === 'completed'
@@ -1918,6 +1936,7 @@ const PublishWorkflow = () => {
                                     borderRadius: '4px',
                                     fontSize: '12px',
                                     fontWeight: '600',
+                                    cursor: 'pointer',
                                   }}
                                 >
                                   {task.review_status === 'completed' ? '✓ 완료' : '◯ 승인중'}
@@ -3178,6 +3197,71 @@ const PublishWorkflow = () => {
           </div>
         </>
       )}
+
+      {/* 완료 모달 */}
+      <CompletionModal
+        isOpen={!!completionModalTask}
+        task={completionModalTask}
+        storeName={completionModalStore?.store_name}
+        onReviewOnly={async () => {
+          if (!completionModalTask) return;
+          console.log('📝 리뷰만 완료 - 상태 업데이트:', completionModalTask.id);
+          try {
+            await mapApi.updateTaskStatus(
+              completionModalTask.id,
+              { review_status: 'in_progress', image_status: 'pending' },
+              'PUT',
+              token
+            );
+            setCompletionModalTask(null);
+            if (window.toastInstance) {
+              window.toastInstance.add({
+                type: 'success',
+                message: '✅ 리뷰 상태가 승인중으로 설정되었습니다.',
+                duration: 3000
+              });
+            }
+          } catch (error) {
+            console.error('❌ 상태 업데이트 실패:', error);
+            if (window.toastInstance) {
+              window.toastInstance.add({
+                type: 'error',
+                message: '❌ 처리에 실패했습니다.',
+                duration: 3000
+              });
+            }
+          }
+        }}
+        onReviewWithImage={async () => {
+          if (!completionModalTask) return;
+          console.log('📸 리뷰+이미지 완료 - 상태 업데이트:', completionModalTask.id);
+          try {
+            await mapApi.updateTaskStatus(
+              completionModalTask.id,
+              { review_status: 'in_progress', image_status: 'in_progress' },
+              'PUT',
+              token
+            );
+            setCompletionModalTask(null);
+            if (window.toastInstance) {
+              window.toastInstance.add({
+                type: 'success',
+                message: '✅ 리뷰와 이미지 상태가 승인중으로 설정되었습니다.',
+                duration: 3000
+              });
+            }
+          } catch (error) {
+            console.error('❌ 상태 업데이트 실패:', error);
+            if (window.toastInstance) {
+              window.toastInstance.add({
+                type: 'error',
+                message: '❌ 처리에 실패했습니다.',
+                duration: 3000
+              });
+            }
+          }
+        }}
+      />
     </>
     );
   };
