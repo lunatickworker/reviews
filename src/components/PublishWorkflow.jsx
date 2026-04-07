@@ -136,6 +136,12 @@ const PublishWorkflow = () => {
   // Agency 필터
   const [selectedStoreAgency, setSelectedStoreAgency] = useState('all'); // 매장 탭
   const [selectedTaskAgency, setSelectedTaskAgency] = useState('all'); // 작업 탭
+
+  // 작업 완료 모달 상태
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [selectedStars, setSelectedStars] = useState(0);
+  const [showTaskCompletionModal, setShowTaskCompletionModal] = useState(false);
+  const [isUpdatingTask, setIsUpdatingTask] = useState(false);
   
   // 페이지네이션
   const [storeCurrentPage, setStoreCurrentPage] = useState(1);
@@ -186,17 +192,18 @@ const PublishWorkflow = () => {
 
   // Helper 함수: agency로 필터링된 tasks 반환
   const getFilteredTasksByAgency = () => {
-    const filteredStoresIds = new Set();
-    
-    if (isAdmin && selectedTaskAgency !== 'all') {
-      stores
-        .filter(store => store.user?.user_id === selectedTaskAgency)
-        .forEach(store => filteredStoresIds.add(store.id));
-    } else {
-      stores.forEach(store => filteredStoresIds.add(store.id));
-    }
+    // ★ stores는 이미 backend에서 필터링됨 (Admin: 모든 stores, Agency: 자신의 stores만)
+    // 추가 필터링은 Admin이 선택한 agency로만 제한
+    const filteredStores = getFilteredStoresByAgency();
+    const filteredStoresIds = new Set(filteredStores.map(s => s.id));
     
     return tasks.filter(task => filteredStoresIds.has(task.store_id));
+  };
+
+  // Helper 함수: 작업의 상태 판단 (review_share_link 여부로 결정)
+  const getTaskStatus = (task) => {
+    // review_share_link가 있으면 '완료', 없으면 '승인중'
+    return task.review_share_link ? 'completed' : 'in_progress';
   };
 
   // 작업 리스트에 표시할 task 필터링
@@ -780,6 +787,58 @@ const PublishWorkflow = () => {
     });
     setSelectedImages([]);
     setExistingImageUrls([]);
+  };
+
+  // 작업 선택 (테이블 행 클릭)
+  const handleSelectTask = (task) => {
+    setSelectedTask(task);
+    setSelectedStars(task.stars || 0);
+    setShowTaskCompletionModal(true);
+  };
+
+  // 작업 완료 상태 업데이트
+  const updateTaskCompletion = async (reviewCompleted, imageCompleted) => {
+    if (!selectedTask) return;
+
+    try {
+      setIsUpdatingTask(true);
+      setError('');
+
+      await mapApi.updateTask(
+        selectedTask.id,
+        {
+          review_status: reviewCompleted ? 'completed' : 'in_progress',
+          image_status: imageCompleted ? 'completed' : 'in_progress',
+          stars: selectedStars,
+        },
+        token
+      );
+
+      // 작업 목록 새로고침
+      await loadData();
+      
+      setSuccessMessage('작업 상태가 업데이트되었습니다.');
+      setTimeout(() => setSuccessMessage(''), 2000);
+
+      setShowTaskCompletionModal(false);
+      setSelectedTask(null);
+      setSelectedStars(0);
+    } catch (err) {
+      setError(`작업 업데이트 실패: ${err.message}`);
+      console.error(err);
+    } finally {
+      setIsUpdatingTask(false);
+    }
+  };
+
+  // 리뷰만 완료
+  const handleCompleteReviewOnly = () => {
+    updateTaskCompletion(true, false);
+  };
+
+  // 리뷰 + 이미지 완료
+  const handleCompleteReviewAndImage = () => {
+    updateTaskCompletion(true, true);
   };
 
   // CSS 애니메이션
@@ -1644,6 +1703,19 @@ const PublishWorkflow = () => {
                       // agency 필터 적용
                       const agencyFilteredTasks = getFilteredTasksByAgency();
                       
+                      // 🔍 DEBUG: agencyFilteredTasks 확인
+                      console.log(`🔍 Task 테이블 렌더링:`, {
+                        isAdmin,
+                        전체tasks: tasks.length,
+                        필터된tasks: agencyFilteredTasks.length,
+                        샘플: agencyFilteredTasks.slice(0, 2).map(t => ({
+                          id: t.id,
+                          store: t.store?.store_name,
+                          owner: t.store?.user?.user_id,
+                          link: !!t.review_share_link
+                        }))
+                      });
+                      
                       // 상태 및 검색어 필터 적용
                       const filteredTasks = agencyFilteredTasks.filter((task) => {
                         const displayStatus = getTaskDisplayStatus(task);
@@ -1672,8 +1744,36 @@ const PublishWorkflow = () => {
 
                       return paginatedTasks.map((task) => {
                         const displayStatus = getTaskDisplayStatus(task);
+                        // 🔍 DEBUG: 상태 표시 문제 확인
+                        if (task.id % 3 === 0) { // 매 3번째 task만 로그 (과다 로깅 방지)
+                          console.log(`📌 Task ${task.id} [${task.store?.store_name}]:`, {
+                            isAdmin,
+                            store_user: task.store?.user?.user_id,
+                            review_share_link: task.review_share_link,
+                            getTaskStatus: getTaskStatus(task),
+                            displayStatus: displayStatus
+                          });
+                        }
                         return (
-                          <tr key={task.id}>
+                          <tr 
+                            key={task.id}
+                            onClick={() => handleSelectTask(task)}
+                            style={{
+                              cursor: 'pointer',
+                              background: selectedTask?.id === task.id ? 'rgba(99, 102, 241, 0.2)' : undefined,
+                              transition: 'background 0.2s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              if (selectedTask?.id !== task.id) {
+                                e.currentTarget.style.background = 'rgba(70, 130, 180, 0.1)';
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (selectedTask?.id !== task.id) {
+                                e.currentTarget.style.background = '';
+                              }
+                            }}
+                          >
                             {isAdmin && (
                               <td style={styles.td}>
                                 <span style={{ fontSize: '12px', color: '#a0aec0' }}>
@@ -1739,11 +1839,11 @@ const PublishWorkflow = () => {
                                 <span
                                   style={{
                                     background:
-                                      displayStatus === 'completed'
+                                      getTaskStatus(task) === 'completed'
                                         ? 'rgba(34, 197, 94, 0.2)'
                                         : 'rgba(59, 130, 246, 0.2)',
                                     color:
-                                      displayStatus === 'completed'
+                                      getTaskStatus(task) === 'completed'
                                         ? '#86efac'
                                         : '#93c5fd',
                                     padding: '4px 12px',
@@ -1752,7 +1852,7 @@ const PublishWorkflow = () => {
                                     fontWeight: '600',
                                   }}
                                 >
-                                  {displayStatus === 'completed' ? '완료' : '승인중'}
+                                  {getTaskStatus(task) === 'completed' ? '완료' : '승인중'}
                                 </span>
                               </td>
                               <td style={styles.tdCenter}>
@@ -2482,6 +2582,206 @@ const PublishWorkflow = () => {
                   }}
                 >
                   {isContinueLoading ? '진행 중...' : '➔ 계속 진행'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* 작업 완료 모달 - 오른쪽 하단 */}
+      {showTaskCompletionModal && selectedTask && (
+        <>
+          {/* 배경 오버레이 */}
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.4)',
+              zIndex: 999,
+            }}
+            onClick={() => setShowTaskCompletionModal(false)}
+          />
+
+          {/* 모달 - 오른쪽 하단 */}
+          <div style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            zIndex: 1000,
+            maxWidth: '420px',
+            width: 'calc(100% - 48px)',
+          }}>
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(30, 50, 90, 0.95) 0%, rgba(20, 40, 70, 0.95) 100%)',
+              border: '1px solid rgba(70, 130, 180, 0.3)',
+              borderRadius: '16px',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.4)',
+              overflow: 'hidden',
+              backdropFilter: 'blur(10px)',
+            }}>
+              {/* 헤더 */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '16px 20px',
+                background: 'rgba(70, 130, 180, 0.1)',
+                borderBottom: '1px solid rgba(70, 130, 180, 0.2)',
+              }}>
+                <h3 style={{
+                  margin: 0,
+                  fontSize: '16px',
+                  fontWeight: '700',
+                  color: '#e8eef5',
+                }}>
+                  ⭐ 작업 완료
+                </h3>
+                <button
+                  onClick={() => setShowTaskCompletionModal(false)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#b8c5d6',
+                    fontSize: '20px',
+                    cursor: 'pointer',
+                    padding: '4px',
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* 본문 */}
+              <div style={{
+                padding: '16px 20px',
+              }}>
+                <p style={{
+                  margin: '0 0 12px 0',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#e8eef5',
+                }}>
+                  📍 {selectedTask.store?.store_name || '미지정'}
+                </p>
+
+                {/* 별점 선택 */}
+                <div style={{
+                  background: 'rgba(70, 130, 180, 0.1)',
+                  border: '1px solid rgba(70, 130, 180, 0.2)',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  marginBottom: '16px',
+                }}>
+                  <p style={{
+                    margin: '0 0 10px 0',
+                    fontSize: '12px',
+                    color: '#93c5fd',
+                    fontWeight: '600',
+                  }}>
+                    별점을 선택하세요:
+                  </p>
+                  <div style={{
+                    display: 'flex',
+                    gap: '6px',
+                    justifyContent: 'center',
+                  }}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        onClick={() => setSelectedStars(star)}
+                        style={{
+                          background: selectedStars >= star ? 'rgba(251, 191, 36, 0.8)' : 'rgba(70, 130, 180, 0.2)',
+                          border: selectedStars >= star ? '1px solid #fbbf24' : '1px solid rgba(70, 130, 180, 0.3)',
+                          color: selectedStars >= star ? '#fbbf24' : '#93c5fd',
+                          padding: '8px 12px',
+                          borderRadius: '6px',
+                          fontSize: '16px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          fontWeight: '600',
+                        }}
+                      >
+                        ★
+                      </button>
+                    ))}
+                  </div>
+                  <p style={{
+                    margin: '8px 0 0 0',
+                    fontSize: '12px',
+                    color: '#cbd5e1',
+                    textAlign: 'center',
+                  }}>
+                    현재: {selectedStars}점
+                  </p>
+                </div>
+              </div>
+
+              {/* 버튼 영역 */}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                padding: '12px 16px 16px',
+              }}>
+                <button
+                  onClick={handleCompleteReviewOnly}
+                  disabled={isUpdatingTask || selectedStars === 0}
+                  style={{
+                    padding: '10px 16px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    background: isUpdatingTask || selectedStars === 0 ? 'rgba(70, 130, 180, 0.3)' : 'rgba(99, 102, 241, 0.8)',
+                    color: isUpdatingTask || selectedStars === 0 ? '#6b7280' : '#e0e7ff',
+                    border: '1px solid rgba(99, 102, 241, 0.4)',
+                    borderRadius: '8px',
+                    cursor: isUpdatingTask || selectedStars === 0 ? 'not-allowed' : 'pointer',
+                    opacity: isUpdatingTask || selectedStars === 0 ? 0.6 : 1,
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {isUpdatingTask ? '업데이트 중...' : '📝 리뷰완료'}
+                </button>
+
+                <button
+                  onClick={handleCompleteReviewAndImage}
+                  disabled={isUpdatingTask || selectedStars === 0}
+                  style={{
+                    padding: '10px 16px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    background: isUpdatingTask || selectedStars === 0 ? 'rgba(34, 197, 94, 0.3)' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    color: isUpdatingTask || selectedStars === 0 ? '#6b7280' : '#ecfdf5',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    borderRadius: '8px',
+                    cursor: isUpdatingTask || selectedStars === 0 ? 'not-allowed' : 'pointer',
+                    opacity: isUpdatingTask || selectedStars === 0 ? 0.6 : 1,
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {isUpdatingTask ? '업데이트 중...' : '🖼️ 리뷰+이미지완료'}
+                </button>
+
+                <button
+                  onClick={() => setShowTaskCompletionModal(false)}
+                  disabled={isUpdatingTask}
+                  style={{
+                    padding: '10px 16px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    background: 'rgba(70, 130, 180, 0.2)',
+                    color: '#93c5fd',
+                    border: '1px solid rgba(70, 130, 180, 0.3)',
+                    borderRadius: '8px',
+                    cursor: isUpdatingTask ? 'not-allowed' : 'pointer',
+                    opacity: isUpdatingTask ? 0.6 : 1,
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  취소
                 </button>
               </div>
             </div>

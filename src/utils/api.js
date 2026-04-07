@@ -171,6 +171,8 @@ export const mapApi = {
     apiCall('POST', `/tasks/${taskId}/review-link`, { review_share_link }, token),
   updateTaskStatus: (taskId, updates, method = 'PUT', token) =>
     apiCall(method, `/tasks/${taskId}`, updates, token),
+  updateTask: (taskId, updates, token) =>
+    apiCall('PUT', `/tasks/${taskId}`, updates, token),
 };
 
 // 계정 관리 API
