@@ -80,12 +80,15 @@ export default function ReviewAnalytics() {
   }, [detectedWorkAccount]);
 
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [logs, setLogs] = useState([]);
   const [showLogModal, setShowLogModal] = useState(false);
   const [logLoading, setLogLoading] = useState(false);
   const [extractingTaskId, setExtractingTaskId] = useState(null); // 링크 추출 중인 task
   const [filterType, setFilterType] = useState('all'); // all, review, image
-  const [dateRange, setDateRange] = useState('today'); // today, week, month
+  const [dateRange, setDateRange] = useState('today'); // today, week, month, custom
+  const [selectedUser, setSelectedUser] = useState(''); // 소속 필터 (Admin만)
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -184,10 +187,13 @@ export default function ReviewAnalytics() {
         const tDate = new Date(task.created_at);
         return tDate >= thirtyDaysAgo && tDate <= now;
       });
-    } else if (dateRange === 'custom' && selectedDate) {
+    } else if (dateRange === 'custom' && startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999); // 종료일 끝까지 포함
       filtered = filtered.filter(task => {
         const tDate = new Date(task.created_at);
-        return tDate.toLocaleDateString() === taskDate.toLocaleDateString();
+        return tDate >= start && tDate <= end;
       });
     }
 
@@ -212,6 +218,15 @@ export default function ReviewAnalytics() {
       filtered = filtered.filter(task => {
         const acct = (task.work_account || '').toLowerCase();
         return acct.includes(wa);
+      });
+    }
+
+    // 소속 필터 (Admin만) - stores의 user_id 기준
+    if (isAdmin && selectedUser) {
+      filtered = filtered.filter(task => {
+        const store = stores.find(s => s.id === task.store_id);
+        const storeUserId = store?.user?.user_id || '';
+        return storeUserId === selectedUser;
       });
     }
 
@@ -396,17 +411,31 @@ export default function ReviewAnalytics() {
           </div>
 
           {dateRange === 'custom' && (
-            <div style={styles.filterGroup}>
-              <label style={styles.label}>날짜</label>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => {
-                  setSelectedDate(e.target.value);
-                  setCurrentPage(1); // ✅ 날짜 변경 시 페이지 1로 리셋
-                }}
-                style={styles.dateInput}
-              />
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+              <div style={styles.filterGroup}>
+                <label style={styles.label}>From</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    setCurrentPage(1); // ✅ 날짜 변경 시 페이지 1로 리셋
+                  }}
+                  style={styles.dateInput}
+                />
+              </div>
+              <div style={styles.filterGroup}>
+                <label style={styles.label}>To</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                    setCurrentPage(1); // ✅ 날짜 변경 시 페이지 1로 리셋
+                  }}
+                  style={styles.dateInput}
+                />
+              </div>
             </div>
           )}
 
@@ -440,14 +469,38 @@ export default function ReviewAnalytics() {
             />
           </div>
 
+          {isAdmin && (
+            <div style={styles.filterGroup}>
+              <label style={styles.label}>소속</label>
+              <select
+                value={selectedUser}
+                onChange={(e) => {
+                  setSelectedUser(e.target.value);
+                  setCurrentPage(1);
+                }}
+                style={styles.select}
+              >
+                <option value="">전체</option>
+                {Array.from(new Set(stores.map(s => s.user?.user_id).filter(Boolean))).sort().map(userId => (
+                  <option key={userId} value={userId}>
+                    {userId}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
 
           <button
             onClick={() => {
+              const today = new Date().toISOString().split('T')[0];
               setSearchText('');
-              setSelectedDate(new Date().toISOString().split('T')[0]);
+              setSelectedDate(today);
+              setStartDate(today);
+              setEndDate(today);
               setDateRange('today');
               setFilterType('all');
+              setSelectedUser('');
             }}
             style={styles.resetButton}
           >
