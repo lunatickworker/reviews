@@ -141,6 +141,9 @@ const PublishWorkflow = () => {
   const [taskSearchTerm, setTaskSearchTerm] = useState('');
   const [taskStatusFilter, setTaskStatusFilter] = useState('all'); // all, pending, in_progress, completed
   
+  // 매장 탭 필터
+  const [storeSearchTerm, setStoreSearchTerm] = useState('');
+  
   // Agency 필터
   const [selectedStoreAgency, setSelectedStoreAgency] = useState('all'); // 매장 탭
   const [selectedTaskAgency, setSelectedTaskAgency] = useState('all'); // 작업 탭
@@ -204,6 +207,17 @@ const PublishWorkflow = () => {
       return stores;
     }
     return stores.filter(store => store.user?.user_id === selectedStoreAgency);
+  };
+
+  // Helper 함수: agency + 검색어로 필터링된 stores 반환
+  const getDisplayStores = () => {
+    const storesByAgency = getFilteredStoresByAgency();
+    return storesByAgency.filter(store => {
+      if (storeSearchTerm && !store.store_name.toLowerCase().includes(storeSearchTerm.toLowerCase())) {
+        return false;
+      }
+      return true;
+    });
   };
 
   // Helper 함수: agency로 필터링된 tasks 반환
@@ -437,12 +451,10 @@ const PublishWorkflow = () => {
         if (isAdmin || storeIds.has(updatedTask.store_id)) {
           setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
           
-          // 🎉 자동 모달 띄우기: 별점 + pending 상태 감지
-          if (updatedTask.stars && updatedTask.stars > 0 && updatedTask.review_status === 'pending') {
-            console.log('🎉 [자동 감지] 별점 + pending 상태! 모달 띄움:', updatedTask.id);
-            setCompletionModalTask(updatedTask);
-            setCompletionModalStore(updatedTask.store);
-          }
+          // 🔴 모달 자동 감지 제거됨
+          // 이슈: 완료 버튼 클릭 → setCompletionModalTask(null) → 
+          //       실시간 구독이 review_status === 'pending' 감지 → 모달 다시 열림
+          // 해결: 사용자가 상태 열을 직접 클릭할 때만 모달 띄우기
         } else {
           // Agency가 다른 stores의 task면 제거
           setTasks(prev => prev.filter(t => t.id !== updatedTask.id));
@@ -1349,30 +1361,80 @@ const PublishWorkflow = () => {
                     borderBottom: '1px solid rgba(70, 130, 180, 0.2)',
                     background: 'rgba(30, 50, 80, 0.4)',
                     alignItems: 'center',
+                    flexWrap: 'wrap',
                   }}>
-                    <label style={{ fontSize: '13px', fontWeight: '600', color: '#a8d8ff', whiteSpace: 'nowrap' }}>소속 필터:</label>
-                    <select
-                      value={selectedStoreAgency}
-                      onChange={(e) => {
-                        setSelectedStoreAgency(e.target.value);
-                        setStoreCurrentPage(1);
-                      }}
-                      style={{
-                        padding: '6px 12px',
-                        background: 'rgba(30, 50, 80, 0.6)',
-                        border: '1px solid rgba(70, 130, 180, 0.3)',
-                        color: '#e8eef5',
-                        borderRadius: '6px',
-                        fontSize: '13px',
-                        cursor: 'pointer',
-                        minWidth: '200px',
-                      }}
-                    >
-                      <option value="all">모두 보기</option>
-                      {getAllAgencies().map(agency => (
-                        <option key={agency} value={agency}>{agency}</option>
-                      ))}
-                    </select>
+                    {/* 소속 필터 */}
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                      <label style={{ fontSize: '13px', fontWeight: '600', color: '#a8d8ff', whiteSpace: 'nowrap' }}>소속:</label>
+                      <select
+                        value={selectedStoreAgency}
+                        onChange={(e) => {
+                          setSelectedStoreAgency(e.target.value);
+                          setStoreCurrentPage(1);
+                        }}
+                        style={{
+                          padding: '6px 12px',
+                          background: 'rgba(30, 50, 80, 0.6)',
+                          border: '1px solid rgba(70, 130, 180, 0.3)',
+                          color: '#e8eef5',
+                          borderRadius: '6px',
+                          fontSize: '13px',
+                          cursor: 'pointer',
+                          minWidth: '150px',
+                        }}
+                      >
+                        <option value="all">모두 보기</option>
+                        {getAllAgencies().map(agency => (
+                          <option key={agency} value={agency}>{agency}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* 검색 */}
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flex: '1 1 auto', minWidth: '200px' }}>
+                      <label style={{ fontSize: '13px', fontWeight: '600', color: '#a8d8ff', whiteSpace: 'nowrap' }}>검색:</label>
+                      <input
+                        type="text"
+                        placeholder="매장명으로 검색..."
+                        value={storeSearchTerm}
+                        onChange={(e) => {
+                          setStoreSearchTerm(e.target.value);
+                          setStoreCurrentPage(1);
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '6px 10px',
+                          background: 'rgba(30, 50, 80, 0.6)',
+                          border: '1px solid rgba(70, 130, 180, 0.2)',
+                          borderRadius: '6px',
+                          color: '#e8eef5',
+                          fontSize: '13px',
+                        }}
+                      />
+                    </div>
+
+                    {/* 초기화 버튼 */}
+                    {(storeSearchTerm || selectedStoreAgency !== 'all') && (
+                      <button
+                        onClick={() => {
+                          setStoreSearchTerm('');
+                          setSelectedStoreAgency('all');
+                          setStoreCurrentPage(1);
+                        }}
+                        style={{
+                          padding: '6px 10px',
+                          background: 'rgba(239, 68, 68, 0.15)',
+                          border: '1px solid rgba(239, 68, 68, 0.2)',
+                          borderRadius: '6px',
+                          color: '#fca5a5',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                        }}
+                      >
+                        초기화
+                      </button>
+                    )}
                   </div>
                 )}
                 <table style={styles.table}>
@@ -1398,7 +1460,7 @@ const PublishWorkflow = () => {
                       </tr>
                     ) : (
                       (() => {
-                        const filteredStores = getFilteredStoresByAgency();
+                        const filteredStores = getDisplayStores();
                         const startIndex = (storeCurrentPage - 1) * storeItemsPerPage;
                         const endIndex = startIndex + storeItemsPerPage;
                         const paginatedStores = filteredStores.slice(startIndex, endIndex);
@@ -1406,7 +1468,7 @@ const PublishWorkflow = () => {
                         return paginatedStores.length === 0 ? (
                           <tr>
                             <td colSpan={isAdmin ? "9" : "8"} style={{ ...styles.td, textAlign: 'center', color: '#b8c5d6' }}>
-                              해당 소속의 매장이 없습니다.
+                              {storeSearchTerm ? '검색 결과가 없습니다.' : '해당 소속의 매장이 없습니다.'}
                             </td>
                           </tr>
                         ) : (
@@ -1573,7 +1635,7 @@ const PublishWorkflow = () => {
                       </select>
                     </div>
 
-                    {getFilteredStoresByAgency().length > storeItemsPerPage && (
+                    {getDisplayStores().length > storeItemsPerPage && (
                       <div style={{ 
                         display: 'flex', 
                         justifyContent: 'center', 
@@ -1615,7 +1677,7 @@ const PublishWorkflow = () => {
                         </button>
 
                         {(() => {
-                          const totalPages = Math.ceil(stores.length / storeItemsPerPage);
+                          const totalPages = Math.ceil(getDisplayStores().length / storeItemsPerPage);
                           const pageButtons = [];
                           const maxVisiblePages = 5;
                           let startPage = Math.max(1, storeCurrentPage - Math.floor(maxVisiblePages / 2));
@@ -1649,15 +1711,15 @@ const PublishWorkflow = () => {
                         })()}
 
                         <button
-                          onClick={() => setStoreCurrentPage(prev => Math.min(Math.ceil(stores.length / storeItemsPerPage), prev + 1))}
-                          disabled={storeCurrentPage === Math.ceil(stores.length / storeItemsPerPage)}
+                          onClick={() => setStoreCurrentPage(prev => Math.min(Math.ceil(getDisplayStores().length / storeItemsPerPage), prev + 1))}
+                          disabled={storeCurrentPage === Math.ceil(getDisplayStores().length / storeItemsPerPage)}
                           style={{
                             padding: '6px 10px',
-                            background: storeCurrentPage === Math.ceil(stores.length / storeItemsPerPage) ? 'rgba(107, 114, 128, 0.2)' : 'rgba(59, 130, 246, 0.3)',
+                            background: storeCurrentPage === Math.ceil(getDisplayStores().length / storeItemsPerPage) ? 'rgba(107, 114, 128, 0.2)' : 'rgba(59, 130, 246, 0.3)',
                             border: '1px solid rgba(59, 130, 246, 0.3)',
                             borderRadius: '4px',
-                            color: storeCurrentPage === Math.ceil(stores.length / storeItemsPerPage) ? '#6b7280' : '#93c5fd',
-                            cursor: storeCurrentPage === Math.ceil(stores.length / storeItemsPerPage) ? 'default' : 'pointer',
+                            color: storeCurrentPage === Math.ceil(getDisplayStores().length / storeItemsPerPage) ? '#6b7280' : '#93c5fd',
+                            cursor: storeCurrentPage === Math.ceil(getDisplayStores().length / storeItemsPerPage) ? 'default' : 'pointer',
                             fontSize: '12px',
                             fontWeight: '600',
                           }}
@@ -1666,15 +1728,15 @@ const PublishWorkflow = () => {
                         </button>
                         
                         <button
-                          onClick={() => setStoreCurrentPage(Math.ceil(stores.length / storeItemsPerPage))}
-                          disabled={storeCurrentPage === Math.ceil(stores.length / storeItemsPerPage)}
+                          onClick={() => setStoreCurrentPage(Math.ceil(getDisplayStores().length / storeItemsPerPage))}
+                          disabled={storeCurrentPage === Math.ceil(getDisplayStores().length / storeItemsPerPage)}
                           style={{
                             padding: '6px 10px',
-                            background: storeCurrentPage === Math.ceil(stores.length / storeItemsPerPage) ? 'rgba(107, 114, 128, 0.2)' : 'rgba(59, 130, 246, 0.3)',
+                            background: storeCurrentPage === Math.ceil(getDisplayStores().length / storeItemsPerPage) ? 'rgba(107, 114, 128, 0.2)' : 'rgba(59, 130, 246, 0.3)',
                             border: '1px solid rgba(59, 130, 246, 0.3)',
                             borderRadius: '4px',
-                            color: storeCurrentPage === Math.ceil(stores.length / storeItemsPerPage) ? '#6b7280' : '#93c5fd',
-                            cursor: storeCurrentPage === Math.ceil(stores.length / storeItemsPerPage) ? 'default' : 'pointer',
+                            color: storeCurrentPage === Math.ceil(getDisplayStores().length / storeItemsPerPage) ? '#6b7280' : '#93c5fd',
+                            cursor: storeCurrentPage === Math.ceil(getDisplayStores().length / storeItemsPerPage) ? 'default' : 'pointer',
                             fontSize: '12px',
                             fontWeight: '600',
                           }}
@@ -1683,7 +1745,7 @@ const PublishWorkflow = () => {
                         </button>
 
                         <span style={{ fontSize: '12px', color: '#b8c5d6', marginLeft: '12px' }}>
-                          {storeCurrentPage} / {Math.ceil(stores.length / storeItemsPerPage)}
+                          {storeCurrentPage} / {Math.ceil(getDisplayStores().length / storeItemsPerPage)}
                         </span>
                       </div>
                     )}
@@ -3207,7 +3269,7 @@ const PublishWorkflow = () => {
           try {
             await mapApi.updateTaskStatus(
               completionModalTask.id,
-              { review_status: 'in_progress', image_status: 'pending' },
+              { reviewStatus: 'in_progress', imageStatus: 'pending' },
               'PUT',
               token
             );
@@ -3236,7 +3298,7 @@ const PublishWorkflow = () => {
           try {
             await mapApi.updateTaskStatus(
               completionModalTask.id,
-              { review_status: 'in_progress', image_status: 'in_progress' },
+              { reviewStatus: 'in_progress', imageStatus: 'in_progress' },
               'PUT',
               token
             );
