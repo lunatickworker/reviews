@@ -5,7 +5,7 @@ import { subscribeToTable } from '../utils/realtimeApi';
 import { FiPlus } from 'react-icons/fi';
 import * as XLSX from 'xlsx';
 import { PageLayout, Alert } from './common';
-import CompletionModal from './common/CompletionModal';
+
 
 /**
  * 통합 워크플로우 모듈
@@ -34,8 +34,6 @@ const PublishWorkflow = () => {
   const [showContinuePrompt, setShowContinuePrompt] = useState(false); // 계속 진행 모달
   const [currentTaskId, setCurrentTaskId] = useState(null); // 진행 중인 task ID
   const [isContinueLoading, setIsContinueLoading] = useState(false); // 계속 진행 대기
-  const [completionModalTask, setCompletionModalTask] = useState(null); // 완료 모달용 task
-  const [completionModalStore, setCompletionModalStore] = useState(null); // 완료 모달용 store
 
   // Admin 설정 상태
   const [adminSettings, setAdminSettings] = useState(null);
@@ -466,10 +464,13 @@ const PublishWorkflow = () => {
         if (isAdmin || storeIds.has(updatedTask.store_id)) {
           setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
           
-          // 🔴 모달 자동 감지 제거됨
-          // 이슈: 완료 버튼 클릭 → setCompletionModalTask(null) → 
-          //       실시간 구독이 review_status === 'pending' 감지 → 모달 다시 열림
-          // 해결: 사용자가 상태 열을 직접 클릭할 때만 모달 띄우기
+          // ✅ review_status가 'pending'으로 변경되면 모달 자동 표시
+          if (updatedTask.review_status === 'pending' && updatedTask.stars > 0) {
+            console.log(`🎯 자동 모달 표시: Task ${updatedTask.id}`);
+            setSelectedTask(updatedTask);
+            setSelectedStars(updatedTask.stars);
+            setShowTaskCompletionModal(true);
+          }
         } else {
           // Agency가 다른 stores의 task면 제거
           setTasks(prev => prev.filter(t => t.id !== updatedTask.id));
@@ -928,45 +929,63 @@ const PublishWorkflow = () => {
       setIsUpdatingTask(true);
       setError('');
 
+      // 상태 결정
+      const reviewStatus = reviewCompleted ? 'completed' : 'in_progress';
+      
+      // API 요청 객체 생성
+      const updatePayload = {
+        reviewStatus,
+      };
+      
+      // 이미지도 완료할 경우만 imageStatus 포함
+      if (imageCompleted) {
+        updatePayload.imageStatus = 'completed';
+      }
+
       // 🔍 DEBUG: 어떤 버튼을 눌렀는지 확인
       console.log(`📌 Task ${selectedTask.id} [${selectedTask.store?.store_name}] 업데이트:`, {
         reviewCompleted,
         imageCompleted,
-        타입: reviewCompleted && imageCompleted ? '리뷰+이미지 완료' : reviewCompleted ? '리뷰만 완료' : '미완료',
-        별점: selectedStars,
-        설정값: {
-          review_status: reviewCompleted ? 'completed' : 'in_progress',
-          image_status: imageCompleted ? 'completed' : 'in_progress',
-        }
+        타입: imageCompleted ? '리뷰+이미지 완료' : '리뷰만 완료',
+        설정값: updatePayload,
       });
 
-      // 로컬 상태 즉시 업데이트 (낙관적 업데이트)
-      const updatedTask = {
-        ...selectedTask,
-        review_status: reviewCompleted ? 'completed' : 'in_progress',
-        image_status: imageCompleted ? 'completed' : 'in_progress',
-        stars: selectedStars,
-      };
-      setTasks(prev => prev.map(t => t.id === selectedTask.id ? updatedTask : t));
+      // 세버에 업데이트 (로컬 상태 업데이트 전에 완료)
+      console.log('📤 API 요청:', {
+        taskId: selectedTask.id,
+        ...updatePayload,
+      });
 
-      // 서버에 비동기로 업데이트
       await mapApi.updateTask(
         selectedTask.id,
-        {
-          review_status: reviewCompleted ? 'completed' : 'in_progress',
-          image_status: imageCompleted ? 'completed' : 'in_progress',
-          stars: selectedStars,
-        },
+        updatePayload,
         token
       );
+
+      console.log('✅ API 성공 - 상태 업데이트 중...');
+
+      // 로컬 상태 업데이트 (API 성공 후)
+      const updatedTask = {
+        ...selectedTask,
+        review_status: reviewStatus,
+      };
+      
+      // 이미지도 완료할 경우만 업데이트
+      if (imageCompleted) {
+        updatedTask.image_status = 'completed';
+      }
+      
+      setTasks(prev => prev.map(t => t.id === selectedTask.id ? updatedTask : t));
+
+      console.log('✅ 로컬 상태 업데이트 완료:', updatedTask);
       
       setSuccessMessage('작업 상태가 업데이트되었습니다.');
       setTimeout(() => setSuccessMessage(''), 2000);
 
+      // ✅ 모달 닫기 (실시간 구독이 자동으로 DB 변경 감지후 갱신)
       closeTaskCompletionModal();
     } catch (err) {
-      // 에러 발생 시 로컬 상태 복원
-      setTasks(prev => prev.map(t => t.id === selectedTask.id ? selectedTask : t));
+      // 에러 발생 시 모달 열린 상태 유지
       setError(`작업 업데이트 실패: ${err.message}`);
       console.error(err);
     } finally {
@@ -1002,7 +1021,6 @@ const PublishWorkflow = () => {
 
       setShowDeleteConfirm(false);
       setTaskToDelete(null);
-      setCompletionModalTask(null); // 완료 모달 닫기
     } catch (err) {
       setError(`작업 삭제 실패: ${err.message}`);
       console.error(err);
@@ -1503,8 +1521,8 @@ const PublishWorkflow = () => {
                             <tr key={store.id}>
                               {isAdmin && (
                                 <td style={styles.td}>
-                                  <span style={{ fontSize: '12px', color: '#a0aec0' }}>
-                                    {store.user?.user_id || '-'}
+                                  <span style={{ fontSize: '12px', color: '#a0aec0', fontWeight: '500' }}>
+                                    {store.user?.user_id || store.user_id || '-'}
                                   </span>
                                 </td>
                               )}
@@ -1998,8 +2016,8 @@ const PublishWorkflow = () => {
                           >
                             {isAdmin && (
                               <td style={styles.td}>
-                                <span style={{ fontSize: '12px', color: '#a0aec0' }}>
-                                  {task.store?.user?.user_id || '-'}
+                                <span style={{ fontSize: '12px', color: '#a0aec0', fontWeight: '500' }}>
+                                  {task.store?.user?.user_id || task.store?.user_id || '-'}
                                 </span>
                               </td>
                             )}
@@ -2009,8 +2027,9 @@ const PublishWorkflow = () => {
                               <td style={styles.tdCenter}>
                                 <span
                                   onClick={() => {
-                                    setCompletionModalTask(task);
-                                    setCompletionModalStore(task.store);
+                                    setSelectedTask(task);
+                                    setSelectedStars(task.stars || 0);
+                                    setShowTaskCompletionModal(true);
                                   }}
                                   style={{
                                     background:
@@ -3079,7 +3098,7 @@ const PublishWorkflow = () => {
         </>
       )}
 
-      {/* 작업 완료 모달 - 오른쪽 하단 */}
+      {/* 작업 완료 모달 */}
       {showTaskCompletionModal && selectedTask && (
         <>
           {/* 배경 오버레이 */}
@@ -3090,13 +3109,12 @@ const PublishWorkflow = () => {
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundColor: 'rgba(0, 0, 0, 0.4)',
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
               zIndex: 999,
             }}
-            onClick={closeTaskCompletionModal}
           />
 
-          {/* 모달 - 오른쪽 하단 */}
+          {/* 모달 */}
           <div style={{
             position: 'fixed',
             bottom: '24px',
@@ -3106,108 +3124,82 @@ const PublishWorkflow = () => {
             width: 'calc(100% - 48px)',
           }}>
             <div style={{
-              background: 'linear-gradient(135deg, rgba(30, 50, 90, 0.95) 0%, rgba(20, 40, 70, 0.95) 100%)',
-              border: '1px solid rgba(70, 130, 180, 0.3)',
-              borderRadius: '16px',
-              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.4)',
+              background: '#ffffff',
+              border: '1px solid #e5e7eb',
+              borderRadius: '12px',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.15)',
               overflow: 'hidden',
-              backdropFilter: 'blur(10px)',
             }}>
               {/* 헤더 */}
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '16px 20px',
-                background: 'rgba(70, 130, 180, 0.1)',
-                borderBottom: '1px solid rgba(70, 130, 180, 0.2)',
+                padding: '20px 24px',
+                borderBottom: '1px solid #e5e7eb',
+                background: '#f9fafb',
               }}>
-                <h3 style={{
-                  margin: 0,
-                  fontSize: '16px',
-                  fontWeight: '700',
-                  color: '#e8eef5',
-                }}>
-                  ⭐ 작업 완료
-                </h3>
+                <div>
+                  <h3 style={{
+                    margin: 0,
+                    fontSize: '16px',
+                    fontWeight: '700',
+                    color: '#111827',
+                  }}>
+                    작업 완료 확인
+                  </h3>
+                  <p style={{
+                    margin: '4px 0 0 0',
+                    fontSize: '12px',
+                    color: '#6b7280',
+                  }}>
+                    리뷰 작성 상태를 선택하세요
+                  </p>
+                </div>
                 <button
                   onClick={closeTaskCompletionModal}
                   style={{
                     background: 'none',
                     border: 'none',
-                    color: '#b8c5d6',
-                    fontSize: '20px',
+                    color: '#9ca3af',
+                    fontSize: '24px',
                     cursor: 'pointer',
-                    padding: '4px',
+                    padding: '0',
+                    width: '32px',
+                    height: '32px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'color 0.2s',
                   }}
+                  onMouseEnter={(e) => e.target.style.color = '#6b7280'}
+                  onMouseLeave={(e) => e.target.style.color = '#9ca3af'}
                 >
-                  ✕
+                  ×
                 </button>
               </div>
 
               {/* 본문 */}
               <div style={{
-                padding: '16px 20px',
+                padding: '20px 24px',
+                borderBottom: '1px solid #e5e7eb',
               }}>
                 <p style={{
-                  margin: '0 0 12px 0',
+                  margin: 0,
+                  fontSize: '13px',
+                  color: '#6b7280',
+                  marginBottom: '8px',
+                }}>
+                  매장
+                </p>
+                <p style={{
+                  margin: 0,
                   fontSize: '14px',
                   fontWeight: '600',
-                  color: '#e8eef5',
+                  color: '#111827',
                 }}>
-                  📍 {selectedTask.store?.store_name || '미지정'}
+                  {selectedTask.store?.store_name || '미지정'}
                 </p>
-
-                {/* 별점 선택 */}
-                <div style={{
-                  background: 'rgba(70, 130, 180, 0.1)',
-                  border: '1px solid rgba(70, 130, 180, 0.2)',
-                  borderRadius: '8px',
-                  padding: '12px',
-                  marginBottom: '16px',
-                }}>
-                  <p style={{
-                    margin: '0 0 10px 0',
-                    fontSize: '12px',
-                    color: '#93c5fd',
-                    fontWeight: '600',
-                  }}>
-                    별점을 선택하세요:
-                  </p>
-                  <div style={{
-                    display: 'flex',
-                    gap: '6px',
-                    justifyContent: 'center',
-                  }}>
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <button
-                        key={star}
-                        onClick={() => setSelectedStars(star)}
-                        style={{
-                          background: selectedStars >= star ? 'rgba(251, 191, 36, 0.8)' : 'rgba(70, 130, 180, 0.2)',
-                          border: selectedStars >= star ? '1px solid #fbbf24' : '1px solid rgba(70, 130, 180, 0.3)',
-                          color: selectedStars >= star ? '#fbbf24' : '#93c5fd',
-                          padding: '8px 12px',
-                          borderRadius: '6px',
-                          fontSize: '16px',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s',
-                          fontWeight: '600',
-                        }}
-                      >
-                        ★
-                      </button>
-                    ))}
-                  </div>
-                  <p style={{
-                    margin: '8px 0 0 0',
-                    fontSize: '12px',
-                    color: '#cbd5e1',
-                    textAlign: 'center',
-                  }}>
-                    현재: {selectedStars}점
-                  </p>
-                </div>
               </div>
 
               {/* 버튼 영역 */}
@@ -3215,63 +3207,78 @@ const PublishWorkflow = () => {
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '8px',
-                padding: '12px 16px 16px',
+                padding: '16px 24px 24px',
               }}>
                 <button
                   onClick={handleCompleteReviewOnly}
-                  disabled={isUpdatingTask || selectedStars === 0}
+                  disabled={isUpdatingTask}
                   style={{
-                    padding: '10px 16px',
+                    padding: '12px 16px',
                     fontSize: '13px',
                     fontWeight: '600',
-                    background: isUpdatingTask || selectedStars === 0 ? 'rgba(70, 130, 180, 0.3)' : 'rgba(99, 102, 241, 0.8)',
-                    color: isUpdatingTask || selectedStars === 0 ? '#6b7280' : '#e0e7ff',
-                    border: '1px solid rgba(99, 102, 241, 0.4)',
+                    background: isUpdatingTask ? '#f3f4f6' : '#6366f1',
+                    color: isUpdatingTask ? '#d1d5db' : '#ffffff',
+                    border: '1px solid ' + (isUpdatingTask ? '#e5e7eb' : '#6366f1'),
                     borderRadius: '8px',
-                    cursor: isUpdatingTask || selectedStars === 0 ? 'not-allowed' : 'pointer',
-                    opacity: isUpdatingTask || selectedStars === 0 ? 0.6 : 1,
+                    cursor: isUpdatingTask ? 'not-allowed' : 'pointer',
                     transition: 'all 0.2s',
                   }}
+                  onMouseEnter={(e) => {
+                    if (!isUpdatingTask) e.target.style.background = '#4f46e5';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isUpdatingTask) e.target.style.background = '#6366f1';
+                  }}
                 >
-                  {isUpdatingTask ? '업데이트 중...' : '📝 리뷰완료'}
+                  {isUpdatingTask ? '처리 중...' : '리뷰만 완료'}
                 </button>
 
                 <button
                   onClick={handleCompleteReviewAndImage}
-                  disabled={isUpdatingTask || selectedStars === 0}
+                  disabled={isUpdatingTask}
                   style={{
-                    padding: '10px 16px',
+                    padding: '12px 16px',
                     fontSize: '13px',
                     fontWeight: '600',
-                    background: isUpdatingTask || selectedStars === 0 ? 'rgba(34, 197, 94, 0.3)' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                    color: isUpdatingTask || selectedStars === 0 ? '#6b7280' : '#ecfdf5',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    background: isUpdatingTask ? '#f3f4f6' : '#10b981',
+                    color: isUpdatingTask ? '#d1d5db' : '#ffffff',
+                    border: '1px solid ' + (isUpdatingTask ? '#e5e7eb' : '#10b981'),
                     borderRadius: '8px',
-                    cursor: isUpdatingTask || selectedStars === 0 ? 'not-allowed' : 'pointer',
-                    opacity: isUpdatingTask || selectedStars === 0 ? 0.6 : 1,
+                    cursor: isUpdatingTask ? 'not-allowed' : 'pointer',
                     transition: 'all 0.2s',
                   }}
+                  onMouseEnter={(e) => {
+                    if (!isUpdatingTask) e.target.style.background = '#059669';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isUpdatingTask) e.target.style.background = '#10b981';
+                  }}
                 >
-                  {isUpdatingTask ? '업데이트 중...' : '🖼️ 리뷰+이미지완료'}
+                  {isUpdatingTask ? '처리 중...' : '리뷰 + 이미지 완료'}
                 </button>
 
                 <button
                   onClick={closeTaskCompletionModal}
                   disabled={isUpdatingTask}
                   style={{
-                    padding: '10px 16px',
+                    padding: '12px 16px',
                     fontSize: '13px',
                     fontWeight: '600',
-                    background: 'rgba(70, 130, 180, 0.2)',
-                    color: '#93c5fd',
-                    border: '1px solid rgba(70, 130, 180, 0.3)',
+                    background: '#f3f4f6',
+                    color: isUpdatingTask ? '#d1d5db' : '#6b7280',
+                    border: '1px solid #e5e7eb',
                     borderRadius: '8px',
                     cursor: isUpdatingTask ? 'not-allowed' : 'pointer',
-                    opacity: isUpdatingTask ? 0.6 : 1,
                     transition: 'all 0.2s',
                   }}
+                  onMouseEnter={(e) => {
+                    if (!isUpdatingTask) e.target.style.background = '#e5e7eb';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isUpdatingTask) e.target.style.background = '#f3f4f6';
+                  }}
                 >
-                  취소
+                  닫기
                 </button>
               </div>
             </div>
@@ -3404,70 +3411,6 @@ const PublishWorkflow = () => {
         </>
       )}
 
-      {/* 완료 모달 */}
-      <CompletionModal
-        isOpen={!!completionModalTask}
-        task={completionModalTask}
-        storeName={completionModalStore?.store_name}
-        onReviewOnly={async () => {
-          if (!completionModalTask) return;
-          console.log('📝 리뷰만 완료 - 상태 업데이트:', completionModalTask.id);
-          try {
-            await mapApi.updateTaskStatus(
-              completionModalTask.id,
-              { reviewStatus: 'in_progress', imageStatus: 'pending' },
-              'PUT',
-              token
-            );
-            setCompletionModalTask(null);
-            if (window.toastInstance) {
-              window.toastInstance.add({
-                type: 'success',
-                message: '✅ 리뷰 상태가 승인중으로 설정되었습니다.',
-                duration: 3000
-              });
-            }
-          } catch (error) {
-            console.error('❌ 상태 업데이트 실패:', error);
-            if (window.toastInstance) {
-              window.toastInstance.add({
-                type: 'error',
-                message: '❌ 처리에 실패했습니다.',
-                duration: 3000
-              });
-            }
-          }
-        }}
-        onReviewWithImage={async () => {
-          if (!completionModalTask) return;
-          console.log('📸 리뷰+이미지 완료 - 상태 업데이트:', completionModalTask.id);
-          try {
-            await mapApi.updateTaskStatus(
-              completionModalTask.id,
-              { reviewStatus: 'in_progress', imageStatus: 'in_progress' },
-              'PUT',
-              token
-            );
-            setCompletionModalTask(null);
-            if (window.toastInstance) {
-              window.toastInstance.add({
-                type: 'success',
-                message: '✅ 리뷰와 이미지 상태가 승인중으로 설정되었습니다.',
-                duration: 3000
-              });
-            }
-          } catch (error) {
-            console.error('❌ 상태 업데이트 실패:', error);
-            if (window.toastInstance) {
-              window.toastInstance.add({
-                type: 'error',
-                message: '❌ 처리에 실패했습니다.',
-                duration: 3000
-              });
-            }
-          }
-        }}
-      />
     </>
     );
   };
