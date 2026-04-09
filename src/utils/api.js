@@ -183,3 +183,10 @@ export const accountApi = {
   delete: (id, token) =>
     apiCall('DELETE', `/accounts/${id}`, null, token),
 };
+
+// Admin 설정 API
+export const settingsApi = {
+  getSettings: (token) => apiCall('GET', '/settings', null, token),
+  updateSettings: (settings, token) =>
+    apiCall('PUT', '/settings', settings, token),
+};

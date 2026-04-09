@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { storeApi, taskApi, mapApi } from '../utils/api';
+import { storeApi, taskApi, mapApi, accountApi, settingsApi } from '../utils/api';
 import { subscribeToTable } from '../utils/realtimeApi';
 import { FiPlus } from 'react-icons/fi';
 import * as XLSX from 'xlsx';
@@ -36,6 +36,11 @@ const PublishWorkflow = () => {
   const [isContinueLoading, setIsContinueLoading] = useState(false); // 계속 진행 대기
   const [completionModalTask, setCompletionModalTask] = useState(null); // 완료 모달용 task
   const [completionModalStore, setCompletionModalStore] = useState(null); // 완료 모달용 store
+
+  // Admin 설정 상태
+  const [adminSettings, setAdminSettings] = useState(null);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(false);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   // 폼 데이터
   const [storeForm, setStoreForm] = useState({
@@ -392,6 +397,16 @@ const PublishWorkflow = () => {
       setStores(storesData || []);
       setTasks(tasksData || []);
       
+      // Admin인 경우 설정 로드
+      if (isAdmin) {
+        try {
+          const settingsData = await settingsApi.getSettings(token);
+          setAdminSettings(settingsData);
+        } catch (err) {
+          console.error('❌ 설정 로드 실패:', err);
+        }
+      }
+      
       // 초기 로드 완료 표시
       if (isInitialLoad.current) {
         isInitialLoad.current = false;
@@ -403,7 +418,7 @@ const PublishWorkflow = () => {
         setLoading(false);
       }
     }
-  }, [token]);
+  }, [token, isAdmin]);
 
   useEffect(() => {
     loadData();
@@ -1175,6 +1190,18 @@ const PublishWorkflow = () => {
               {tab === 'task' && '📋 작업'}
             </button>
           ))}
+          {isAdmin && (
+            <button
+              key="settings"
+              onClick={() => setActiveTab('settings')}
+              style={{
+                ...styles.tab,
+                ...(activeTab === 'settings' ? styles.activeTab : {}),
+              }}
+            >
+              ⚙️ 설정
+            </button>
+          )}
         </div>
 
         {/* 탭 컨텐츠 */}
@@ -2279,6 +2306,125 @@ const PublishWorkflow = () => {
                     </div>
                   );
                 })()}
+              </div>
+            )}
+
+            {/* 설정 탭 - Admin만 */}
+            {isAdmin && activeTab === 'settings' && (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '20px',
+              }}>
+                {/* 설정 카드 */}
+                <div style={{
+                  background: 'rgba(20, 40, 70, 0.35)',
+                  borderRadius: '12px',
+                  overflow: 'hidden',
+                  border: '1px solid rgba(70, 130, 180, 0.2)',
+                  padding: '20px',
+                }}>
+                  <h2 style={{ margin: '0 0 20px 0', fontSize: '18px', fontWeight: '700', color: '#e8eef5' }}>
+                    ⚙️ 권한 설정
+                  </h2>
+
+                  {/* Agency 계정생성 권한 토글 */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '16px',
+                    background: 'rgba(30, 50, 80, 0.4)',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(70, 130, 180, 0.2)',
+                  }}>
+                    <div>
+                      <h3 style={{ margin: '0 0 6px 0', fontSize: '14px', fontWeight: '600', color: '#e8eef5' }}>
+                        Agency 계정생성 가능
+                      </h3>
+                      <p style={{ margin: 0, fontSize: '12px', color: '#a0aec0' }}>
+                        Agency 권한이 새 계정을 생성할 수 있도록 허용합니다.
+                      </p>
+                      {isSavingSettings && (
+                        <p style={{ margin: '8px 0 0 0', fontSize: '11px', color: '#60a5fa' }}>
+                          💾 저장 중...
+                        </p>
+                      )}
+                    </div>
+                    
+                    {/* 토글 스위치 버튼 */}
+                    <button
+                      onClick={async () => {
+                        const newValue = !adminSettings?.allow_agency_create_account;
+                        
+                        // 즉시 UI 업데이트
+                        setAdminSettings(prev => ({
+                          ...prev,
+                          allow_agency_create_account: newValue
+                        }));
+
+                        // API 호출 시작
+                        setIsSavingSettings(true);
+                        try {
+                          const settingsPayload = {
+                            allow_agency_create_account: newValue
+                          };
+                          console.log('📤 설정 업데이트:', settingsPayload);
+
+                          const response = await settingsApi.updateSettings(settingsPayload, token);
+                          console.log('✅ 설정 저장 완료:', response);
+
+                          // 응답받은 설정값으로 상태 업데이트
+                          if (response.settings) {
+                            setAdminSettings(response.settings);
+                            console.log('📝 상태 동기화:', response.settings);
+                          }
+
+                          setSuccessMessage('✅ 설정이 저장되었습니다.');
+                          setTimeout(() => setSuccessMessage(''), 3000);
+                        } catch (err) {
+                          console.error('❌ 설정 저장 오류:', err);
+                          setError('❌ 설정 저장 실패: ' + err.message);
+                          setTimeout(() => setError(''), 5000);
+                          
+                          // 실패 시 이전 값으로 되돌리기
+                          setAdminSettings(prev => ({
+                            ...prev,
+                            allow_agency_create_account: !newValue
+                          }));
+                        } finally {
+                          setIsSavingSettings(false);
+                        }
+                      }}
+                      disabled={isSavingSettings}
+                      style={{
+                        width: '50px',
+                        height: '28px',
+                        borderRadius: '14px',
+                        border: 'none',
+                        background: adminSettings?.allow_agency_create_account ? '#10b981' : '#6b7280',
+                        cursor: isSavingSettings ? 'not-allowed' : 'pointer',
+                        position: 'relative',
+                        transition: 'background 0.3s',
+                        padding: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'flex-start',
+                        opacity: isSavingSettings ? 0.6 : 1,
+                      }}
+                    >
+                      <div style={{
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '50%',
+                        background: '#fff',
+                        position: 'absolute',
+                        transition: 'left 0.3s',
+                        left: adminSettings?.allow_agency_create_account ? '24px' : '2px',
+                      }} />
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </>
