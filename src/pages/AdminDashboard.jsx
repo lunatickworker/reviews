@@ -11,6 +11,7 @@ import SimpleDeploy from '../components/SimpleDeploy';
 import ReviewAnalytics from '../components/ReviewAnalytics';
 import DashboardStats from '../components/DashboardStats';
 import AccountManagement from '../components/AccountManagement';
+import Manual from '../components/Manual';
 
 const COMPONENT_MAP = {
   DashboardStats,
@@ -20,6 +21,7 @@ const COMPONENT_MAP = {
   SimpleDeploy,
   UserManagement,
   AccountManagement,
+  Manual,
 };
 
 export default function AdminDashboard() {

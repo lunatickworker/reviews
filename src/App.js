@@ -10,6 +10,7 @@ import PublishWorkflow from './components/PublishWorkflow';
 import ReviewAnalytics from './components/ReviewAnalytics';
 import UserManagement from './components/UserManagement';
 import AccountManagement from './components/AccountManagement';
+import Manual from './components/Manual';
 
 /**
  * 메인 App 컴포넌트
@@ -155,6 +156,8 @@ function AppContent() {
         return (isAdmin || isAgency) ? <UserManagement /> : <MainDashboard />;
       case 'accounts':
         return isAdmin ? <AccountManagement /> : <MainDashboard />;
+      case 'manual':
+        return <Manual />;
       default:
         return <MainDashboard />;
     }

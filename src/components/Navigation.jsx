@@ -7,6 +7,7 @@ import {
   FiTruck,
   FiUsers,
   FiLogOut,
+  FiBook,
 } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 
@@ -53,6 +54,13 @@ const Navigation = ({ currentPage, onNavigate }) => {
       icon: FiUsers,
       roles: ['admin'],
       description: 'Google 계정 관리',
+    },
+    {
+      id: 'manual',
+      label: '사용법',
+      icon: FiBook,
+      roles: ['admin', 'agency', 'user'],
+      description: '시스템 매뉴얼 보기',
     },
   ];
 

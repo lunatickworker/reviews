@@ -15,6 +15,7 @@ export const MENU_CONFIG = {
     { id: 'deploy', label: '🚀 배포', component: 'SimpleDeploy' },
     { id: 'users', label: '👥 계정 관리', component: 'UserManagement' },
     { id: 'accounts', label: '🔐 Google 계정', component: 'AccountManagement' },
+    { id: 'manual', label: '📚 사용법', component: 'Manual' },
   ],
   agency: [
     { id: 'dashboard', label: '📊 대시보드', component: 'DashboardStats' },
@@ -22,6 +23,7 @@ export const MENU_CONFIG = {
     { id: 'tasks', label: '📋 작업 관리', component: 'TaskManagement' },
     { id: 'reviews', label: '📖 리뷰', component: 'ReviewAnalytics' },
     { id: 'users', label: '👥 계정 관리', component: 'UserManagement' },
+    { id: 'manual', label: '📚 사용법', component: 'Manual' },
   ],
 };
 
