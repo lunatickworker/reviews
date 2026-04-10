@@ -174,7 +174,7 @@ const Manual = () => {
     <div style={styles.container}>
       <div style={styles.header}>
         <h1 style={styles.title}>Google Reviews 관리 시스템 사용법</h1>
-        <p style={styles.subtitle}>사용자와 관리자 역할별 상세 설명서</p>
+        <p style={styles.subtitle}>사용자 상세 설명서</p>
       </div>
 
       {/* 목차 */}
