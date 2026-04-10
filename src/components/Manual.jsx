@@ -173,7 +173,7 @@ const Manual = () => {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <h1 style={styles.title}>Google Maps 자동화 관리 시스템 최종 매뉴얼</h1>
+        <h1 style={styles.title}>Google Reviews 관리 시스템 사용법</h1>
         <p style={styles.subtitle}>사용자와 관리자 역할별 상세 설명서</p>
       </div>
 
