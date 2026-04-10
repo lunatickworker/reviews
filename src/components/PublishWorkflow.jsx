@@ -2017,7 +2017,7 @@ const PublishWorkflow = () => {
                             {isAdmin && (
                               <td style={styles.td}>
                                 <span style={{ fontSize: '12px', color: '#a0aec0', fontWeight: '500' }}>
-                                  {task.store?.user?.user_id || task.store?.user_id || '-'}
+                                  {task.store?.owner?.user_id || '-'}
                                 </span>
                               </td>
                             )}
