@@ -2462,7 +2462,6 @@ const PublishWorkflow = () => {
               zIndex: 1000,
               overflow: 'auto',
             }}
-            onClick={() => closeAddStoreModal()}
           >
             <div
               style={{
@@ -2560,23 +2559,14 @@ const PublishWorkflow = () => {
                         setError('');
                         const guidance = storeForm.reviewMessage || '좋은 매장입니다';
                         console.log('🤖 AI 리뷰 생성 요청:', guidance);
-                        
-                        // 타임아웃 설정 (300초)
-                        const timeoutPromise = new Promise((_, reject) =>
-                          setTimeout(() => reject(new Error('요청 타임아웃: AI 생성이 너무 오래 걸립니다.')), 300000)
-                        );
 
                         // 단일 리뷰 생성 엔드포인트 호출
-                        const response = await Promise.race([
-                          storeApi.generateReview(guidance, token),
-                          timeoutPromise,
-                        ]);
-                        
+                        const response = await storeApi.generateReview(guidance, token);
+
                         console.log('📦 AI 응답:', response);
                         console.log('📦 응답 타입:', typeof response);
                         console.log('📦 응답 keys:', Object.keys(response || {}));
-                        
-                        // single endpoint returns { review: '...' }
+
                         let reviewText = '';
                         if (response && response.review) {
                           reviewText = response.review;
