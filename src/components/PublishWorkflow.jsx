@@ -2560,8 +2560,16 @@ const PublishWorkflow = () => {
                         const guidance = storeForm.reviewMessage || '좋은 매장입니다';
                         console.log('🤖 AI 리뷰 생성 요청:', guidance);
 
+                        // 타임아웃 설정 (600초 = 10분)
+                        const timeoutPromise = new Promise((_, reject) =>
+                          setTimeout(() => reject(new Error('요청 타임아웃: AI 생성이 너무 오래 걸립니다. (10분 초과)')), 600000)
+                        );
+
                         // 단일 리뷰 생성 엔드포인트 호출
-                        const response = await storeApi.generateReview(guidance, token);
+                        const response = await Promise.race([
+                          storeApi.generateReview(guidance, token),
+                          timeoutPromise,
+                        ]);
 
                         console.log('📦 AI 응답:', response);
                         console.log('📦 응답 타입:', typeof response);
