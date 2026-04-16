@@ -526,6 +526,10 @@ const PublishWorkflow = () => {
 
   const handleAddStore = async () => {
     try {
+      console.log('🔧 == handleAddStore 실행 ==');
+      console.log('📝 storeForm:', storeForm);
+      console.log('editingStoreId:', editingStoreId);
+      
       if (!storeForm.storeName.trim()) {
         setError('매장명을 입력하세요.');
         return;
@@ -534,16 +538,14 @@ const PublishWorkflow = () => {
         setError('매장 주소(Google Maps URL)를 입력하세요.');
         return;
       }
-      if (!storeForm.draftReviews.trim()) {
-        setError('원고를 작성해주세요.');
-        return;
-      }
 
       // 이미지 URL 입력 방식 제거: 이미지 업로드는 파일 업로드로 처리
       const imageUrls = [];
 
       if (editingStoreId) {
         // 편집 모드
+        console.log('✏️ 편집 모드: ID =', editingStoreId);
+        const draftReviewsValue = (storeForm.draftReviews || '').trim();
         await storeApi.update(
           editingStoreId,
           storeForm.storeName.trim(),
@@ -553,8 +555,9 @@ const PublishWorkflow = () => {
           parseInt(storeForm.dailyFrequency) || 1,
           parseInt(storeForm.totalCount) || 1,
           token,
-          storeForm.draftReviews.trim()
+          draftReviewsValue
         );
+        console.log('✏️ 편집 완료');
         // 이미지가 선택되어 있으면, 편집된 매장 ID로 업로드
         if (selectedImages && selectedImages.length > 0) {
           try {
@@ -569,6 +572,16 @@ const PublishWorkflow = () => {
         setEditingStoreId(null);
       } else {
         // 추가 모드
+        console.log('✨ 추가 모드 START');
+        const draftReviewsValue = (storeForm.draftReviews || '').trim();
+        console.log('API 호출 параметры:', {
+          storeName: storeForm.storeName.trim(),
+          address: storeForm.address.trim(),
+          reviewMessage: storeForm.reviewMessage.trim(),
+          dailyFrequency: parseInt(storeForm.dailyFrequency) || 1,
+          totalCount: parseInt(storeForm.totalCount) || 1,
+          draftReviews: draftReviewsValue,
+        });
         const result = await storeApi.create(
           storeForm.storeName.trim(),
           storeForm.address.trim(),
@@ -577,9 +590,11 @@ const PublishWorkflow = () => {
           parseInt(storeForm.dailyFrequency) || 1,
           parseInt(storeForm.totalCount) || 1,
           token,
-          storeForm.draftReviews.trim()
+          draftReviewsValue
         );
 
+        console.log('✨ 매장 생성 응답:', result);
+        
         // 이미지가 선택되어 있으면, 생성된 매장 ID로 서버에 업로드
         if (selectedImages && selectedImages.length > 0) {
           try {
@@ -607,6 +622,9 @@ const PublishWorkflow = () => {
       await loadData();
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
+      console.error('❌ handleAddStore 에러 전체:', err);
+      console.error('❌ 에러 메시지:', err.message);
+      console.error('❌ 에러 스택:', err.stack);
       setError(err.message || '매장 등록 실패');
     }
   };
